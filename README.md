@@ -75,6 +75,39 @@ angefasst. Abgedeckt sind unter anderem:
 CP1252; ein UTF-8-Geviertstrich wird dabei unter anderem zu `”`, und das gilt
 als String-Begrenzer. Der Parser verrutscht dann still ab dieser Stelle.
 
+## Der Katalog — Stand und Vorbehalte
+
+Vier Rezepte mit **echten, selbst gebildeten SHA-256-Prüfsummen**. Keines davon
+wurde bisher ausgeführt; `plan` läuft sauber durch, `apply` ist ungetestet.
+
+| Rezept | Quelle | Größe |
+|---|---|---|
+| `downgrade-ce-1070` | GitHub-Release des Gillian-Guide-Projekts | 111 MB |
+| `ultimate-asi-loader` | ThirteenAG, GitHub-Release | 928 KB |
+| `gfwl-stub` | FusionFix Legacy Addon, GitHub-Release | 4,0 MB |
+| `scripthook-dotnet` | ClonkAndre, GitHub-Release | 647 KB |
+
+**Warum nicht der übliche Downgrader.** Der verbreitete GTAIVDowngrader (v2.2,
+Januar 2025) holt seine Spielpakete aus einer Dropbox. Diese Links liefern
+inzwischen nur noch eine „File Deleted"-Seite — für `1040.zip`, `1070.zip` und
+`1080.zip` gleichermaßen, in beiden Zweigen seines Manifests. Der übliche Weg ist
+damit derzeit kaputt. Gillians Downgrader nutzt stattdessen GitHub-Releases, und
+von dort stammt unser Paket.
+
+Nebenbei ein Beleg, dass die Größenprüfung aus M2 ihren Zweck erfüllt: die
+Dropbox-Antwort war 185 KB statt 85,7 MB und wäre abgewiesen worden, bevor
+irgendetwas das Spielverzeichnis erreicht.
+
+**Zwei offene Punkte am Downgrade-Rezept:**
+
+- Es entpackt 187 Dateien über die Installation. Die Complete Edition bringt aber
+  Dateien mit, die es in 1.0.7.0 nicht gab — `MTLX.dll`, `index.bin`,
+  `title.rgl` — und die bleiben so liegen. Ob das stört, ist ungeprüft.
+- Die `GTAIV.exe` dieser Installation (MD5 `1a47b45f…`) steht in **keiner** der
+  bekannten Hash-Listen für 1.2.0.59. Die Dateien stammen vom August 2026, die
+  Datenbasis der Community von Januar 2025. Es gibt also offenbar neuere
+  CE-Builds, die noch niemand erfasst hat.
+
 ## Katalogsignatur
 
 Der Katalog bestimmt, welche Dateien ins Spielverzeichnis geschrieben werden.

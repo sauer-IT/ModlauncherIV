@@ -1,0 +1,27 @@
+{
+  "id": "downgrade-ce-1070",
+  "name": "Downgrade der Complete Edition auf 1.0.7.0",
+  "version": "1.0.0",
+  "game": "GtaIV",
+  "description": "ENTWURF, NOCH NIE AUSGEFUEHRT. Ersetzt die Spieldateien der Complete Edition durch den Stand 1.0.7.0. Radiosongs, die Rockstar aus der Complete Edition entfernt hat, kommen dadurch NICHT zurueck. Offen ist, ob das Entpacken allein genuegt: die Complete Edition bringt Dateien mit, die es in 1.0.7.0 nicht gab (MTLX.dll, index.bin, title.rgl), und die bleiben so liegen.",
+
+  "appliesToVersions": [ "1.2.0.59", "1.2.0.43", "1.2.0.32", "1.2.0.30" ],
+  "producesVersion": "1.0.7.0",
+
+  "sources": [
+    {
+      "id": "assets-1070",
+      "fileName": "1070FullFiles.zip",
+      "sha256": "7f5de0e14ed3409757b3c7bc88523194d0f1545b6c0e7025ab762ce761941b2a",
+      "sizeBytes": 111365102,
+      "urls": [
+        "https://github.com/gillian-guide/GTAIVFullDowngradeAssets/releases/download/Base/1070FullFiles.zip"
+      ],
+      "note": "Vollstaendige Spieldateien 1.0.7.0, 232 Dateien. Gehostet als GitHub-Release des Gillian-Guide-Projekts. Die Pakete des ClonkAndre-Downgraders lagen in einer Dropbox und sind dort nicht mehr abrufbar."
+    }
+  ],
+
+  "steps": [
+    { "type": "extractArchive", "archive": "1070FullFiles.zip", "target": "" }
+  ]
+}

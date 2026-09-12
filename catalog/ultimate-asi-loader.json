@@ -1,0 +1,27 @@
+{
+  "id": "ultimate-asi-loader",
+  "name": "Ultimate ASI Loader",
+  "version": "9.7.4",
+  "game": "GtaIV",
+  "description": "Laedt ASI-Plugins beim Spielstart. Grundlage fuer Trainer und die meisten Mods. Installiert dinput8.dll.",
+
+  "appliesToVersions": [ "1.0.7.0", "1.0.8.0", "1.0.4.0" ],
+
+  "sources": [
+    {
+      "id": "ual",
+      "fileName": "Ultimate-ASI-Loader-NoPDB.zip",
+      "sha256": "14b3a1ad018899571ac9aa01482977f3c6d49e6cba99f552d01c5acacd1315e1",
+      "sizeBytes": 928310,
+      "urls": [
+        "https://github.com/ThirteenAG/Ultimate-ASI-Loader/releases/download/v9.7.4/Ultimate-ASI-Loader-NoPDB.zip"
+      ],
+      "note": "x86-Fassung ohne Debugsymbole. GTA IV ist 32-bit, die x64-Variante waere falsch."
+    }
+  ],
+
+  "steps": [
+    { "type": "extractArchive", "archive": "Ultimate-ASI-Loader-NoPDB.zip", "target": "" },
+    { "type": "ensureDirectory", "target": "plugins" }
+  ]
+}
