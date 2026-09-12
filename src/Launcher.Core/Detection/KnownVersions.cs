@@ -73,6 +73,16 @@ public static class KnownVersions
         return GameVersionInfo.Unrecognised(normalised);
     }
 
+    /// <summary>
+    /// Bringt eine Versionsangabe auf die kanonische Schreibweise.
+    ///
+    /// Notwendig, weil FileVersionInfo je nach Binary "1.0.7.0" oder "1, 0, 7, 0"
+    /// liefert. Wer beide Formen unbesehen vergleicht, meldet einen Unterschied,
+    /// wo keiner ist — und entwertet damit genau die Warnung, auf die man sich
+    /// beim Zurueckpatchen durch den Store verlassen muss.
+    /// </summary>
+    public static string Normalise(string? raw) => Resolve(raw).Raw;
+
     /// <summary>Alle Versionen, auf die heruntergestuft werden kann.</summary>
     public static IReadOnlyList<GameVersionInfo> ModdingTargets =>
         All.Where(v => v.IsModdingTarget).ToArray();

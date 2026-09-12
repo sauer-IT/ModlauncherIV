@@ -470,9 +470,14 @@ public sealed class TransactionRunner(SnapshotStore snapshots, LedgerStore ledge
         try
         {
             var exe = Path.Combine(gameRoot, Detection.InstallInspector.ExecutableName);
-            return File.Exists(exe)
-                ? FileVersionInfo.GetVersionInfo(exe).FileVersion
-                : null;
+            if (!File.Exists(exe))
+            {
+                return null;
+            }
+
+            // Kanonisch ablegen: die Rohform schwankt je nach Binary zwischen
+            // "1.0.7.0" und "1, 0, 7, 0".
+            return Detection.KnownVersions.Normalise(FileVersionInfo.GetVersionInfo(exe).FileVersion);
         }
         catch (Exception e) when (e is IOException or UnauthorizedAccessException)
         {

@@ -320,6 +320,18 @@ Assert ($r.Output -match "test-down-ce-108") "route: erster Schritt ist die CE-K
 Assert ($r.Output -match "test-down-108-107") "route: zweiter Schritt ist die 1.0.8.0-Kante"
 Assert ($r.Output -match "2 Rezept") "route: zwei Schritte"
 
+# Regression: FileVersionInfo liefert je nach Binary "1.0.7.0" oder "1, 0, 7, 0".
+# Wurden beide Formen unbesehen verglichen, meldete verify einen Rueckpatch, wo
+# keiner war - und entwertete damit genau die Warnung, um die es geht.
+$r = Invoke-Mliv @("route", "--path", $game, "--catalog", $catalog, "--allow-unsigned",
+                   "--assume-version", "1, 2, 0, 59")
+Assert ($r.Output -match "1\.0\.7\.0") "normalisierung: Kommaform wird als 1.2.0.59 erkannt"
+
+$r = Invoke-Mliv @("route", "1.0.7.0", "--path", $game, "--catalog", $catalog, "--allow-unsigned",
+                   "--assume-version", "1, 0, 7, 0")
+Assert ($r.ExitCode -eq 0) "normalisierung: Kommaform des Ziels wird erkannt"
+Assert ($r.Output -match "bereits auf") "normalisierung: kein Weg noetig, Version stimmt schon"
+
 $r = Invoke-Mliv (@("route", "9.9.9.9") + $routeArgs)
 Assert ($r.ExitCode -eq 1) "route: unerreichbare Version meldet Fehlschlag"
 Assert ($r.Output -match "Kein Weg") "route: sagt, dass es keinen Weg gibt"

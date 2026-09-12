@@ -30,10 +30,18 @@ public sealed record VerificationResult(
 
     public int MissingCount => Files.Count(f => f.State == OwnedFileState.Missing);
 
+    /// <summary>
+    /// Beide Seiten werden vorher auf die kanonische Schreibweise gebracht:
+    /// "1, 0, 7, 0" und "1.0.7.0" sind dieselbe Version, und ein Fehlalarm hier
+    /// wuerde die Warnung entwerten, um die es eigentlich geht.
+    /// </summary>
     public bool VersionReverted =>
         ExpectedVersion is not null &&
         CurrentVersion is not null &&
-        !string.Equals(ExpectedVersion, CurrentVersion, StringComparison.OrdinalIgnoreCase);
+        !string.Equals(
+            KnownVersions.Normalise(ExpectedVersion),
+            KnownVersions.Normalise(CurrentVersion),
+            StringComparison.OrdinalIgnoreCase);
 
     public bool IsIntact => ModifiedCount == 0 && MissingCount == 0 && !VersionReverted;
 }
