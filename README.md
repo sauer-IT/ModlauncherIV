@@ -98,8 +98,10 @@ and from that point it is somebody else's program writing where it likes. The
 launcher cannot undo that, and says so before starting anything.
 
 Listing it among the mods would have made that list claim something untrue about
-what can be taken back again, so it has its own heading on the home page - *ALSO
-ON THIS PC* - with Install when it is absent and Start when it is there.
+what can be taken back again, so it has its own heading on the home page - *PLAY
+ONLINE* - with Install when it is absent and Start when it is there. The
+heading says what the thing is for rather than what it is, because that is what
+anyone is looking for when they read it.
 
 Both kinds live under `catalog/` and are covered by the same signature: the index
 spans every `.json` below that directory, so a tool cannot be added or its URL
