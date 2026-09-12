@@ -1,3 +1,4 @@
+﻿
 Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio Version 17
 VisualStudioVersion = 17.0.31903.59
@@ -6,22 +7,61 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Launcher.Core", "src\Launch
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Launcher.Cli", "src\Launcher.Cli\Launcher.Cli.csproj", "{2B8D5A6F-1C43-4E62-9F7B-1D3E6C8A2F02}"
 EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "src", "src", "{827E0CD3-B72D-47B6-A68D-7590B98EB39B}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Launcher.App", "src\Launcher.App\Launcher.App.csproj", "{14568B5C-2334-461A-83BE-96CC04CCFA97}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
+		Debug|x64 = Debug|x64
+		Debug|x86 = Debug|x86
 		Release|Any CPU = Release|Any CPU
+		Release|x64 = Release|x64
+		Release|x86 = Release|x86
 	EndGlobalSection
 	GlobalSection(ProjectConfigurationPlatforms) = postSolution
 		{1A7C4F4E-9B32-4D51-8E6A-0C2F5B7D1E01}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
 		{1A7C4F4E-9B32-4D51-8E6A-0C2F5B7D1E01}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{1A7C4F4E-9B32-4D51-8E6A-0C2F5B7D1E01}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{1A7C4F4E-9B32-4D51-8E6A-0C2F5B7D1E01}.Debug|x64.Build.0 = Debug|Any CPU
+		{1A7C4F4E-9B32-4D51-8E6A-0C2F5B7D1E01}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{1A7C4F4E-9B32-4D51-8E6A-0C2F5B7D1E01}.Debug|x86.Build.0 = Debug|Any CPU
 		{1A7C4F4E-9B32-4D51-8E6A-0C2F5B7D1E01}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{1A7C4F4E-9B32-4D51-8E6A-0C2F5B7D1E01}.Release|Any CPU.Build.0 = Release|Any CPU
+		{1A7C4F4E-9B32-4D51-8E6A-0C2F5B7D1E01}.Release|x64.ActiveCfg = Release|Any CPU
+		{1A7C4F4E-9B32-4D51-8E6A-0C2F5B7D1E01}.Release|x64.Build.0 = Release|Any CPU
+		{1A7C4F4E-9B32-4D51-8E6A-0C2F5B7D1E01}.Release|x86.ActiveCfg = Release|Any CPU
+		{1A7C4F4E-9B32-4D51-8E6A-0C2F5B7D1E01}.Release|x86.Build.0 = Release|Any CPU
 		{2B8D5A6F-1C43-4E62-9F7B-1D3E6C8A2F02}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
 		{2B8D5A6F-1C43-4E62-9F7B-1D3E6C8A2F02}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{2B8D5A6F-1C43-4E62-9F7B-1D3E6C8A2F02}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{2B8D5A6F-1C43-4E62-9F7B-1D3E6C8A2F02}.Debug|x64.Build.0 = Debug|Any CPU
+		{2B8D5A6F-1C43-4E62-9F7B-1D3E6C8A2F02}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{2B8D5A6F-1C43-4E62-9F7B-1D3E6C8A2F02}.Debug|x86.Build.0 = Debug|Any CPU
 		{2B8D5A6F-1C43-4E62-9F7B-1D3E6C8A2F02}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{2B8D5A6F-1C43-4E62-9F7B-1D3E6C8A2F02}.Release|Any CPU.Build.0 = Release|Any CPU
+		{2B8D5A6F-1C43-4E62-9F7B-1D3E6C8A2F02}.Release|x64.ActiveCfg = Release|Any CPU
+		{2B8D5A6F-1C43-4E62-9F7B-1D3E6C8A2F02}.Release|x64.Build.0 = Release|Any CPU
+		{2B8D5A6F-1C43-4E62-9F7B-1D3E6C8A2F02}.Release|x86.ActiveCfg = Release|Any CPU
+		{2B8D5A6F-1C43-4E62-9F7B-1D3E6C8A2F02}.Release|x86.Build.0 = Release|Any CPU
+		{14568B5C-2334-461A-83BE-96CC04CCFA97}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{14568B5C-2334-461A-83BE-96CC04CCFA97}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{14568B5C-2334-461A-83BE-96CC04CCFA97}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{14568B5C-2334-461A-83BE-96CC04CCFA97}.Debug|x64.Build.0 = Debug|Any CPU
+		{14568B5C-2334-461A-83BE-96CC04CCFA97}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{14568B5C-2334-461A-83BE-96CC04CCFA97}.Debug|x86.Build.0 = Debug|Any CPU
+		{14568B5C-2334-461A-83BE-96CC04CCFA97}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{14568B5C-2334-461A-83BE-96CC04CCFA97}.Release|Any CPU.Build.0 = Release|Any CPU
+		{14568B5C-2334-461A-83BE-96CC04CCFA97}.Release|x64.ActiveCfg = Release|Any CPU
+		{14568B5C-2334-461A-83BE-96CC04CCFA97}.Release|x64.Build.0 = Release|Any CPU
+		{14568B5C-2334-461A-83BE-96CC04CCFA97}.Release|x86.ActiveCfg = Release|Any CPU
+		{14568B5C-2334-461A-83BE-96CC04CCFA97}.Release|x86.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(NestedProjects) = preSolution
+		{14568B5C-2334-461A-83BE-96CC04CCFA97} = {827E0CD3-B72D-47B6-A68D-7590B98EB39B}
 	EndGlobalSection
 EndGlobal
