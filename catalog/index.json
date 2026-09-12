@@ -1,6 +1,6 @@
 {
   "FormatVersion": 1,
-  "GeneratedAt": "2026-09-12T22:15:26.4133054+02:00",
+  "GeneratedAt": "2026-09-12T22:20:25.8753679+02:00",
   "Entries": [
     {
       "File": "downgrade-ce-1070.json",
@@ -32,7 +32,7 @@
     },
     {
       "File": "mliv-trainer.json",
-      "Sha256": "ea8f63ada756e2668a2748726f363bc40c52af7a75b931eb04eff645fd524e77"
+      "Sha256": "ffff8e90b5fc2dcc4551edbaf7922475bce66bee32797575b336b036f56db2aa"
     },
     {
       "File": "tools/gta-connected.json",
@@ -48,7 +48,7 @@
     },
     {
       "File": "vc80-runtime.json",
-      "Sha256": "cd1ae67d60e7126fa77bac8a92399b07fd101a624a9cdac36a0104e5f16131da"
+      "Sha256": "6557e4e19890c4c084f268eacd9952f739dd73bfec798ac53415deac60cca2fc"
     },
     {
       "File": "xbox-rain-droplets.json",
