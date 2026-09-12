@@ -23,6 +23,12 @@
   Launcher ihn wieder herunterlaedt, waere ein Umweg mit einer zusaetzlichen
   Fehlerquelle - er liegt neben dem Programm und wird von dort uebernommen.
 
+  appliesToVersions nennt nur 1.0.7.0, obwohl der Launcher auch 1.0.8.0 und
+  1.0.4.0 kennt. Der Grund steht in GameVersion.cpp: der Trainer laeuft nur auf
+  1.0.7.0 und weigert sich auf allem anderen zu laden. Stuende hier mehr, wuerde
+  der Assistent ihn auf 1.0.8.0 bereitwillig einbauen, und der Nutzer haette
+  eine Datei im plugins-Ordner, die wortlos nichts tut.
+
 .PARAMETER Key
   Privater Katalogschluessel. Ohne ihn wird gebaut, aber nicht signiert.
 
@@ -85,7 +91,7 @@ $recipe = @"
   "game": "GtaIV",
   "description": "Das Trainer-Menue dieses Projekts. Im Spiel oeffnet F7; bedient wird mit dem Numblock oder den Pfeiltasten. Spieler, Waffen, Fahrzeuge und Welt. Tastenbelegung und Menuelage stehen in ModlauncherIV-Trainer.ini, die beim ersten Start angelegt wird.",
 
-  "appliesToVersions": [ "1.0.7.0", "1.0.8.0", "1.0.4.0" ],
+  "appliesToVersions": [ "1.0.7.0" ],
 
   "requires": [ "ultimate-asi-loader" ],
 
