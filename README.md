@@ -3,7 +3,8 @@
 Ein geführter Downgrader und Mod-Installer für GTA IV — und ein selbstgebauter
 Trainer, den er am Ende ausliefert.
 
-**Stand: M3 abgeschlossen** — Rezept-Engine mit Snapshot, Rollback und Rückbau,
+**Stand: M3 abgeschlossen, Trainer T0 läuft** — Rezept-Engine mit Snapshot,
+Rollback und Rückbau,
 Beschaffung mit Hash-Prüfung und Mirror-Kette, signierter Katalog. Der Downgrade
 ist an einer echten Installation gelaufen: 1.2.0.59 → 1.0.7.0, das Spiel startet.
 Einziger Befehl, der das Spiel verändert, ist `apply` — nach Rückfrage und mit
@@ -16,14 +17,14 @@ vorherigem Snapshot.
 | `src/Launcher.Core` | Domäne und Pipeline. Keine UI-Abhängigkeit, damit gegen Fixtures testbar. |
 | `src/Launcher.Cli` | Headless-Frontend (`mliv`). Dry-Runs, Diagnose, CI. |
 | `src/Launcher.App` | WPF-Wizard. Kommt mit M5. |
-| `src/Trainer` | C++ ASI-Plugin, x86. Kommt ab M4. |
+| `src/Trainer` | C++ ASI-Plugin, x86. Stufe T0 lädt im Spiel. |
 | `catalog/` | Die deklarativen Rezepte. Fünf Stück, vier davon erprobt. |
 | `tests/` | Fixtures und Testskript. |
 
 ## Voraussetzungen
 
 - **.NET 10 SDK** — für Launcher.Core und Launcher.Cli
-- **Visual Studio Build Tools mit C++ (x86)** — erst ab M4 für den Trainer
+- **Visual Studio Build Tools mit C++ (x86)** — für den Trainer
 
 ## Bauen und ausführen
 
@@ -158,9 +159,23 @@ Gearbeitet wird nicht in `DllMain`, sondern in einem eigenen Thread — dort hä
 Windows die Loader-Sperre, und wer mehr tut als das Nötigste riskiert einen
 Deadlock, der sich als „hängt beim Spielstart" äußert.
 
-Das Logfile liegt als `ModlauncherIV-Trainer.log` neben der DLL und wird nach
-jeder Zeile geleert; sonst fehlt nach einem Absturz genau die Zeile, die den
-Grund verraten hätte.
+Das Logfile heißt `ModlauncherIV-Trainer.log` und wird nach jeder Zeile geleert;
+sonst fehlt nach einem Absturz genau die Zeile, die den Grund verraten hätte.
+
+Es wird zuerst neben der DLL angelegt — dort sucht man es. Liegt das Spiel unter
+`Program Files` und läuft ohne erhöhte Rechte, scheitert das aber, und dann
+weicht es nach `%LOCALAPPDATA%\ModlauncherIV\Trainer.log` aus. **Auf dieser
+Installation greift genau der Ausweichpfad.** Ein Trainer ohne Logfile ist bei
+einem Problem so stumm wie einer, der gar nicht geladen hat.
+
+**T0 ist gelaufen.** Das ASI lädt, erkennt 1.0.7.0 und meldet sich:
+
+```
+[13:20:38.978] Modlauncher IV Trainer, Stufe T0
+[13:20:38.980] Geladen aus: ...\Grand Theft Auto IV\plugins\ModlauncherIV-Trainer.asi
+[13:20:38.981] Version:     1.0.7.0 (1.0.7.0)
+[13:20:38.981] Version wird unterstuetzt.
+```
 
 ## Katalogsignatur
 
