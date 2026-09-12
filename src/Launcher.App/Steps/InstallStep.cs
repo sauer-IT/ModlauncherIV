@@ -124,29 +124,23 @@ public sealed class InstallStep(Session session) : WizardStep(session)
         Found.Clear();
         Warnings.Clear();
 
-        // Registry, Dateisystem und Prüfsummen — das dauert spürbar, und der
-        // UI-Thread soll derweil zeichnen können.
-        var (installs, environment, catalog) = await Task.Run(() =>
+        // Die Hülle hat beim Start schon gesucht. Hier noch einmal zu suchen
+        // wäre nicht nur langsam, sondern könnte auch ein anderes Ergebnis
+        // liefern als das, was die Startseite gerade angezeigt hat.
+        if (Session.Found.Count == 0)
         {
-            var found = new InstallLocator().Locate()
-                .Select(c => new InstallInspector().Inspect(c))
-                .ToList();
+            await Detection.FillAsync(Session).ConfigureAwait(true);
+        }
 
-            var env = SystemEnvironmentProbe.Probe();
-            var cat = RecipeCatalog.LoadFrom(AppPaths.CatalogDirectory, CatalogTrust.RequireSignature);
-
-            return (found, env, cat);
-        }).ConfigureAwait(true);
-
-        Session.Environment = environment;
-        Session.Catalog = catalog;
-
-        foreach (var install in installs)
+        foreach (var install in Session.Found)
         {
             Found.Add(new InstallChoice(install));
         }
 
-        foreach (var note in environment.Notes.Where(n => n.Level != NoteLevel.Info))
+        var environment = Session.Environment;
+        var catalog = Session.Catalog;
+
+        foreach (var note in environment?.Notes.Where(n => n.Level != NoteLevel.Info) ?? [])
         {
             Warnings.Add(note.Message);
         }
@@ -154,14 +148,15 @@ public sealed class InstallStep(Session session) : WizardStep(session)
         // Ohne gültige Signatur lädt der Katalog nichts. Das hier zu verschweigen
         // und den Nutzer zwei Seiten später vor einer leeren Auswahl stehen zu
         // lassen, wäre die unfreundlichste Variante.
-        foreach (var problem in catalog.Errors.Concat(catalog.Warnings))
+        foreach (var problem in catalog is null ? [] : catalog.Errors.Concat(catalog.Warnings))
         {
             Warnings.Add(problem);
         }
 
         _searched = true;
 
-        Selected = Found.FirstOrDefault();
+        // Die Auswahl der Startseite übernehmen, falls es eine gibt.
+        Selected = Found.FirstOrDefault(f => f.Install == Session.Install) ?? Found.FirstOrDefault();
         Raise(nameof(NothingFound));
         NotifyChanged();
     }

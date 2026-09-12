@@ -79,5 +79,24 @@ foreach ($file in $files) {
     if ($signer.IsRelease) { $params.TimestampServer = $TimestampUrl }
 
     $result = Set-AuthenticodeSignature @params
-    "{0,-24} {1}" -f $file.Name, $result.Status
+
+    # "UnknownError" heisst bei einem selbstsignierten Zertifikat nicht, dass
+    # das Signieren fehlgeschlagen waere - die Signatur liegt drauf. Es heisst,
+    # dass die Kette bei einem Stamm endet, dem dieser Rechner nicht vertraut,
+    # und das ist bei einem Dev-Zertifikat genau so zu erwarten.
+    #
+    # Das ungefiltert als Fehler auszugeben, hat schon einmal eine Viertelstunde
+    # Fehlersuche gekostet. Also hier unterscheiden.
+    $note = switch ($result.Status) {
+        "Valid"        { "signiert und vertrauenswuerdig" }
+        "UnknownError" { if ($signer.IsRelease) { "FEHLER: $($result.StatusMessage)" }
+                         else { "signiert (Dev-Zertifikat, dem Stamm vertraut niemand - erwartet)" } }
+        default        { "FEHLER: $($result.Status) - $($result.StatusMessage)" }
+    }
+
+    "{0,-24} {1}" -f $file.Name, $note
+
+    if ($note -like "FEHLER*") { $script:failed = $true }
 }
+
+if ($script:failed) { throw "Mindestens eine Datei liess sich nicht signieren." }

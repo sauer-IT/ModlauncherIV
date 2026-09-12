@@ -4,23 +4,23 @@ namespace ModlauncherIV.App;
 
 public partial class MainWindow : Window
 {
-    private readonly WizardViewModel _wizard = new();
+    private readonly ShellViewModel _shell = new();
 
     public MainWindow()
     {
         InitializeComponent();
 
-        DataContext = _wizard;
+        DataContext = _shell;
 
-        _wizard.Failed += (_, e) => MessageBox.Show(
+        _shell.Failed += (_, e) => MessageBox.Show(
             this,
             e.Message,
             "Der Schritt ist fehlgeschlagen",
             MessageBoxButton.OK,
             MessageBoxImage.Warning);
 
-        // Der erste Schritt sucht die Installation - das darf erst laufen, wenn
-        // das Fenster steht, sonst sieht der Nutzer sekundenlang nichts.
-        Loaded += async (_, _) => await _wizard.StartAsync().ConfigureAwait(true);
+        // Die Erkennung darf erst laufen, wenn das Fenster steht - sonst sieht
+        // der Nutzer sekundenlang nichts.
+        Loaded += async (_, _) => await _shell.StartAsync().ConfigureAwait(true);
     }
 }

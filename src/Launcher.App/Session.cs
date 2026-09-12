@@ -16,6 +16,9 @@ public sealed class Session
 {
     public GameInstall? Install { get; set; }
 
+    /// <summary>Alles, was die Erkennung beim Start gefunden hat.</summary>
+    public IReadOnlyList<GameInstall> Found { get; set; } = [];
+
     public SystemEnvironment? Environment { get; set; }
 
     public CatalogLoadResult? Catalog { get; set; }

@@ -9,10 +9,8 @@ public sealed class WizardViewModel : Observable
     private int _index;
     private bool _busy;
 
-    public WizardViewModel()
+    public WizardViewModel(Session session)
     {
-        var session = new Session();
-
         _steps =
         [
             new WelcomeStep(session),
@@ -38,6 +36,11 @@ public sealed class WizardViewModel : Observable
 
     /// <summary>Eine Ausnahme, die beim Weiterschalten hochkam. Das Fenster zeigt sie.</summary>
     public event EventHandler<Exception>? Failed;
+
+    /// <summary>Der Nutzer ist am Ende angekommen und will zurück zur Startseite.</summary>
+    public event EventHandler? Finished;
+
+    public void Finish() => Finished?.Invoke(this, EventArgs.Empty);
 
     public AsyncRelayCommand NextCommand { get; }
 
@@ -73,8 +76,12 @@ public sealed class WizardViewModel : Observable
 
     private async Task NextAsync()
     {
+        // Auf der letzten Seite fuehrt "Weiter" aus dem Assistenten heraus,
+        // statt nichts zu tun. Ein grauer Knopf am Ende laesst den Nutzer
+        // ratlos zurueck, wo er doch gerade fertig geworden ist.
         if (_index >= _steps.Count - 1)
         {
+            Finish();
             return;
         }
 

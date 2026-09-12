@@ -16,7 +16,9 @@ public sealed class DoneStep(Session session) : WizardStep(session)
 
     public override string Lead => string.Empty;
 
-    public override bool CanGoNext => false;
+    public override string NextLabel => "Zur Startseite";
+
+    public override bool CanGoNext => true;
 
     public override bool CanGoBack => false;
 

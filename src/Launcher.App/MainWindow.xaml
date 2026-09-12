@@ -7,74 +7,8 @@
         WindowStartupLocation="CenterScreen"
         Background="{StaticResource Back}">
 
-    <Grid>
-        <Grid.ColumnDefinitions>
-            <ColumnDefinition Width="210" />
-            <ColumnDefinition Width="*" />
-        </Grid.ColumnDefinitions>
+    <!-- Die Huelle zeigt entweder die Startseite oder den Assistenten. Welche
+         Ansicht zu welchem Modell gehoert, entscheidet WPF ueber den Typ. -->
+    <ContentControl Content="{Binding Current}" />
 
-        <!-- Links die Schrittliste. Sie sagt nicht nur, wo man ist, sondern auch,
-             wie viel noch kommt - das nimmt einem Assistenten das Endlose. -->
-        <Border Grid.Column="0" Background="{StaticResource Panel}" BorderBrush="{StaticResource Line}" BorderThickness="0,0,1,0">
-            <StackPanel Margin="0,26,0,0">
-                <TextBlock Text="MODLAUNCHER IV" Style="{StaticResource Head}" Margin="22,0,22,2" />
-                <TextBlock Text="für GTA IV" Style="{StaticResource Dim}" Margin="22,0,22,22" />
-
-                <ItemsControl ItemsSource="{Binding Steps}">
-                    <ItemsControl.ItemTemplate>
-                        <DataTemplate>
-                            <Grid Margin="0,0,0,2">
-                                <Border x:Name="Bar" Width="3" HorizontalAlignment="Left" Background="Transparent" />
-                                <TextBlock x:Name="Label"
-                                           Text="{Binding Title}"
-                                           Style="{StaticResource Dim}"
-                                           Margin="22,7,16,7" />
-                            </Grid>
-                            <DataTemplate.Triggers>
-                                <DataTrigger Binding="{Binding IsActive}" Value="True">
-                                    <Setter TargetName="Bar" Property="Background" Value="{StaticResource Accent}" />
-                                    <Setter TargetName="Label" Property="Foreground" Value="{StaticResource Text}" />
-                                    <Setter TargetName="Label" Property="FontWeight" Value="SemiBold" />
-                                </DataTrigger>
-                            </DataTemplate.Triggers>
-                        </DataTemplate>
-                    </ItemsControl.ItemTemplate>
-                </ItemsControl>
-            </StackPanel>
-        </Border>
-
-        <Grid Grid.Column="1">
-            <Grid.RowDefinitions>
-                <RowDefinition Height="Auto" />
-                <RowDefinition Height="*" />
-                <RowDefinition Height="Auto" />
-            </Grid.RowDefinitions>
-
-            <StackPanel Grid.Row="0" Margin="30,26,30,16">
-                <TextBlock Text="{Binding Current.Title}" Style="{StaticResource Title}" />
-                <TextBlock Text="{Binding Current.Lead}" Style="{StaticResource Lead}" />
-            </StackPanel>
-
-            <ScrollViewer Grid.Row="1" Margin="30,0,22,0" Padding="0,0,8,0">
-                <ContentControl Content="{Binding Current}" />
-            </ScrollViewer>
-
-            <Border Grid.Row="2" BorderBrush="{StaticResource Line}" BorderThickness="0,1,0,0" Padding="30,14">
-                <Grid>
-                    <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
-                        <TextBlock Text="{Binding Position}" Style="{StaticResource Dim}" VerticalAlignment="Center" />
-                        <ProgressBar IsIndeterminate="True"
-                                     Width="90" Margin="16,0,0,0"
-                                     VerticalAlignment="Center"
-                                     Visibility="{Binding IsBusy, Converter={StaticResource Show}}" />
-                    </StackPanel>
-
-                    <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
-                        <Button Content="Zurück" Command="{Binding BackCommand}" Margin="0,0,10,0" />
-                        <Button Content="{Binding Current.NextLabel}" Command="{Binding NextCommand}" Style="{StaticResource Primary}" />
-                    </StackPanel>
-                </Grid>
-            </Border>
-        </Grid>
-    </Grid>
 </Window>
