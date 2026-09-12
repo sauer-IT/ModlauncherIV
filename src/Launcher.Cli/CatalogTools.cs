@@ -3,8 +3,8 @@ using ModlauncherIV.Core.Catalog;
 namespace ModlauncherIV.Cli;
 
 /// <summary>
-/// Werkzeuge für die Katalogpflege. Nicht für Endnutzer gedacht, sondern für
-/// den, der den Katalog herausgibt.
+/// Tools for maintaining the catalog. Not meant for end users but for whoever
+/// publishes the catalog.
 /// </summary>
 internal static class CatalogTools
 {
@@ -15,8 +15,8 @@ internal static class CatalogTools
 
         if (target is null)
         {
-            Console.Error.WriteLine("Bitte mit --key angeben, wohin der private Schlüssel soll.");
-            Console.Error.WriteLine("Ein Pfad AUSSERHALB des Repositorys.");
+            Console.Error.WriteLine("Use --key to say where the private key should go.");
+            Console.Error.WriteLine("A path OUTSIDE the repository.");
             return ExitCode.BadUsage;
         }
 
@@ -24,10 +24,10 @@ internal static class CatalogTools
 
         if (File.Exists(full))
         {
-            // Einen bestehenden Schlüssel zu überschreiben macht jeden damit
-            // signierten Katalog unbrauchbar. Das passiert nicht aus Versehen.
-            Console.Error.WriteLine($"Es existiert bereits eine Datei: {full}");
-            Console.Error.WriteLine("Wird nicht überschrieben — bestehende Signaturen würden ungültig.");
+            // Overwriting an existing key makes every catalog signed with it
+            // useless. That does not happen by accident.
+            Console.Error.WriteLine($"A file already exists there: {full}");
+            Console.Error.WriteLine("Not overwritten — existing signatures would become invalid.");
             return ExitCode.Failed;
         }
 
@@ -39,12 +39,12 @@ internal static class CatalogTools
 
         File.WriteAllText(full, privatePem);
 
-        Console.WriteLine($"Privater Schlüssel geschrieben: {full}");
+        Console.WriteLine($"Private key written: {full}");
         Console.WriteLine();
-        Console.WriteLine("Diesen Schlüssel NICHT ins Repository legen und nicht weitergeben.");
-        Console.WriteLine("Wer ihn hat, kann Kataloge signieren, denen der Launcher vertraut.");
+        Console.WriteLine("Do NOT put this key in the repository and do not pass it on.");
+        Console.WriteLine("Whoever has it can sign catalogs that the launcher trusts.");
         Console.WriteLine();
-        Console.WriteLine("Öffentlichen Teil in CatalogSignature.EmbeddedPublicKey eintragen:");
+        Console.WriteLine("Put the public part into CatalogSignature.EmbeddedPublicKey:");
         Console.WriteLine();
         Console.WriteLine($"    public const string EmbeddedPublicKey = \"{publicBase64}\";");
         Console.WriteLine();
@@ -56,7 +56,7 @@ internal static class CatalogTools
     {
         if (options.KeyPath is null)
         {
-            Console.Error.WriteLine("Bitte mit --key den privaten Schlüssel angeben.");
+            Console.Error.WriteLine("Use --key to give the private key.");
             return ExitCode.BadUsage;
         }
 
@@ -64,20 +64,20 @@ internal static class CatalogTools
 
         if (!Directory.Exists(directory))
         {
-            Console.Error.WriteLine($"Katalogverzeichnis nicht gefunden: {directory}");
+            Console.Error.WriteLine($"Catalog directory not found: {directory}");
             return ExitCode.NothingFound;
         }
 
         if (!File.Exists(options.KeyPath))
         {
-            Console.Error.WriteLine($"Schlüsseldatei nicht gefunden: {options.KeyPath}");
+            Console.Error.WriteLine($"Key file not found: {options.KeyPath}");
             return ExitCode.NothingFound;
         }
 
         var signed = CatalogSignature.Sign(directory, File.ReadAllText(options.KeyPath));
 
-        Console.WriteLine($"Katalog signiert: {Path.GetFullPath(directory)}");
-        Console.WriteLine($"{signed.Count} Datei(en) im Index:");
+        Console.WriteLine($"Catalog signed: {Path.GetFullPath(directory)}");
+        Console.WriteLine($"{signed.Count} file(s) in the index:");
 
         foreach (var file in signed)
         {

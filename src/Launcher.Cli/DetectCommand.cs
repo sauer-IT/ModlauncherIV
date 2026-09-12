@@ -74,7 +74,7 @@ internal static class DetectCommand
         return [inspector.Inspect(candidate)];
     }
 
-    /// <summary>Prüft den genannten Ordner. Die Begründung für null steht auf stderr.</summary>
+    /// <summary>Checks the given folder. The reason for null goes to stderr.</summary>
     public static InstallCandidate? ResolveExplicit(string explicitPath)
     {
         string path;
@@ -85,7 +85,7 @@ internal static class DetectCommand
         }
         catch (Exception e) when (e is ArgumentException or NotSupportedException or PathTooLongException)
         {
-            Console.Error.WriteLine($"Ungültiger Pfad: {explicitPath}");
+            Console.Error.WriteLine($"Invalid path: {explicitPath}");
             Console.Error.WriteLine(e.Message);
             return null;
         }

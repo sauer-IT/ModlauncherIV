@@ -15,11 +15,11 @@ internal static class RecipeCommands
 
         if (result.Recipes.Count == 0)
         {
-            Console.WriteLine("Keine Rezepte gefunden.");
+            Console.WriteLine("No recipes found.");
             return result.Errors.Count > 0 ? ExitCode.Failed : ExitCode.NothingFound;
         }
 
-        Console.WriteLine($"{result.Recipes.Count} Rezept(e):");
+        Console.WriteLine($"{result.Recipes.Count} recipe(s):");
         Console.WriteLine();
 
         foreach (var recipe in result.Recipes.OrderBy(r => r.Id, StringComparer.OrdinalIgnoreCase))
@@ -29,20 +29,20 @@ internal static class RecipeCommands
 
             if (recipe.AppliesTo.Count > 0)
             {
-                Console.WriteLine($"      für Version: {string.Join(", ", recipe.AppliesTo)}");
+                Console.WriteLine($"      for version: {string.Join(", ", recipe.AppliesTo)}");
             }
 
             if (recipe.IsVersionTransition)
             {
-                Console.WriteLine($"      erzeugt Version: {recipe.ProducesVersion}");
+                Console.WriteLine($"      produces version: {recipe.ProducesVersion}");
             }
 
             if (recipe.Dependencies.Count > 0)
             {
-                Console.WriteLine($"      benötigt: {string.Join(", ", recipe.Dependencies)}");
+                Console.WriteLine($"      requires: {string.Join(", ", recipe.Dependencies)}");
             }
 
-            Console.WriteLine($"      {recipe.Actions.Count} Schritt(e), {recipe.RequiredFiles.Count} Datei(en)");
+            Console.WriteLine($"      {recipe.Actions.Count} step(s), {recipe.RequiredFiles.Count} file(s)");
             Console.WriteLine();
         }
 
@@ -86,20 +86,20 @@ internal static class RecipeCommands
 
         if (!plan.CanRun)
         {
-            Console.Error.WriteLine("Es wurde nichts ausgeführt.");
+            Console.Error.WriteLine("Nothing was executed.");
             return ExitCode.Blocked;
         }
 
         if (!options.Yes && !Confirm(plan))
         {
-            Console.WriteLine("Abgebrochen. Es wurde nichts verändert.");
+            Console.WriteLine("Cancelled. Nothing was changed.");
             return ExitCode.Ok;
         }
 
         var outcome = runner.Apply(plan, context);
 
         Console.WriteLine();
-        Console.WriteLine("  PROTOKOLL");
+        Console.WriteLine("  LOG");
         Console.WriteLine("  ---------------");
         foreach (var line in outcome.Log)
         {
@@ -110,19 +110,19 @@ internal static class RecipeCommands
 
         if (outcome.Success)
         {
-            Console.WriteLine($"  Fertig. Snapshot {outcome.SnapshotId} liegt bereit für den Rückbau.");
+            Console.WriteLine($"  Done. Snapshot {outcome.SnapshotId} is ready for taking this back.");
             return ExitCode.Ok;
         }
 
-        Console.Error.WriteLine("  FEHLGESCHLAGEN");
+        Console.Error.WriteLine("  FAILED");
         foreach (var error in outcome.Errors)
         {
             Console.Error.WriteLine($"    {error}");
         }
 
         Console.Error.WriteLine(outcome.RolledBack
-            ? "  Der vorherige Zustand wurde wiederhergestellt."
-            : "  Es wurde nichts verändert.");
+            ? "  The previous state was restored."
+            : "  Nothing was changed.");
 
         return ExitCode.Failed;
     }
@@ -143,12 +143,12 @@ internal static class RecipeCommands
 
         Console.WriteLine($"  Installation   {install.Path}");
         Console.WriteLine($"  Ledger         {store.FilePath}");
-        Console.WriteLine($"  Sicherungen    {snapshots.TotalSizeBytes() / 1024 / 1024} MB");
+        Console.WriteLine($"  Backups        {snapshots.TotalSizeBytes() / 1024 / 1024} MB");
         Console.WriteLine();
 
         if (ledger.Entries.Count == 0)
         {
-            Console.WriteLine("  Der Launcher hat an dieser Installation nichts verändert.");
+            Console.WriteLine("  The launcher has changed nothing about this installation.");
             return ExitCode.Ok;
         }
 
@@ -156,8 +156,8 @@ internal static class RecipeCommands
         {
             Console.WriteLine($"  {entry.RecipeId}  ({entry.RecipeVersion})");
             Console.WriteLine($"      {entry.RecipeName}");
-            Console.WriteLine($"      installiert {entry.InstalledAt:yyyy-MM-dd HH:mm}");
-            Console.WriteLine($"      Snapshot {entry.SnapshotId}, {entry.Files.Count} Datei(en)");
+            Console.WriteLine($"      installed {entry.InstalledAt:yyyy-MM-dd HH:mm}");
+            Console.WriteLine($"      snapshot {entry.SnapshotId}, {entry.Files.Count} file(s)");
             Console.WriteLine();
         }
 
@@ -171,7 +171,7 @@ internal static class RecipeCommands
     {
         if (string.IsNullOrWhiteSpace(options.Argument))
         {
-            Console.Error.WriteLine("Es fehlt die Rezept-ID. Verfügbare Rezepte: mliv catalog");
+            Console.Error.WriteLine("The recipe id is missing. Available recipes: mliv catalog");
             return null;
         }
 
@@ -185,7 +185,7 @@ internal static class RecipeCommands
         var recipe = catalog.Find(options.Argument);
         if (recipe is null)
         {
-            Console.Error.WriteLine($"Rezept nicht gefunden: {options.Argument}");
+            Console.Error.WriteLine($"Recipe not found: {options.Argument}");
             return null;
         }
 
@@ -212,14 +212,14 @@ internal static class RecipeCommands
         switch (installs.Count)
         {
             case 0:
-                Console.Error.WriteLine("Keine GTA-IV-Installation gefunden. Mit --path einen Ordner angeben.");
+                Console.Error.WriteLine("No GTA IV installation found. Use --path to give a folder.");
                 return null;
 
             case 1:
                 return WithAssumedVersion(installs[0], options);
 
             default:
-                Console.Error.WriteLine("Mehrere Installationen gefunden — bitte mit --path eine auswählen:");
+                Console.Error.WriteLine("Several installations found — pick one with --path:");
                 foreach (var install in installs)
                 {
                     Console.Error.WriteLine($"  {install.Path}");
@@ -230,9 +230,9 @@ internal static class RecipeCommands
     }
 
     /// <summary>
-    /// Ersetzt die gemessene Version durch eine vorgegebene. Gedacht für den Fall,
-    /// dass die EXE ausgetauscht wurde und ihre Versionsangabe nicht mehr stimmt —
-    /// der Nutzer übernimmt damit aber die Verantwortung, deshalb der Hinweis.
+    /// Replaces the measured version with a given one. Meant for the case where
+    /// the EXE was swapped and its version string no longer matches — but the
+    /// user takes responsibility by doing so, hence the warning.
     /// </summary>
     private static GameInstall WithAssumedVersion(GameInstall install, CliOptions options)
     {
@@ -242,8 +242,8 @@ internal static class RecipeCommands
         }
 
         Console.Error.WriteLine(
-            $"Achtung: Version {options.AssumeVersion} wurde vorgegeben, nicht gemessen "
-            + $"(gemessen wurde {install.Version.Raw}).");
+            $"Careful: version {options.AssumeVersion} was given, not measured "
+            + $"(measured was {install.Version.Raw}).");
 
         return install with { Version = KnownVersions.Resolve(options.AssumeVersion) };
     }
@@ -252,8 +252,8 @@ internal static class RecipeCommands
         options.CatalogPath ?? Path.Combine(Directory.GetCurrentDirectory(), "catalog");
 
     /// <summary>
-    /// Lädt den Katalog und meldet Warnungen und Fehler auf stderr. Ohne
-    /// --allow-unsigned muss die Signatur stimmen.
+    /// Loads the catalog and reports warnings and errors on stderr. Without
+    /// --allow-unsigned the signature has to be valid.
     /// </summary>
     public static CatalogLoadResult LoadCatalog(CliOptions options)
     {
@@ -264,12 +264,12 @@ internal static class RecipeCommands
 
         foreach (var warning in result.Warnings)
         {
-            Console.Error.WriteLine($"Achtung: {warning}");
+            Console.Error.WriteLine($"Careful: {warning}");
         }
 
         foreach (var error in result.Errors)
         {
-            Console.Error.WriteLine($"Katalogfehler: {error}");
+            Console.Error.WriteLine($"Catalog error: {error}");
         }
 
         return result;
@@ -281,9 +281,9 @@ internal static class RecipeCommands
         Console.WriteLine($"  {plan.Recipe.Id} — {plan.Recipe.Name}");
         Console.WriteLine(new string('=', 74));
         Console.WriteLine();
-        Console.WriteLine($"  Spiel          {install.Path}");
+        Console.WriteLine($"  Game           {install.Path}");
         Console.WriteLine($"  Version        {install.Version.Raw}");
-        Console.WriteLine($"  Rezeptversion  {plan.Recipe.Version}");
+        Console.WriteLine($"  Recipe version {plan.Recipe.Version}");
         Console.WriteLine();
 
         if (plan.Recipe.Description is not null)
@@ -292,7 +292,7 @@ internal static class RecipeCommands
             Console.WriteLine();
         }
 
-        Console.WriteLine("  SCHRITTE");
+        Console.WriteLine("  STEPS");
         Console.WriteLine("  --------------");
         for (var i = 0; i < plan.Steps.Count; i++)
         {
@@ -306,17 +306,17 @@ internal static class RecipeCommands
 
             if (step.AffectedPaths.Count > 5)
             {
-                Console.WriteLine($"        -> ... und {step.AffectedPaths.Count - 5} weitere");
+                Console.WriteLine($"        -> ... and {step.AffectedPaths.Count - 5} more");
             }
         }
 
         Console.WriteLine();
-        Console.WriteLine($"  Betroffene Dateien insgesamt: {plan.AffectedPaths.Count}");
+        Console.WriteLine($"  Files affected in total: {plan.AffectedPaths.Count}");
         Console.WriteLine();
 
         if (plan.Issues.Count > 0)
         {
-            Console.WriteLine("  BEFUNDE");
+            Console.WriteLine("  FINDINGS");
             Console.WriteLine("  -------------");
             foreach (var issue in plan.Issues.OrderByDescending(i => i.Severity))
             {
@@ -335,8 +335,8 @@ internal static class RecipeCommands
 
     private static bool Confirm(ExecutionPlan plan)
     {
-        Console.Write($"  {plan.AffectedPaths.Count} Datei(en) werden verändert. Fortfahren? [j/N] ");
+        Console.Write($"  {plan.AffectedPaths.Count} file(s) will be changed. Continue? [y/N] ");
         var answer = Console.ReadLine();
-        return answer is not null && answer.Trim().StartsWith('j');
+        return answer is not null && answer.Trim().StartsWith("y", StringComparison.OrdinalIgnoreCase);
     }
 }

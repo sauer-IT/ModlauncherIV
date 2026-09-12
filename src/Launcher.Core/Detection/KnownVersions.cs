@@ -1,28 +1,27 @@
 namespace ModlauncherIV.Core.Detection;
 
 /// <summary>
-/// Die Knoten des Versionsgraphen. Kanten (= Downgrade-Rezepte) kommen in M3 dazu.
+/// The nodes of the version graph. The edges are the downgrade recipes.
 ///
-/// WICHTIG: Die Complete-Edition-Stände unterhalb von 1.2.0.59 sind noch nicht
-/// verifiziert (siehe Abschnitt 10 des Projektplans). Sie stehen hier, damit die
-/// Erkennung sie nicht als "unbekannt" abweist — bevor ein Rezept dagegen gebaut
-/// wird, müssen sie bestätigt werden.
+/// IMPORTANT: the Complete Edition builds below 1.2.0.59 are not verified. They
+/// are listed so detection does not reject them as "unknown" — but before a
+/// recipe is built against any of them, they need to be confirmed.
 /// </summary>
 public static class KnownVersions
 {
     private static readonly GameVersionInfo[] All =
     [
-        // --- Complete Edition (2020+): kein GFWL, kein Multiplayer, Radiosongs entfernt ---
+        // --- Complete Edition (2020+): no GFWL, no multiplayer, radio songs cut ---
         Ce("1.2.0.59", "Complete Edition"),
-        Ce("1.2.0.43", "Complete Edition, älter"),
-        Ce("1.2.0.32", "Complete Edition, älter"),
-        Ce("1.2.0.30", "Complete Edition, älter"),
+        Ce("1.2.0.43", "Complete Edition, older"),
+        Ce("1.2.0.32", "Complete Edition, older"),
+        Ce("1.2.0.30", "Complete Edition, older"),
 
-        // --- Klassische Stände ---
-        Classic("1.0.8.0", "Patch 8 — letzter Stand vor der Complete Edition", moddingTarget: false),
-        Classic("1.0.7.0", "Patch 7 — Standardziel fürs Modding", moddingTarget: true),
+        // --- The classic builds ---
+        Classic("1.0.8.0", "Patch 8 — last build before the Complete Edition", moddingTarget: false),
+        Classic("1.0.7.0", "Patch 7 — the standard target for modding", moddingTarget: true),
         Classic("1.0.6.0", "Patch 6", moddingTarget: false),
-        Classic("1.0.4.0", "Patch 4 — alternatives Modding-Ziel", moddingTarget: true),
+        Classic("1.0.4.0", "Patch 4 — the alternative modding target", moddingTarget: true),
     ];
 
     private static GameVersionInfo Ce(string raw, string name) => new(
@@ -43,12 +42,12 @@ public static class KnownVersions
         IsModdingTarget: moddingTarget,
         IsKnown: true);
 
-    /// <summary>Ordnet einen rohen Versionsstring einem bekannten Knoten zu.</summary>
+    /// <summary>Maps a raw version string onto a known node.</summary>
     public static GameVersionInfo Resolve(string? raw)
     {
         if (string.IsNullOrWhiteSpace(raw))
         {
-            return GameVersionInfo.Unrecognised("(keine Versionsinformation)");
+            return GameVersionInfo.Unrecognised("(no version information)");
         }
 
         var normalised = raw.Trim();
@@ -60,7 +59,7 @@ public static class KnownVersions
             return exact;
         }
 
-        // FileVersion kann "1, 2, 0, 59" oder "1.2.0.59 (build …)" lauten.
+        // FileVersion can read "1, 2, 0, 59" or "1.2.0.59 (build …)".
         if (Version.TryParse(normalised.Replace(", ", ".").Replace(",", "."), out var parsed))
         {
             var byNumber = All.FirstOrDefault(v => v.Parsed == parsed);
@@ -74,16 +73,16 @@ public static class KnownVersions
     }
 
     /// <summary>
-    /// Bringt eine Versionsangabe auf die kanonische Schreibweise.
+    /// Brings a version string into its canonical spelling.
     ///
-    /// Notwendig, weil FileVersionInfo je nach Binary "1.0.7.0" oder "1, 0, 7, 0"
-    /// liefert. Wer beide Formen unbesehen vergleicht, meldet einen Unterschied,
-    /// wo keiner ist — und entwertet damit genau die Warnung, auf die man sich
-    /// beim Zurueckpatchen durch den Store verlassen muss.
+    /// Necessary because FileVersionInfo reports either "1.0.7.0" or
+    /// "1, 0, 7, 0" depending on the binary. Comparing both forms unexamined
+    /// reports a difference where there is none — and that devalues exactly the
+    /// warning you have to rely on when the store patches the game back.
     /// </summary>
     public static string Normalise(string? raw) => Resolve(raw).Raw;
 
-    /// <summary>Alle Versionen, auf die heruntergestuft werden kann.</summary>
+    /// <summary>Every version the game can be downgraded to.</summary>
     public static IReadOnlyList<GameVersionInfo> ModdingTargets =>
         All.Where(v => v.IsModdingTarget).ToArray();
 }

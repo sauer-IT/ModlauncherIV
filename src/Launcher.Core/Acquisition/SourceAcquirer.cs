@@ -5,18 +5,18 @@ namespace ModlauncherIV.Core.Acquisition;
 
 public enum AcquisitionStatus
 {
-    /// <summary>Lag schon im Arbeitsverzeichnis und hatte die richtige Prüfsumme.</summary>
+    /// <summary>Was already in the working directory with the right checksum.</summary>
     AlreadyPresent,
 
     Downloaded,
 
     /// <summary>
-    /// Kam aus dem Lieferumfang des Launchers selbst — nichts geladen, aber
-    /// genauso gegen die Prüfsumme im Rezept gemessen wie alles andere.
+    /// Came out of the launcher's own payload — nothing downloaded, but measured
+    /// against the recipe's checksum exactly like everything else.
     /// </summary>
     Bundled,
 
-    /// <summary>Keine Quelle erreichbar — der Nutzer muss die Datei selbst ablegen.</summary>
+    /// <summary>No source reachable — the user has to supply the file.</summary>
     NeedsUserAction,
 
     Failed,
@@ -39,20 +39,19 @@ public sealed record AcquisitionProgress(string FileName, long BytesRead, long? 
 }
 
 /// <summary>
-/// Beschafft die Dateien, die ein Rezept braucht.
+/// Acquires the files a recipe needs.
 ///
-/// Grundsatz: eine Datei gilt erst dann als vorhanden, wenn ihre SHA-256 stimmt.
-/// Eine vorhandene Datei mit falscher Prüfsumme wird verworfen und neu geladen —
-/// sie ist entweder abgebrochen oder ausgetauscht, und beides wollen wir nicht
-/// ins Spielverzeichnis kopieren.
+/// The rule: a file only counts as present once its SHA-256 matches. An existing
+/// file with the wrong checksum is discarded and fetched again — it is either
+/// truncated or swapped, and neither belongs in the game directory.
 ///
-/// Heruntergeladen wird immer neben das Ziel (.part) und erst nach erfolgreicher
-/// Prüfung an seinen Platz verschoben. Ein Abbruch hinterlässt damit nie eine
-/// halbe Datei, die beim nächsten Lauf für vollständig gehalten wird.
+/// Downloads always land beside the target (.part) and are only moved into place
+/// after the check passes. An abort therefore never leaves behind half a file
+/// that the next run would mistake for complete.
 /// </summary>
 /// <param name="bundledRoot">
-/// Ordner mit Dateien, die der Launcher selbst mitbringt — etwa den eigenen
-/// Trainer. Null, wenn es keinen gibt.
+/// Folder holding files the launcher brings along itself — its own trainer, for
+/// instance. Null when there is none.
 /// </param>
 public sealed class SourceAcquirer(HttpClient http, string cacheRoot, IExecutionLog log, string? bundledRoot = null)
 {
@@ -86,32 +85,32 @@ public sealed class SourceAcquirer(HttpClient http, string cacheRoot, IExecution
         {
             return new AcquisitionResult(
                 source, AcquisitionStatus.Failed, null, [],
-                $"Unzulässiger Dateiname im Rezept: {source.FileName}");
+                $"File name in the recipe is not allowed: {source.FileName}");
         }
 
-        // Schon da und in Ordnung?
+        // Already there and fine?
         if (File.Exists(target))
         {
             if (Hashing.Equal(Hashing.Sha256File(target), source.Sha256))
             {
-                log.Info($"{source.FileName}: liegt bereits vor und ist verifiziert.");
+                log.Info($"{source.FileName}: already present and verified.");
                 return new AcquisitionResult(source, AcquisitionStatus.AlreadyPresent, target, [], null);
             }
 
-            log.Warn($"{source.FileName}: vorhandene Datei hat die falsche Prüfsumme und wird verworfen.");
+            log.Warn($"{source.FileName}: the existing file has the wrong checksum and is discarded.");
             TryDelete(target);
         }
 
-        // Bringt der Launcher die Datei selbst mit? Das betrifft vor allem den
-        // eigenen Trainer: ihn im Netz abzulegen, nur damit der eigene Launcher
-        // ihn wieder herunterlädt, wäre ein Umweg mit zusätzlicher Fehlerquelle.
+        // Does the launcher ship the file itself? This mostly concerns its own
+        // trainer: putting it online just so the launcher can download it again
+        // would be a detour with one more thing that can fail.
         //
-        // Geprüft wird trotzdem gegen die Prüfsumme aus dem Rezept. Der
-        // Lieferumfang ist kein Vertrauensbonus: die Datei liegt neben einem
-        // Programm, in dessen Ordner jeder schreiben kann, der dort Rechte hat.
+        // It is still checked against the recipe's checksum. Being shipped is no
+        // bonus in trust: the file sits next to a program, in a folder anyone
+        // with rights there can write to.
         if (TryTakeBundled(source, target, out var bundledError))
         {
-            log.Info($"{source.FileName}: aus dem Lieferumfang übernommen.");
+            log.Info($"{source.FileName}: taken from the shipped payload.");
             return new AcquisitionResult(source, AcquisitionStatus.Bundled, target, [], null);
         }
 
@@ -119,7 +118,7 @@ public sealed class SourceAcquirer(HttpClient http, string cacheRoot, IExecution
         {
             return new AcquisitionResult(
                 source, AcquisitionStatus.NeedsUserAction, null, [],
-                bundledError ?? "Für diese Datei ist keine Bezugsquelle hinterlegt.");
+                bundledError ?? "No source is recorded for this file.");
         }
 
         var attempts = new List<string>();
@@ -130,19 +129,19 @@ public sealed class SourceAcquirer(HttpClient http, string cacheRoot, IExecution
 
             try
             {
-                log.Info($"{source.FileName}: lade von {url}");
+                log.Info($"{source.FileName}: downloading from {url}");
                 await DownloadAsync(url, source, target, progress, cancellationToken).ConfigureAwait(false);
 
                 var actual = Hashing.Sha256File(target);
                 if (!Hashing.Equal(actual, source.Sha256))
                 {
                     TryDelete(target);
-                    attempts.Add($"{url}: Prüfsumme falsch (erwartet {Short(source.Sha256)}, erhalten {Short(actual)})");
-                    log.Warn($"{source.FileName}: Prüfsumme von {url} stimmt nicht.");
+                    attempts.Add($"{url}: wrong checksum (expected {Short(source.Sha256)}, got {Short(actual)})");
+                    log.Warn($"{source.FileName}: the checksum from {url} does not match.");
                     continue;
                 }
 
-                log.Info($"{source.FileName}: geladen und verifiziert.");
+                log.Info($"{source.FileName}: downloaded and verified.");
                 return new AcquisitionResult(source, AcquisitionStatus.Downloaded, target, attempts, null);
             }
             catch (OperationCanceledException)
@@ -152,19 +151,19 @@ public sealed class SourceAcquirer(HttpClient http, string cacheRoot, IExecution
             catch (Exception e) when (e is HttpRequestException or IOException or TaskCanceledException)
             {
                 attempts.Add($"{url}: {e.Message}");
-                log.Warn($"{source.FileName}: {url} fehlgeschlagen — {e.Message}");
+                log.Warn($"{source.FileName}: {url} failed — {e.Message}");
             }
         }
 
         return new AcquisitionResult(
             source, AcquisitionStatus.NeedsUserAction, null, attempts,
-            "Keine der hinterlegten Quellen hat eine verwendbare Datei geliefert.");
+            "None of the recorded sources delivered a usable file.");
     }
 
     /// <summary>
-    /// Lädt in eine .part-Datei und setzt einen Teildownload per Range fort, wenn
-    /// der Server das unterstützt. Groß ist hier die Regel, nicht die Ausnahme —
-    /// Downgrade-Pakete gehen in die Gigabyte.
+    /// Downloads into a .part file and resumes a partial download via Range when
+    /// the server supports it. Large is the rule here, not the exception —
+    /// downgrade packages run into the gigabytes.
     /// </summary>
     private async Task DownloadAsync(
         string url,
@@ -176,8 +175,8 @@ public sealed class SourceAcquirer(HttpClient http, string cacheRoot, IExecution
         var partial = target + ".part";
         var existing = File.Exists(partial) ? new FileInfo(partial).Length : 0;
 
-        // Eine .part-Datei, die schon größer ist als das erwartete Ergebnis, ist
-        // Müll aus einem früheren Lauf gegen eine andere Quelle.
+        // A .part file already bigger than the expected result is junk from an
+        // earlier run against a different source.
         if (existing >= source.SizeBytes && source.SizeBytes > 0)
         {
             TryDelete(partial);
@@ -197,7 +196,7 @@ public sealed class SourceAcquirer(HttpClient http, string cacheRoot, IExecution
         var resuming = response.StatusCode == System.Net.HttpStatusCode.PartialContent;
         if (existing > 0 && !resuming)
         {
-            // Server kann nicht fortsetzen — von vorn, sonst entsteht Datensalat.
+            // The server cannot resume — start over, otherwise the data gets mixed up.
             TryDelete(partial);
             existing = 0;
         }
@@ -207,12 +206,12 @@ public sealed class SourceAcquirer(HttpClient http, string cacheRoot, IExecution
         var declared = response.Content.Headers.ContentLength;
         var total = resuming && declared is not null ? existing + declared : declared;
 
-        // Meldet der Server eine andere Größe als das Rezept erwartet, brauchen wir
-        // gar nicht erst Gigabyte zu laden, um am Ende an der Prüfsumme zu scheitern.
+        // If the server announces a different size than the recipe expects, there
+        // is no point pulling gigabytes only to fail the checksum at the end.
         if (source.SizeBytes > 0 && total is not null && total != source.SizeBytes)
         {
             throw new HttpRequestException(
-                $"Größe weicht ab: erwartet {source.SizeBytes} Bytes, angekündigt {total} Bytes");
+                $"Size mismatch: expected {source.SizeBytes} bytes, announced {total} bytes");
         }
 
         Directory.CreateDirectory(Path.GetDirectoryName(partial)!);
@@ -242,9 +241,9 @@ public sealed class SourceAcquirer(HttpClient http, string cacheRoot, IExecution
     }
 
     /// <summary>
-    /// Der Dateiname stammt aus dem Rezept und ist damit Fremddaten. Er darf nur
-    /// ein einfacher Name sein, kein Pfad, und niemals aus dem Arbeitsverzeichnis
-    /// herausführen.
+    /// The file name comes from the recipe and is therefore foreign data. It may
+    /// only be a plain name, never a path, and must never lead out of the working
+    /// directory.
     /// </summary>
     private string? SafeTargetPath(string fileName)
     {
@@ -264,13 +263,13 @@ public sealed class SourceAcquirer(HttpClient http, string cacheRoot, IExecution
     }
 
     /// <summary>
-    /// Holt eine Datei aus dem Lieferumfang ins Arbeitsverzeichnis, sofern dort
-    /// eine mit passender Prüfsumme liegt.
+    /// Takes a file from the shipped payload into the working directory, provided
+    /// one with a matching checksum is there.
     /// </summary>
     /// <param name="error">
-    /// Gesetzt, wenn zwar eine Datei da lag, aber die falsche. Das ist ein anderer
-    /// Fall als "gar nichts dabei" und verdient eine andere Auskunft — sonst
-    /// sucht jemand nach einer Datei, die die ganze Zeit da war.
+    /// Set when a file was there but the wrong one. That is a different case from
+    /// "nothing shipped at all" and deserves a different answer — otherwise
+    /// somebody goes looking for a file that was there the whole time.
     /// </param>
     private bool TryTakeBundled(RecipeSource source, string target, out string? error)
     {
@@ -281,7 +280,7 @@ public sealed class SourceAcquirer(HttpClient http, string cacheRoot, IExecution
             return false;
         }
 
-        // Derselbe Schutz wie beim Ziel: der Dateiname kommt aus dem Rezept.
+        // The same protection as for the target: the file name comes from the recipe.
         if (!string.Equals(Path.GetFileName(source.FileName), source.FileName, StringComparison.Ordinal))
         {
             return false;
@@ -296,11 +295,11 @@ public sealed class SourceAcquirer(HttpClient http, string cacheRoot, IExecution
         var actual = Hashing.Sha256File(candidate);
         if (!Hashing.Equal(actual, source.Sha256))
         {
-            error = $"Im Lieferumfang liegt eine {source.FileName}, aber mit falscher "
-                + $"Prüfsumme (erwartet {Short(source.Sha256)}, gefunden {Short(actual)}). "
-                + "Sie wird nicht verwendet.";
+            error = $"The shipped payload contains a {source.FileName}, but with the wrong "
+                + $"checksum (expected {Short(source.Sha256)}, found {Short(actual)}). "
+                + "It will not be used.";
 
-            log.Warn($"{source.FileName}: mitgelieferte Datei hat die falsche Prüfsumme.");
+            log.Warn($"{source.FileName}: the shipped file has the wrong checksum.");
             return false;
         }
 
@@ -311,8 +310,8 @@ public sealed class SourceAcquirer(HttpClient http, string cacheRoot, IExecution
         }
         catch (Exception e) when (e is IOException or UnauthorizedAccessException)
         {
-            error = $"Die mitgelieferte {source.FileName} ließ sich nicht ins "
-                + $"Arbeitsverzeichnis kopieren: {e.Message}";
+            error = $"The shipped {source.FileName} could not be copied into the "
+                + $"working directory: {e.Message}";
 
             return false;
         }
@@ -329,7 +328,7 @@ public sealed class SourceAcquirer(HttpClient http, string cacheRoot, IExecution
         }
         catch (Exception e) when (e is IOException or UnauthorizedAccessException)
         {
-            // Nicht löschbar: der Prüfsummenvergleich fängt es beim nächsten Mal ab.
+            // Not deletable: the checksum comparison catches it next time round.
         }
     }
 

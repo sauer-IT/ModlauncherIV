@@ -5,11 +5,11 @@ using ModlauncherIV.Core.Planning;
 namespace ModlauncherIV.Cli;
 
 /// <summary>
-/// Zeigt den Weg von der vorgefundenen Installation zu einem Wunschzustand.
+/// Shows the path from the installation as found to a wanted state.
 ///
-/// Das ist derselbe Plan, den später der Assistent abarbeitet. Er hängt hier an
-/// der CLI, weil ein Fenster sich nicht gegen Fixtures testen lässt und die
-/// Reihenfolgelogik zu wichtig ist, um sie nur von Hand zu prüfen.
+/// This is the same plan the wizard works through later. It hangs off the CLI
+/// because a window cannot be tested against fixtures and the ordering logic is
+/// too important to check by hand only.
 /// </summary>
 internal static class JourneyCommand
 {
@@ -23,8 +23,8 @@ internal static class JourneyCommand
 
         var catalog = RecipeCommands.LoadCatalog(options);
 
-        // Mehrere Rezepte durch Komma getrennt. Leere Liste ist erlaubt: dann
-        // fragt man nur nach dem Versionswechsel.
+        // Several recipes separated by commas. An empty list is allowed: then you
+        // are only asking about the version change.
         var wanted = (options.Argument ?? string.Empty)
             .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
 
@@ -36,29 +36,29 @@ internal static class JourneyCommand
 
         Print(journey, install);
 
-        // Ein Weg mit offenen Schritten ist kein Fehler, sondern der Normalfall —
-        // der Befehl plant, er führt nicht aus.
+        // A path with open steps is not an error but the normal case —
+        // this command plans, it does not execute.
         return journey.IsPossible ? ExitCode.Ok : ExitCode.Blocked;
     }
 
     private static void Print(Journey journey, GameInstall install)
     {
         Console.WriteLine(new string('=', 74));
-        Console.WriteLine("  Weg zum Wunschzustand");
+        Console.WriteLine("  Path to the wanted state");
         Console.WriteLine(new string('=', 74));
         Console.WriteLine();
-        Console.WriteLine($"  Spiel          {install.Path}");
-        Console.WriteLine($"  Jetzt          {journey.FromVersion}");
-        Console.WriteLine($"  Ziel           {journey.TargetVersion}");
+        Console.WriteLine($"  Game           {install.Path}");
+        Console.WriteLine($"  Now            {journey.FromVersion}");
+        Console.WriteLine($"  Target         {journey.TargetVersion}");
         Console.WriteLine();
 
         if (journey.Steps.Count == 0)
         {
-            Console.WriteLine("  Es ist nichts zu tun.");
+            Console.WriteLine("  There is nothing to do.");
         }
         else
         {
-            Console.WriteLine("  SCHRITTE");
+            Console.WriteLine("  STEPS");
             Console.WriteLine("  --------------");
 
             for (var i = 0; i < journey.Steps.Count; i++)
@@ -67,9 +67,9 @@ internal static class JourneyCommand
 
                 var mark = step.State switch
                 {
-                    JourneyStepState.AlreadyInstalled => "[bereits da]",
-                    JourneyStepState.NeedsUpdate => $"[Aktualisierung {step.InstalledVersion} -> {step.Recipe.Version}]",
-                    _ => "[offen]",
+                    JourneyStepState.AlreadyInstalled => "[already there]",
+                    JourneyStepState.NeedsUpdate => $"[update {step.InstalledVersion} -> {step.Recipe.Version}]",
+                    _ => "[open]",
                 };
 
                 Console.WriteLine($"  {i + 1,2}. {step.Recipe.Name}  {mark}");
@@ -77,14 +77,14 @@ internal static class JourneyCommand
             }
 
             Console.WriteLine();
-            Console.WriteLine($"  Offen: {journey.Remaining.Count} von {journey.Steps.Count}");
+            Console.WriteLine($"  Open: {journey.Remaining.Count} of {journey.Steps.Count}");
         }
 
         Console.WriteLine();
 
         if (journey.Problems.Count > 0)
         {
-            Console.WriteLine("  BEFUNDE");
+            Console.WriteLine("  FINDINGS");
             Console.WriteLine("  -------------");
 
             foreach (var problem in journey.Problems)
@@ -103,8 +103,8 @@ internal static class JourneyCommand
 
     private static string Describe(JourneyReason reason) => reason switch
     {
-        JourneyReason.VersionTransition => "Versionswechsel",
-        JourneyReason.Dependency => "wird vorausgesetzt",
-        _ => "ausgewählt",
+        JourneyReason.VersionTransition => "version change",
+        JourneyReason.Dependency => "required by another",
+        _ => "selected",
     };
 }

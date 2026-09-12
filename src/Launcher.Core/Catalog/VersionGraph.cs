@@ -2,19 +2,19 @@ using ModlauncherIV.Core.Detection;
 
 namespace ModlauncherIV.Core.Catalog;
 
-/// <summary>Eine Kante: ein Rezept, das das Spiel von einer Version auf eine andere bringt.</summary>
+/// <summary>An edge: a recipe that takes the game from one version to another.</summary>
 public sealed record VersionEdge(string From, string To, Recipe Recipe);
 
 /// <summary>
-/// Der Versionsgraph aus Abschnitt 04 des Plans.
+/// The version graph.
 ///
-/// Versionen sind Knoten, versionsändernde Rezepte sind Kanten. Damit ist ein
-/// Downgrade keine Sonderbehandlung im Code, sondern eine Wegsuche: 1.0.4.0 ist
-/// schlicht eine Kante mehr, und ein neuer Patchstand ein Eintrag im Katalog.
+/// Versions are nodes, version-changing recipes are edges. That makes a
+/// downgrade no special case in the code but a path search: 1.0.4.0 is simply
+/// one more edge, and a new patch level one more catalog entry.
 ///
-/// Gesucht wird der Weg mit den wenigsten Schritten. Jeder Schritt ist ein
-/// vollständiger Rezeptlauf mit Snapshot — weniger Schritte heißt weniger
-/// Gelegenheiten, unterwegs zu scheitern.
+/// The search looks for the path with the fewest steps. Every step is a full
+/// recipe run with its own snapshot — fewer steps means fewer chances to fail
+/// along the way.
 /// </summary>
 public sealed class VersionGraph
 {
@@ -30,9 +30,9 @@ public sealed class VersionGraph
 
         foreach (var recipe in recipes.Where(r => r.Game == game && r.IsVersionTransition))
         {
-            // Ohne AppliesToVersions wüssten wir nicht, wo die Kante beginnt —
-            // ein Rezept, das "von überall" auf eine Version führt, wäre eine
-            // Behauptung, die niemand geprüft hat.
+            // Without AppliesToVersions we would not know where the edge starts —
+            // a recipe leading "from anywhere" to a version would be a claim
+            // nobody ever checked.
             foreach (var from in recipe.AppliesTo)
             {
                 if (!edges.TryGetValue(from, out var list))
@@ -49,8 +49,8 @@ public sealed class VersionGraph
     }
 
     /// <summary>
-    /// Kürzester Weg von <paramref name="from"/> nach <paramref name="to"/>,
-    /// als Folge von Rezepten. Null, wenn es keinen gibt.
+    /// Shortest path from <paramref name="from"/> to <paramref name="to"/>, as a
+    /// sequence of recipes. Null when there is none.
     /// </summary>
     public IReadOnlyList<VersionEdge>? FindPath(string from, string to)
     {
@@ -95,7 +95,7 @@ public sealed class VersionGraph
         return null;
     }
 
-    /// <summary>Alle Versionen, die von hier aus erreichbar sind.</summary>
+    /// <summary>Every version reachable from here.</summary>
     public IReadOnlyList<string> ReachableFrom(string version)
     {
         var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);

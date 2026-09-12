@@ -3,10 +3,10 @@ using System.Text.Json.Serialization;
 
 namespace ModlauncherIV.Core.Backup;
 
-/// <summary>Eine Datei, die ein Rezept ins Spiel gebracht hat.</summary>
+/// <summary>A file a recipe brought into the game.</summary>
 public sealed record OwnedFile(string RelativePath, string? Sha256);
 
-/// <summary>Ein installiertes Rezept.</summary>
+/// <summary>An installed recipe.</summary>
 public sealed record LedgerEntry(
     string RecipeId,
     string RecipeName,
@@ -15,16 +15,15 @@ public sealed record LedgerEntry(
     string SnapshotId,
     IReadOnlyList<OwnedFile> Files,
 
-    /// <summary>Spielversion nach dem Lauf. Verraet spaeter, ob der Store zurueckgepatcht hat.</summary>
+    /// <summary>Game version after the run. Later reveals whether the store patched it back.</summary>
     string? GameVersionAfter = null);
 
 /// <summary>
-/// Was der Launcher an dieser Installation verändert hat.
+/// What the launcher changed about this installation.
 ///
-/// Das ist die Antwort auf "welche Datei stammt von wem". Ohne diese Zuordnung
-/// könnte man ein einzelnes Rezept nicht deinstallieren, ohne die Dateien anderer
-/// Rezepte mitzureißen — und man könnte Konflikte nicht erkennen, bevor sie
-/// auftreten.
+/// This is the answer to "which file came from whom". Without that mapping you
+/// could not uninstall a single recipe without tearing other recipes' files out
+/// with it — and you could not detect conflicts before they happen.
 /// </summary>
 public sealed record InstallLedger(
     string GameRoot,
@@ -40,7 +39,7 @@ public sealed record InstallLedger(
     public LedgerEntry? Find(string recipeId) =>
         Entries.FirstOrDefault(e => string.Equals(e.RecipeId, recipeId, StringComparison.OrdinalIgnoreCase));
 
-    /// <summary>Findet das Rezept, dem eine Datei gehört — für die Konfliktprüfung.</summary>
+    /// <summary>Finds the recipe a file belongs to — for the conflict check.</summary>
     public LedgerEntry? OwnerOf(string relativePath) =>
         Entries.FirstOrDefault(e => e.Files.Any(f =>
             string.Equals(f.RelativePath, relativePath, StringComparison.OrdinalIgnoreCase)));
@@ -73,10 +72,10 @@ public sealed class LedgerStore(string gameRoot)
         }
         catch (Exception e) when (e is IOException or JsonException)
         {
-            // Ein kaputtes Ledger darf nicht dazu führen, dass wir den bisherigen
-            // Zustand vergessen und munter weiterinstallieren.
+            // A broken ledger must not make us forget the previous state and cheerfully
+            // carry on installing.
             throw new InvalidOperationException(
-                $"Das Ledger unter {_file} ist nicht lesbar: {e.Message}", e);
+                $"The ledger at {_file} is not readable: {e.Message}", e);
         }
     }
 
@@ -90,8 +89,8 @@ public sealed class LedgerStore(string gameRoot)
 
         var updated = ledger with { UpdatedAt = DateTimeOffset.Now };
 
-        // Erst daneben schreiben, dann ersetzen: ein Absturz mitten im Schreiben
-        // darf kein halbes Ledger hinterlassen.
+        // Write beside it first, then replace: a crash while writing must not leave
+        // half a ledger behind.
         var temp = _file + ".tmp";
         File.WriteAllText(temp, JsonSerializer.Serialize(updated, JsonOptions));
         File.Move(temp, _file, overwrite: true);

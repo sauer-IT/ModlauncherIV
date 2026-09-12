@@ -29,13 +29,13 @@ internal static class RemoveCommand
 
         if (targets.Count == 0)
         {
-            Console.WriteLine("  Der Launcher hat an dieser Installation nichts eingebaut.");
+            Console.WriteLine("  The launcher has installed nothing here.");
             return ExitCode.Ok;
         }
 
         if (string.IsNullOrWhiteSpace(options.Argument) && !options.All)
         {
-            Console.Error.WriteLine("Es fehlt die Rezept-ID. Alles zurueckbauen: mliv remove --all");
+            Console.Error.WriteLine("The recipe id is missing. To take everything back: mliv remove --all");
             Console.Error.WriteLine();
             Console.Error.WriteLine("Installiert ist derzeit:");
             foreach (var id in targets)
@@ -57,7 +57,7 @@ internal static class RemoveCommand
 
         if (!options.Yes && !Confirm(targets.Count))
         {
-            Console.WriteLine("  Abgebrochen. Es wurde nichts verändert.");
+            Console.WriteLine("  Cancelled. Nothing was changed.");
             return ExitCode.Ok;
         }
 

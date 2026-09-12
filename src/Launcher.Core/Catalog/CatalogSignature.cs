@@ -3,18 +3,18 @@ using System.Text.Json;
 
 namespace ModlauncherIV.Core.Catalog;
 
-/// <summary>Wie streng der Katalog geprüft wird.</summary>
+/// <summary>How strictly the catalog is checked.</summary>
 public enum CatalogTrust
 {
     /// <summary>
-    /// Nur signierte Kataloge. Ohne gültige Signatur wird kein einziges Rezept
-    /// geladen. Das ist der Modus für ausgelieferte Stände.
+    /// Signed catalogs only. Without a valid signature not a single recipe is
+    /// loaded. This is the mode for shipped builds.
     /// </summary>
     RequireSignature,
 
     /// <summary>
-    /// Unsignierte Kataloge zulassen. Nur für die Entwicklung und nur nach
-    /// ausdrücklicher Angabe — der Aufrufer bekommt eine Warnung zurück.
+    /// Allow unsigned catalogs. For development only, and only when asked for
+    /// explicitly — the caller gets a warning back.
     /// </summary>
     AllowUnsigned,
 }
@@ -32,16 +32,16 @@ public sealed record SignatureCheck(
     string? Error);
 
 /// <summary>
-/// Signiert und prüft den Rezeptkatalog.
+/// Signs and verifies the recipe catalog.
 ///
-/// Warum überhaupt: der Katalog bestimmt, welche Dateien ins Spielverzeichnis
-/// geschrieben werden. Wer ihn austauschen kann, kann beliebigen Code
-/// unterschieben. TLS allein reicht dafür nicht — es schützt den Transportweg,
-/// nicht vor einem übernommenen Server. Deshalb eine Signatur über einen Index,
-/// der jede Rezeptdatei mit ihrer Prüfsumme aufführt, geprüft gegen einen im
-/// Programm fest eingebauten öffentlichen Schlüssel.
+/// Why at all: the catalog decides which files get written into the game
+/// directory. Anyone who can swap it can slip in arbitrary code. TLS alone is
+/// not enough — it protects the transport, not against a compromised server.
+/// Hence a signature over an index listing every recipe file with its checksum,
+/// verified against a public key built into the program.
 ///
-/// ECDSA über P-256 mit SHA-256, weil das ohne Zusatzpaket in .NET enthalten ist.
+/// ECDSA over P-256 with SHA-256, because that ships with .NET without any extra
+/// package.
 /// </summary>
 public static class CatalogSignature
 {
@@ -49,22 +49,22 @@ public static class CatalogSignature
     public const string SignatureFileName = "index.json.sig";
 
     /// <summary>
-    /// Der öffentliche Schlüssel, dem dieser Build vertraut (Base64, SPKI).
+    /// The public key this build trusts (Base64, SPKI).
     ///
-    /// Der zugehörige private Schlüssel liegt außerhalb des Repositorys und wird
-    /// nicht weitergegeben — wer ihn hat, kann Kataloge signieren, denen jeder
-    /// Launcher mit diesem eingebauten Schlüssel vertraut, und damit bestimmen,
-    /// welche Dateien in fremde Spielverzeichnisse geschrieben werden.
+    /// The matching private key lives outside the repository and is not handed
+    /// out — whoever has it can sign catalogs that every launcher carrying this
+    /// embedded key will trust, and thereby decide which files get written into
+    /// other people's game directories.
     ///
-    /// Ein Wechsel des Schlüssels macht jeden bisher signierten Katalog
-    /// ungültig. Das ist gewollt: es ist derselbe Vorgang wie ein Rückruf.
+    /// Changing the key invalidates every catalog signed so far. That is
+    /// intended: it is the same operation as a recall.
     /// </summary>
     public const string EmbeddedPublicKey =
         "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAErYJ9SF8sVJWiPILvCWQy/+SzE1/bQWJXGOiaAAlpLv0+PgDLufqQ2zHvWTCsxmkOzoU+eD2ZFaYcFp+Lb4SSPw==";
 
     private static readonly JsonSerializerOptions JsonOptions = new() { WriteIndented = true };
 
-    // ------------------------------------------------------------------ Prüfen
+    // ------------------------------------------------------------------ Verify
 
     public static SignatureCheck Verify(string directory, string? publicKeyBase64 = null)
     {
@@ -73,8 +73,8 @@ public static class CatalogSignature
         if (string.IsNullOrWhiteSpace(key))
         {
             return new SignatureCheck(false, null,
-                "Diesem Build ist kein öffentlicher Katalogschlüssel eingebaut — "
-                + "eine Signatur kann nicht geprüft werden.");
+                "This build has no public catalog key built in — "
+                + "a signature cannot be verified.");
         }
 
         var indexPath = Path.Combine(directory, IndexFileName);
@@ -82,12 +82,12 @@ public static class CatalogSignature
 
         if (!File.Exists(indexPath))
         {
-            return new SignatureCheck(false, null, $"{IndexFileName} fehlt.");
+            return new SignatureCheck(false, null, $"{IndexFileName} is missing.");
         }
 
         if (!File.Exists(signaturePath))
         {
-            return new SignatureCheck(false, null, $"{SignatureFileName} fehlt.");
+            return new SignatureCheck(false, null, $"{SignatureFileName} is missing.");
         }
 
         byte[] indexBytes;
@@ -100,7 +100,7 @@ public static class CatalogSignature
         }
         catch (Exception e) when (e is IOException or FormatException)
         {
-            return new SignatureCheck(false, null, $"Signatur nicht lesbar: {e.Message}");
+            return new SignatureCheck(false, null, $"Signature is not readable: {e.Message}");
         }
 
         try
@@ -111,13 +111,13 @@ public static class CatalogSignature
             if (!ecdsa.VerifyData(indexBytes, signature, HashAlgorithmName.SHA256))
             {
                 return new SignatureCheck(false, null,
-                    "Die Signatur des Katalogs ist ungültig. Der Katalog wurde verändert "
-                    + "oder stammt nicht von uns.");
+                    "The catalog signature is invalid. The catalog was modified, "
+                    + "or it did not come from us.");
             }
         }
         catch (Exception e) when (e is CryptographicException or FormatException)
         {
-            return new SignatureCheck(false, null, $"Signaturprüfung fehlgeschlagen: {e.Message}");
+            return new SignatureCheck(false, null, $"Signature check failed: {e.Message}");
         }
 
         try
@@ -125,20 +125,20 @@ public static class CatalogSignature
             var index = JsonSerializer.Deserialize<CatalogIndex>(indexBytes, RecipeCatalog.JsonOptions);
             if (index is null)
             {
-                return new SignatureCheck(false, null, "Der Index ist leer.");
+                return new SignatureCheck(false, null, "The index is empty.");
             }
 
             return new SignatureCheck(true, index, null);
         }
         catch (JsonException e)
         {
-            return new SignatureCheck(false, null, $"Index nicht lesbar: {e.Message}");
+            return new SignatureCheck(false, null, $"Index is not readable: {e.Message}");
         }
     }
 
-    // ---------------------------------------------------- Erzeugen (Werkzeug)
+    // -------------------------------------------------------- Creating (tools)
 
-    /// <summary>Erzeugt ein neues Schlüsselpaar. Der private Teil gehört nicht ins Repo.</summary>
+    /// <summary>Creates a new key pair. The private part does not belong in the repo.</summary>
     public static (string PrivatePem, string PublicBase64) CreateKey()
     {
         using var ecdsa = ECDsa.Create(ECCurve.NamedCurves.nistP256);
@@ -148,9 +148,9 @@ public static class CatalogSignature
     }
 
     /// <summary>
-    /// Baut den Index über alle Rezeptdateien und signiert ihn. Der Index wird in
-    /// derselben Byte-Form geschrieben, die anschließend signiert wird — sonst
-    /// würde die Signatur an einer anderen Formatierung scheitern.
+    /// Builds the index over every recipe file and signs it. The index is written
+    /// in exactly the byte form that is then signed — otherwise the signature
+    /// would fail over a difference in formatting.
     /// </summary>
     public static IReadOnlyList<string> Sign(string directory, string privatePem)
     {

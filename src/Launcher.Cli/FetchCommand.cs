@@ -11,28 +11,28 @@ internal static class FetchCommand
     {
         if (string.IsNullOrWhiteSpace(options.Argument))
         {
-            Console.Error.WriteLine("Es fehlt die Rezept-ID. Verfügbare Rezepte: mliv catalog");
+            Console.Error.WriteLine("The recipe id is missing. Available recipes: mliv catalog");
             return ExitCode.BadUsage;
         }
 
         var recipe = catalog.Find(options.Argument);
         if (recipe is null)
         {
-            Console.Error.WriteLine($"Rezept nicht gefunden: {options.Argument}");
+            Console.Error.WriteLine($"Recipe not found: {options.Argument}");
             return ExitCode.NothingFound;
         }
 
         if (recipe.RequiredFiles.Count == 0)
         {
-            Console.WriteLine($"{recipe.Id} braucht keine externen Dateien.");
+            Console.WriteLine($"{recipe.Id} needs no external files.");
             return ExitCode.Ok;
         }
 
         var cache = options.CachePath ?? AppPaths.Cache;
         Directory.CreateDirectory(cache);
 
-        Console.WriteLine($"  Arbeitsverzeichnis  {Path.GetFullPath(cache)}");
-        Console.WriteLine($"  Benötigt            {recipe.RequiredFiles.Count} Datei(en)");
+        Console.WriteLine($"  Working directory   {Path.GetFullPath(cache)}");
+        Console.WriteLine($"  Requires            {recipe.RequiredFiles.Count} file(s)");
         Console.WriteLine();
 
         using var http = new HttpClient { Timeout = TimeSpan.FromMinutes(30) };
@@ -57,17 +57,17 @@ internal static class FetchCommand
     {
         var missing = results.Where(r => !r.Ok).ToArray();
 
-        Console.WriteLine("  ERGEBNIS");
+        Console.WriteLine("  RESULT");
         Console.WriteLine("  --------------");
         foreach (var result in results)
         {
             var status = result.Status switch
             {
-                AcquisitionStatus.AlreadyPresent => "lag bereits vor",
-                AcquisitionStatus.Downloaded => "geladen",
-                AcquisitionStatus.Bundled => "mitgeliefert",
-                AcquisitionStatus.NeedsUserAction => "FEHLT",
-                _ => "FEHLER",
+                AcquisitionStatus.AlreadyPresent => "already there",
+                AcquisitionStatus.Downloaded => "downloaded",
+                AcquisitionStatus.Bundled => "shipped",
+                AcquisitionStatus.NeedsUserAction => "MISSING",
+                _ => "ERROR",
             };
 
             Console.WriteLine($"  {status,-16} {result.Source.FileName}");
@@ -76,14 +76,14 @@ internal static class FetchCommand
         if (missing.Length == 0)
         {
             Console.WriteLine();
-            Console.WriteLine("  Alle Dateien vorhanden und verifiziert.");
+            Console.WriteLine("  All files present and verified.");
             return ExitCode.Ok;
         }
 
-        // Der Notausgang: wenn keine Quelle liefert, muss der Nutzer wissen, was
-        // genau er wohin legen soll — mit Prüfsumme, sonst kann er es nicht prüfen.
+        // The escape hatch: when no source delivers, the user has to know exactly
+        // what to put where — with the checksum, or they cannot verify it.
         Console.WriteLine();
-        Console.WriteLine("  VON HAND ABZULEGEN");
+        Console.WriteLine("  TO BE SUPPLIED BY HAND");
         Console.WriteLine("  ------------------------");
 
         foreach (var result in missing)
@@ -91,16 +91,16 @@ internal static class FetchCommand
             Console.WriteLine();
             Console.WriteLine($"  {result.Source.FileName}");
             Console.WriteLine($"      SHA-256  {result.Source.Sha256}");
-            Console.WriteLine($"      Größe    {result.Source.SizeBytes:N0} Bytes");
+            Console.WriteLine($"      size     {result.Source.SizeBytes:N0} bytes");
 
             if (result.Source.Note is not null)
             {
-                Console.WriteLine($"      Hinweis  {result.Source.Note}");
+                Console.WriteLine($"      note     {result.Source.Note}");
             }
 
             foreach (var attempt in result.Attempts)
             {
-                Console.WriteLine($"      versucht {attempt}");
+                Console.WriteLine($"      tried    {attempt}");
             }
 
             if (result.Error is not null)
@@ -110,14 +110,14 @@ internal static class FetchCommand
         }
 
         Console.WriteLine();
-        Console.WriteLine("  Datei ins Arbeitsverzeichnis legen und fetch erneut aufrufen.");
-        Console.WriteLine("  Die Prüfsumme wird dabei geprüft — eine falsche Datei wird abgelehnt.");
+        Console.WriteLine("  Put the file into the working directory and run fetch again.");
+        Console.WriteLine("  The checksum is verified — a wrong file gets rejected.");
 
         return ExitCode.Failed;
     }
 }
 
-/// <summary>Fortschritt in einer Zeile, ohne die Ausgabe zuzumüllen.</summary>
+/// <summary>Progress on a single line, without flooding the output.</summary>
 internal sealed class ConsoleProgress : IProgress<AcquisitionProgress>
 {
     private string _current = string.Empty;

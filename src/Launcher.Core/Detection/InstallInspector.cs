@@ -4,22 +4,22 @@ using System.Security.Cryptography;
 namespace ModlauncherIV.Core.Detection;
 
 /// <summary>
-/// Untersucht einen Kandidaten und liefert das vollständige Bild: Version, Hash,
-/// Episoden, Fremddateien und die Schlussfolgerungen daraus.
+/// Inspects a candidate and produces the complete picture: version, hash,
+/// episodes, foreign files and the conclusions that follow from them.
 ///
-/// Rein lesend. Diese Klasse fasst nichts an.
+/// Read-only. This class touches nothing.
 /// </summary>
 public sealed class InstallInspector
 {
     public const string ExecutableName = "GTAIV.exe";
 
-    /// <summary>Proxy-DLLs, über die ASI-Loader eingehängt werden.</summary>
+    /// <summary>Proxy DLLs that ASI loaders hook themselves in through.</summary>
     private static readonly string[] AsiLoaderNames =
     [
         "dsound.dll", "dinput8.dll", "d3d9.dll", "xinput1_3.dll", "version.dll", "winmm.dll",
     ];
 
-    /// <summary>Ordner, in denen Mods typischerweise ihre Dateien ablegen.</summary>
+    /// <summary>Folders mods typically drop their files into.</summary>
     private static readonly string[] ModFolderNames =
     [
         "scripts", "plugins", "asi",
@@ -70,14 +70,14 @@ public sealed class InstallInspector
         {
             notes.Add(new Note(
                 NoteLevel.Blocker,
-                "Versionsinformation der Spieldatei nicht lesbar.",
+                "Version information of the game file is not readable.",
                 e.Message));
         }
 
         var resolved = KnownVersions.Resolve(raw);
 
-        // Die Registry hat bei RGL ebenfalls eine Version. Weichen beide ab,
-        // ist die EXE womöglich schon ausgetauscht — das muss sichtbar sein.
+        // With RGL the registry also holds a version. If the two differ, the EXE
+        // may already have been swapped — and that has to be visible.
         if (candidate.Platform == GamePlatform.RockstarLauncher)
         {
             var registryVersion = ReadRockstarRegistryVersion();
@@ -86,8 +86,8 @@ public sealed class InstallInspector
             {
                 notes.Add(new Note(
                     NoteLevel.Warning,
-                    $"Registry meldet {registryVersion}, die Spieldatei meldet {resolved.Raw}.",
-                    "Die EXE wurde vermutlich bereits ausgetauscht, ohne dass der Launcher davon weiß."));
+                    $"The registry reports {registryVersion}, the game file reports {resolved.Raw}.",
+                    "The EXE has probably been swapped already without the launcher knowing."));
             }
         }
 
@@ -131,13 +131,13 @@ public sealed class InstallInspector
         {
             notes.Add(new Note(
                 NoteLevel.Warning,
-                "Prüfsumme der Spieldatei konnte nicht gebildet werden.",
+                "The checksum of the game file could not be computed.",
                 e.Message));
             return (null, 0);
         }
     }
 
-    // -------------------------------------------------------------- Mod-Spuren
+    // ------------------------------------------------------------- Mod traces
 
     private static IReadOnlyList<ModArtifact> ProbeModArtifacts(string root, List<Note> notes)
     {
@@ -179,7 +179,7 @@ public sealed class InstallInspector
         {
             notes.Add(new Note(
                 NoteLevel.Warning,
-                "Das Spielverzeichnis konnte nicht vollständig gelesen werden.",
+                "The game directory could not be read completely.",
                 e.Message));
         }
 
@@ -225,10 +225,10 @@ public sealed class InstallInspector
         }
     }
 
-    // --------------------------------------------------------------- Deutung
+    // ----------------------------------------------------------- Interpretation
 
     /// <summary>
-    /// Übersetzt die Rohbefunde in Aussagen, die für den nächsten Schritt zählen.
+    /// Turns the raw findings into statements that matter for the next step.
     /// </summary>
     private static void AddInterpretation(
         InstallCandidate candidate,
@@ -242,51 +242,51 @@ public sealed class InstallInspector
         {
             notes.Add(new Note(
                 NoteLevel.Blocker,
-                $"Version {version.Raw} ist dem Launcher nicht bekannt.",
-                "Solange die Version nicht im Versionsgraphen steht, darf kein Rezept automatisch laufen."));
+                $"Version {version.Raw} is not known to the launcher.",
+                "As long as the version is not in the version graph, no recipe may run automatically."));
         }
         else if (version.IsCompleteEdition)
         {
             notes.Add(new Note(
                 NoteLevel.Info,
-                "Complete Edition erkannt — für die meisten Mods ist ein Downgrade nötig.",
-                "Radiosongs und Multiplayer wurden von Rockstar entfernt und kommen durch den Downgrade nicht zurück."));
+                "Complete Edition detected — most mods need a downgrade first.",
+                "Rockstar removed radio songs and multiplayer; a downgrade does not bring them back."));
         }
         else if (version.IsModdingTarget)
         {
             notes.Add(new Note(
                 NoteLevel.Info,
-                $"Version {version.Raw} ist bereits ein Modding-Ziel — kein Downgrade nötig.",
-                "Diese Version braucht einen GFWL-Stub (xliveless), um ohne Games for Windows Live zu starten."));
+                $"Version {version.Raw} is already a modding target — no downgrade needed.",
+                "This version needs a GFWL stub (xliveless) to start without Games for Windows Live."));
         }
 
         if (artifacts.Count == 0)
         {
             notes.Add(new Note(
                 NoteLevel.Info,
-                "Keine Fremddateien gefunden — die Installation ist unverändert."));
+                "No foreign files found — the installation is unchanged."));
         }
         else
         {
             notes.Add(new Note(
                 NoteLevel.Warning,
-                $"{artifacts.Count} Fremddatei(en) gefunden — die Installation ist bereits modifiziert.",
-                "Der Launcher kennt diese Dateien nicht und kann sie nicht zurücknehmen."));
+                $"{artifacts.Count} foreign file(s) found — the installation is already modified.",
+                "The launcher does not know these files and cannot take them back."));
         }
 
         if (hasTlad || hasTbogt)
         {
             var episodes = (hasTlad, hasTbogt) switch
             {
-                (true, true) => "TLAD und TBoGT",
+                (true, true) => "TLAD and TBoGT",
                 (true, false) => "TLAD",
                 _ => "TBoGT",
             };
 
             notes.Add(new Note(
                 NoteLevel.Info,
-                $"Episodes ({episodes}) liegen im selben Verzeichnis.",
-                "Ein Downgrade betrifft sie mit — sie sind kein separates Spiel."));
+                $"Episodes ({episodes}) live in the same directory.",
+                "A downgrade affects them too — they are not a separate game."));
         }
 
         switch (candidate.Platform)
@@ -294,29 +294,29 @@ public sealed class InstallInspector
             case GamePlatform.RockstarLauncher:
                 notes.Add(new Note(
                     NoteLevel.Warning,
-                    "Rockstar Games Launcher: kein dokumentierter Schalter gegen Auto-Update.",
-                    "Der Launcher kann die Installation nach einem Downgrade eigenständig zurücksetzen."));
+                    "Rockstar Games Launcher: no documented switch against auto-update.",
+                    "The launcher can reset the installation on its own after a downgrade."));
                 break;
 
             case GamePlatform.Steam:
                 notes.Add(new Note(
                     NoteLevel.Info,
-                    "Steam: Auto-Update lässt sich über die appmanifest-Datei sperren.",
-                    "\"Dateien überprüfen\" hebt jeden Downgrade trotzdem auf."));
+                    "Steam: auto-update can be locked via the appmanifest file.",
+                    "\"Verify files\" still undoes any downgrade."));
                 break;
 
             case GamePlatform.Epic:
                 notes.Add(new Note(
                     NoteLevel.Info,
-                    "Epic: Auto-Update lässt sich in den Einstellungen deaktivieren.",
-                    "\"Verify\" hebt jeden Downgrade trotzdem auf."));
+                    "Epic: auto-update can be disabled in the settings.",
+                    "\"Verify\" still undoes any downgrade."));
                 break;
 
             case GamePlatform.Unknown:
                 notes.Add(new Note(
                     NoteLevel.Warning,
-                    "Herkunft der Installation nicht bestimmbar.",
-                    "Ohne bekannte Plattform kann das Auto-Update nicht gesperrt werden."));
+                    "The origin of this installation cannot be determined.",
+                    "Without a known platform the auto-update cannot be locked."));
                 break;
 
             case GamePlatform.Retail:

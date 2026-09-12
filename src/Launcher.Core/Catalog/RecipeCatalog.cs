@@ -16,9 +16,9 @@ public sealed record CatalogLoadResult(
 }
 
 /// <summary>
-/// Lädt Rezepte aus einem Verzeichnis. Eine kaputte Datei lässt die anderen
-/// unberührt und wird als Fehler gemeldet — ein einzelnes fehlerhaftes Rezept
-/// darf den Launcher nicht unbrauchbar machen.
+/// Loads recipes from a directory. A broken file leaves the others alone and is
+/// reported as an error — one faulty recipe must not render the launcher
+/// unusable.
 /// </summary>
 public static class RecipeCatalog
 {
@@ -32,9 +32,10 @@ public static class RecipeCatalog
     };
 
     /// <summary>
-    /// Lädt den Katalog. Bei <see cref="CatalogTrust.RequireSignature"/> wird ohne
-    /// gültige Signatur kein einziges Rezept geladen — nicht "die guten trotzdem",
-    /// denn wer den Katalog fälschen kann, sucht sich aus, welche gut aussehen.
+    /// Loads the catalog. With <see cref="CatalogTrust.RequireSignature"/> not a
+    /// single recipe is loaded without a valid signature — not "the harmless ones
+    /// anyway", because whoever can forge the catalog picks which ones look
+    /// harmless.
     /// </summary>
     public static CatalogLoadResult LoadFrom(
         string directory,
@@ -43,7 +44,7 @@ public static class RecipeCatalog
     {
         if (!Directory.Exists(directory))
         {
-            return CatalogLoadResult.Rejected($"Katalogverzeichnis nicht gefunden: {directory}");
+            return CatalogLoadResult.Rejected($"Catalog directory not found: {directory}");
         }
 
         return trust == CatalogTrust.RequireSignature
@@ -58,8 +59,8 @@ public static class RecipeCatalog
         if (!check.Verified || check.Index is null)
         {
             return CatalogLoadResult.Rejected(
-                $"Katalog nicht vertrauenswürdig: {check.Error} "
-                + "(Mit --allow-unsigned lässt sich das für die Entwicklung übergehen.)");
+                $"Catalog is not trusted: {check.Error} "
+                + "(--allow-unsigned overrides this for development.)");
         }
 
         var recipes = new List<Recipe>();
@@ -67,28 +68,28 @@ public static class RecipeCatalog
 
         foreach (var entry in check.Index.Entries)
         {
-            // Der Eintragspfad kommt aus einer signierten Datei, ist aber trotzdem
-            // ein Pfad — er darf nicht aus dem Katalogverzeichnis herausführen.
+            // The entry path comes out of a signed file, but it is still a path —
+            // it must not lead out of the catalog directory.
             var file = Path.GetFullPath(Path.Combine(directory, entry.File));
             var prefix = Path.GetFullPath(directory).TrimEnd(Path.DirectorySeparatorChar)
                          + Path.DirectorySeparatorChar;
 
             if (!file.StartsWith(prefix, StringComparison.OrdinalIgnoreCase))
             {
-                errors.Add($"{entry.File}: zeigt aus dem Katalogverzeichnis heraus.");
+                errors.Add($"{entry.File}: points outside the catalog directory.");
                 continue;
             }
 
             if (!File.Exists(file))
             {
-                errors.Add($"{entry.File}: im Index aufgeführt, aber nicht vorhanden.");
+                errors.Add($"{entry.File}: listed in the index but not present.");
                 continue;
             }
 
             var actual = Hashing.Sha256File(file);
             if (!Hashing.Equal(actual, entry.Sha256))
             {
-                errors.Add($"{entry.File}: Prüfsumme weicht vom signierten Index ab.");
+                errors.Add($"{entry.File}: checksum differs from the signed index.");
                 continue;
             }
 
@@ -120,11 +121,11 @@ public static class RecipeCatalog
         return new CatalogLoadResult(
             recipes,
             errors,
-            ["Der Katalog wurde NICHT auf eine Signatur geprüft. Nur für die Entwicklung."],
+            ["The catalog was NOT checked against a signature. For development only."],
             SignatureVerified: false);
     }
 
-    /// <summary>Eine kaputte Datei lässt die anderen unberührt und wird gemeldet.</summary>
+    /// <summary>A broken file leaves the others alone and gets reported.</summary>
     private static void Read(string file, List<Recipe> recipes, List<string> errors)
     {
         var name = Path.GetFileName(file);
@@ -134,7 +135,7 @@ public static class RecipeCatalog
             var recipe = JsonSerializer.Deserialize<Recipe>(File.ReadAllText(file), JsonOptions);
             if (recipe is null)
             {
-                errors.Add($"{name}: leer.");
+                errors.Add($"{name}: empty.");
                 return;
             }
 
@@ -159,13 +160,14 @@ public static class RecipeCatalog
                      .GroupBy(r => r.Id, StringComparer.OrdinalIgnoreCase)
                      .Where(g => g.Count() > 1))
         {
-            errors.Add($"Rezept-ID mehrfach vergeben: {duplicate.Key}");
+            errors.Add($"Recipe id used more than once: {duplicate.Key}");
         }
     }
 
     /// <summary>
-    /// Prüft, was ohne Ausführung prüfbar ist. Eine Quelle ohne Prüfsumme ist der
-    /// wichtigste Fall: sie würde ungeprüfte Dateien ins Spiel lassen.
+    /// Checks what can be checked without executing anything. A source without a
+    /// checksum is the case that matters most: it would let unverified files into
+    /// the game.
     /// </summary>
     private static IReadOnlyList<string> Validate(Recipe recipe)
     {
@@ -173,34 +175,34 @@ public static class RecipeCatalog
 
         if (string.IsNullOrWhiteSpace(recipe.Id))
         {
-            problems.Add("keine Id");
+            problems.Add("no id");
         }
 
         if (string.IsNullOrWhiteSpace(recipe.Name))
         {
-            problems.Add("kein Name");
+            problems.Add("no name");
         }
 
         if (string.IsNullOrWhiteSpace(recipe.Version))
         {
-            problems.Add("keine Version");
+            problems.Add("no version");
         }
 
         if (recipe.Actions.Count == 0)
         {
-            problems.Add("keine Schritte");
+            problems.Add("no steps");
         }
 
         foreach (var source in recipe.RequiredFiles)
         {
             if (source.Sha256.Length != 64 || !source.Sha256.All(Uri.IsHexDigit))
             {
-                problems.Add($"Quelle '{source.Id}' hat keine gültige SHA-256-Prüfsumme");
+                problems.Add($"source '{source.Id}' has no valid SHA-256 checksum");
             }
 
             if (source.SizeBytes <= 0)
             {
-                problems.Add($"Quelle '{source.Id}' hat keine Größenangabe");
+                problems.Add($"source '{source.Id}' has no size");
             }
         }
 

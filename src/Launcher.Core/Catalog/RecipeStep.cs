@@ -5,19 +5,19 @@ using ModlauncherIV.Core.Execution;
 namespace ModlauncherIV.Core.Catalog;
 
 /// <summary>
-/// Ein einzelner Arbeitsschritt eines Rezepts.
+/// A single action inside a recipe.
 ///
-/// Der Vertrag hat drei Teile, und die Trennung ist der Kern des ganzen
-/// Sicherheitsmodells:
+/// The contract has three parts, and keeping them apart is the core of the whole
+/// safety model:
 ///
-///   <see cref="Describe"/>            — was der Nutzer im Dry-Run liest
-///   <see cref="AffectedGamePaths"/>   — welche Dateien angefasst werden, VOR dem Schreiben
-///   <see cref="Apply"/>               — die eigentliche Änderung
+///   <see cref="Describe"/>            — what the user reads in the dry run
+///   <see cref="AffectedGamePaths"/>   — which files get touched, BEFORE writing
+///   <see cref="Apply"/>               — the actual change
 ///
-/// Weil ein Schritt seine Ziele nennen kann, ohne sie zu verändern, lässt sich
-/// der Snapshot anlegen, bevor irgendetwas passiert. Ein Schritt, der Dateien
-/// anfasst, die er nicht angekündigt hat, macht den Rollback unvollständig —
-/// deshalb muss jede neue Schrittart beides sauber implementieren.
+/// Because a step can name its targets without changing them, the snapshot can
+/// be taken before anything happens. A step that touches files it did not
+/// announce makes the rollback incomplete — so every new kind of step has to
+/// implement both properly.
 /// </summary>
 [JsonPolymorphic(TypeDiscriminatorPropertyName = "type")]
 [JsonDerivedType(typeof(EnsureDirectoryStep), "ensureDirectory")]
@@ -26,29 +26,29 @@ namespace ModlauncherIV.Core.Catalog;
 [JsonDerivedType(typeof(ExtractArchiveStep), "extractArchive")]
 public abstract record RecipeStep
 {
-    /// <summary>Einzeiler für den Dry-Run.</summary>
+    /// <summary>One line for the dry run.</summary>
     public abstract string Describe();
 
     /// <summary>
-    /// Alle spielrelativen Pfade, die dieser Schritt verändern wird — absolute
-    /// Pfade, bereits durch die Pfadprüfung gelaufen.
+    /// Every game-relative path this step will change — as absolute paths, and
+    /// already run through the containment check.
     /// </summary>
     public abstract IReadOnlyList<string> AffectedGamePaths(RecipeContext context);
 
-    /// <summary>Führt den Schritt aus. Wird nie im Dry-Run aufgerufen.</summary>
+    /// <summary>Runs the step. Never called during a dry run.</summary>
     public abstract void Apply(RecipeContext context);
 
     /// <summary>
-    /// Prüft nach dem Ausführen, ob das Ergebnis stimmt. Liefert die Beanstandungen;
-    /// leer heißt in Ordnung. "Kopiert" ist nicht dasselbe wie "richtig kopiert".
+    /// Checks after the fact whether the result is right. Returns the complaints;
+    /// empty means fine. "Copied" is not the same as "copied correctly".
     /// </summary>
     public virtual IReadOnlyList<string> Verify(RecipeContext context) => [];
 }
 
-/// <summary>Legt ein Verzeichnis an, falls es fehlt.</summary>
+/// <summary>Creates a directory if it is missing.</summary>
 public sealed record EnsureDirectoryStep(string Target) : RecipeStep
 {
-    public override string Describe() => $"Verzeichnis anlegen: {Target}";
+    public override string Describe() => $"Create directory: {Target}";
 
     public override IReadOnlyList<string> AffectedGamePaths(RecipeContext context) =>
         [context.ResolveGamePath(Target)];
@@ -58,21 +58,21 @@ public sealed record EnsureDirectoryStep(string Target) : RecipeStep
         var path = context.ResolveGamePath(Target);
         if (Directory.Exists(path))
         {
-            context.Log.Info($"Verzeichnis besteht bereits: {Target}");
+            context.Log.Info($"Directory already exists: {Target}");
             return;
         }
 
         Directory.CreateDirectory(path);
-        context.Log.Info($"Verzeichnis angelegt: {Target}");
+        context.Log.Info($"Directory created: {Target}");
     }
 }
 
-/// <summary>Kopiert eine beschaffte Datei ins Spielverzeichnis.</summary>
-/// <param name="Source">Dateiname im Arbeitsverzeichnis.</param>
-/// <param name="Target">Zielpfad, relativ zum Spielverzeichnis.</param>
+/// <summary>Copies an acquired file into the game directory.</summary>
+/// <param name="Source">File name inside the working directory.</param>
+/// <param name="Target">Target path, relative to the game directory.</param>
 public sealed record CopyFileStep(string Source, string Target) : RecipeStep
 {
-    public override string Describe() => $"Kopieren: {Source} -> {Target}";
+    public override string Describe() => $"Copy: {Source} -> {Target}";
 
     public override IReadOnlyList<string> AffectedGamePaths(RecipeContext context) =>
         [context.ResolveGamePath(Target)];
@@ -85,7 +85,7 @@ public sealed record CopyFileStep(string Source, string Target) : RecipeStep
         if (!File.Exists(source))
         {
             throw new FileNotFoundException(
-                $"Die Quelldatei fehlt im Arbeitsverzeichnis: {Source}", source);
+                $"The source file is missing from the working directory: {Source}", source);
         }
 
         var directory = Path.GetDirectoryName(target);
@@ -95,7 +95,7 @@ public sealed record CopyFileStep(string Source, string Target) : RecipeStep
         }
 
         File.Copy(source, target, overwrite: true);
-        context.Log.Info($"Kopiert: {Source} -> {Target}");
+        context.Log.Info($"Copied: {Source} -> {Target}");
     }
 
     public override IReadOnlyList<string> Verify(RecipeContext context)
@@ -105,24 +105,24 @@ public sealed record CopyFileStep(string Source, string Target) : RecipeStep
 
         if (!File.Exists(target))
         {
-            return [$"{Target} wurde nicht angelegt."];
+            return [$"{Target} was not created."];
         }
 
-        // Byteweise Gleichheit gegen die Quelle: eine abgeschnittene Kopie hat
-        // die richtige Existenz, aber den falschen Inhalt.
+        // Byte-for-byte equality against the source: a truncated copy exists
+        // just fine, it simply has the wrong content.
         if (File.Exists(source) && Hashing.Sha256File(source) != Hashing.Sha256File(target))
         {
-            return [$"{Target} stimmt nicht mit der Quelle {Source} überein."];
+            return [$"{Target} does not match its source {Source}."];
         }
 
         return [];
     }
 }
 
-/// <summary>Entfernt eine Datei aus dem Spielverzeichnis.</summary>
+/// <summary>Removes a file from the game directory.</summary>
 public sealed record DeleteFileStep(string Target) : RecipeStep
 {
-    public override string Describe() => $"Löschen: {Target}";
+    public override string Describe() => $"Delete: {Target}";
 
     public override IReadOnlyList<string> AffectedGamePaths(RecipeContext context) =>
         [context.ResolveGamePath(Target)];
@@ -133,41 +133,41 @@ public sealed record DeleteFileStep(string Target) : RecipeStep
 
         if (!File.Exists(path))
         {
-            context.Log.Info($"Nicht vorhanden, nichts zu löschen: {Target}");
+            context.Log.Info($"Not present, nothing to delete: {Target}");
             return;
         }
 
         File.Delete(path);
-        context.Log.Info($"Gelöscht: {Target}");
+        context.Log.Info($"Deleted: {Target}");
     }
 
     public override IReadOnlyList<string> Verify(RecipeContext context) =>
         File.Exists(context.ResolveGamePath(Target))
-            ? [$"{Target} existiert noch."]
+            ? [$"{Target} still exists."]
             : [];
 }
 
 /// <summary>
-/// Entpackt ein Archiv ins Spielverzeichnis.
+/// Extracts an archive into the game directory.
 ///
-/// Für <see cref="AffectedGamePaths"/> muss das Archiv gelesen werden — die
-/// betroffenen Dateien stehen erst darin. Fehlt das Archiv noch (Dry-Run vor der
-/// Beschaffung), bleibt die Liste leer und der Runner weiß, dass er ohne die
-/// Datei nicht ausführen darf.
+/// <see cref="AffectedGamePaths"/> has to read the archive — the affected files
+/// are only listed inside it. If the archive is not there yet (dry run before
+/// acquisition), the list stays empty and the runner knows it must not execute
+/// without the file.
 /// </summary>
-/// <param name="Archive">Archivname im Arbeitsverzeichnis.</param>
-/// <param name="Target">Zielverzeichnis relativ zum Spiel. Leer = Spielwurzel.</param>
+/// <param name="Archive">Archive name in the working directory.</param>
+/// <param name="Target">Target directory relative to the game. Empty = game root.</param>
 /// <param name="From">
-/// Optionaler Teilbaum im Archiv. Nur Eintraege darunter werden entpackt, und
-/// zwar ohne dieses Praefix. Notwendig fuer Archive, die alles in einen
-/// Wrapper-Ordner legen: ohne das landete "Retail/xyz.dll" als
-/// "&lt;Spiel&gt;/Retail/xyz.dll" statt als "&lt;Spiel&gt;/xyz.dll".
+/// Optional subtree inside the archive. Only entries below it get extracted, and
+/// without that prefix. Needed for archives that put everything inside a wrapper
+/// folder: without it "Retail/xyz.dll" would land as
+/// "&lt;game&gt;/Retail/xyz.dll" instead of "&lt;game&gt;/xyz.dll".
 /// </param>
 public sealed record ExtractArchiveStep(string Archive, string Target = "", string From = "") : RecipeStep
 {
     private string TargetOrRoot => string.IsNullOrWhiteSpace(Target) ? "." : Target;
 
-    /// <summary>Das Praefix, normalisiert auf Schrägstriche und mit abschließendem Trenner.</summary>
+    /// <summary>The prefix, normalised to forward slashes and with a trailing separator.</summary>
     private string Prefix
     {
         get
@@ -185,8 +185,8 @@ public sealed record ExtractArchiveStep(string Archive, string Target = "", stri
     public override string Describe()
     {
         var source = Prefix.Length == 0 ? Archive : $"{Archive}:{Prefix}";
-        var target = string.IsNullOrWhiteSpace(Target) ? "(Spielwurzel)" : Target;
-        return $"Entpacken: {source} -> {target}";
+        var target = string.IsNullOrWhiteSpace(Target) ? "(game root)" : Target;
+        return $"Extract: {source} -> {target}";
     }
 
     public override IReadOnlyList<string> AffectedGamePaths(RecipeContext context)
@@ -208,7 +208,7 @@ public sealed record ExtractArchiveStep(string Archive, string Target = "", stri
         }
         catch (InvalidDataException e)
         {
-            throw new RecipeSecurityException($"Archiv nicht lesbar: {Archive} ({e.Message})");
+            throw new RecipeSecurityException($"Archive is not readable: {Archive} ({e.Message})");
         }
     }
 
@@ -217,7 +217,8 @@ public sealed record ExtractArchiveStep(string Archive, string Target = "", stri
         var archive = context.ResolveSourcePath(Archive);
         if (!File.Exists(archive))
         {
-            throw new FileNotFoundException($"Das Archiv fehlt im Arbeitsverzeichnis: {Archive}", archive);
+            throw new FileNotFoundException(
+                $"The archive is missing from the working directory: {Archive}", archive);
         }
 
         var targetRoot = context.ResolveGamePath(TargetOrRoot);
@@ -241,23 +242,23 @@ public sealed record ExtractArchiveStep(string Archive, string Target = "", stri
 
         if (count == 0)
         {
-            // Ein Teilbaum, der nichts trifft, ist ein Rezeptfehler und kein
-            // stiller Erfolg — sonst meldet das Rezept "fertig" ohne Wirkung.
+            // A subtree that matches nothing is a recipe bug, not a quiet
+            // success — otherwise the recipe reports "done" without any effect.
             throw new FileNotFoundException(
-                $"Im Archiv {Archive} liegt nichts unter '{Prefix}'.", archive);
+                $"Nothing inside archive {Archive} sits under '{Prefix}'.", archive);
         }
 
-        context.Log.Info($"Entpackt: {Archive} ({count} Dateien) -> {TargetOrRoot}");
+        context.Log.Info($"Extracted: {Archive} ({count} files) -> {TargetOrRoot}");
     }
 
-    /// <summary>Die Eintraege, die dieser Schritt betrifft, samt Zielpfad ohne Praefix.</summary>
+    /// <summary>The entries this step covers, with their target path minus the prefix.</summary>
     private IEnumerable<(ZipArchiveEntry Entry, string Relative)> Selected(ZipArchive zip)
     {
         var prefix = Prefix;
 
         foreach (var entry in zip.Entries)
         {
-            // Verzeichniseinträge enden auf '/' und haben keinen Namen.
+            // Directory entries end in '/' and have no name.
             if (string.IsNullOrEmpty(entry.Name))
             {
                 continue;
@@ -282,16 +283,16 @@ public sealed record ExtractArchiveStep(string Archive, string Target = "", stri
     {
         var missing = AffectedGamePaths(context)
             .Where(p => !File.Exists(p))
-            .Select(p => $"{Path.GetRelativePath(context.GameRoot, p)} fehlt nach dem Entpacken.")
+            .Select(p => $"{Path.GetRelativePath(context.GameRoot, p)} is missing after extraction.")
             .ToArray();
 
         return missing;
     }
 
     /// <summary>
-    /// Archiveinträge sind Fremddaten. "..\..\windows\system32\x.dll" als
-    /// Eintragsname ist ein bekannter Angriff (Zip Slip), deshalb wird hier
-    /// genauso streng geprüft wie bei Rezeptpfaden.
+    /// Archive entries are foreign data. "..\..\windows\system32\x.dll" as an
+    /// entry name is a well-known attack (Zip Slip), so it is checked here just
+    /// as strictly as any recipe path.
     /// </summary>
     private static string ResolveEntry(string targetRoot, string entryName)
     {
@@ -303,7 +304,7 @@ public sealed record ExtractArchiveStep(string Archive, string Target = "", stri
         if (!full.StartsWith(prefix, StringComparison.OrdinalIgnoreCase))
         {
             throw new RecipeSecurityException(
-                $"Archiveintrag zeigt aus dem Zielverzeichnis heraus: {entryName}");
+                $"Archive entry points outside the target directory: {entryName}");
         }
 
         return full;

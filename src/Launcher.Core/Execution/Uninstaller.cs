@@ -12,12 +12,12 @@ public sealed record RemovalPlan(
 }
 
 /// <summary>
-/// Nimmt ein Rezept zurueck, indem es dessen Snapshot zurueckspielt.
+/// Takes a recipe back by restoring its snapshot.
 ///
-/// Das ist kein "Dateien loeschen": der Snapshot weiss auch, welche Dateien es
-/// vorher schon gab und mit welchem Inhalt. Nur deshalb kann ein Downgrade
-/// rueckgaengig gemacht werden, bei dem 58 Dateien ersetzt und 88 neu angelegt
-/// wurden — Loeschen allein wuerde die 58 ueberschriebenen nicht zurueckbringen.
+/// This is not "delete the files": the snapshot also knows which files existed
+/// beforehand and with what content. That is the only reason a downgrade can be
+/// undone in which 58 files were replaced and 88 newly created — deleting alone
+/// would not bring the 58 overwritten ones back.
 /// </summary>
 public sealed class Uninstaller(SnapshotStore snapshots, LedgerStore ledgerStore)
 {
@@ -33,9 +33,9 @@ public sealed class Uninstaller(SnapshotStore snapshots, LedgerStore ledgerStore
 
         var issues = new List<PreflightIssue>();
 
-        // Dieselben Randbedingungen wie beim Einbauen: ein laufendes Spiel sperrt
-        // die Dateien, und ohne Schreibrecht scheitert das Zurueckspielen mitten
-        // drin — was den Zustand schlimmer machen wuerde als vorher.
+        // The same conditions as when installing: a running game locks the files,
+        // and without write permission the restore fails halfway through — which
+        // would leave things worse than before.
         TransactionRunner.CheckProcesses(issues);
         TransactionRunner.CheckWritable(context, issues);
 
@@ -45,12 +45,12 @@ public sealed class Uninstaller(SnapshotStore snapshots, LedgerStore ledgerStore
         {
             issues.Add(new PreflightIssue(
                 IssueSeverity.Fatal,
-                $"Der Snapshot {entry.SnapshotId} fehlt.",
-                "Ohne ihn laesst sich der vorherige Zustand nicht wiederherstellen."));
+                $"Snapshot {entry.SnapshotId} is missing.",
+                "Without it the previous state cannot be restored."));
         }
 
-        // Wer haengt an diesem Rezept? Den ASI-Loader zu entfernen, waehrend der
-        // GFWL-Stub seine plugins/ braucht, hinterlaesst ein halbes System.
+        // What depends on this recipe? Removing the ASI loader while the GFWL stub
+        // still needs its plugins/ leaves half a system behind.
         foreach (var other in ledger.Entries.Where(e => !Same(e.RecipeId, recipeId)))
         {
             var recipe = catalog.FirstOrDefault(r => Same(r.Id, other.RecipeId));
@@ -58,8 +58,8 @@ public sealed class Uninstaller(SnapshotStore snapshots, LedgerStore ledgerStore
             {
                 issues.Add(new PreflightIssue(
                     IssueSeverity.Fatal,
-                    $"{other.RecipeId} setzt {recipeId} voraus und ist noch installiert.",
-                    "Zuerst das abhaengige Rezept entfernen."));
+                    $"{other.RecipeId} requires {recipeId} and is still installed.",
+                    "Remove the dependent recipe first."));
             }
         }
 
@@ -67,8 +67,8 @@ public sealed class Uninstaller(SnapshotStore snapshots, LedgerStore ledgerStore
     }
 
     /// <summary>
-    /// Alle installierten Rezepte in umgekehrter Installationsreihenfolge.
-    /// Genau so loesen sich Abhaengigkeiten von selbst auf.
+    /// Every installed recipe in reverse order of installation.
+    /// Exactly that order makes dependencies resolve themselves.
     /// </summary>
     public IReadOnlyList<string> InstalledNewestFirst() =>
         ledgerStore.Load().Entries
@@ -84,29 +84,29 @@ public sealed class Uninstaller(SnapshotStore snapshots, LedgerStore ledgerStore
         {
             return new ExecutionOutcome(
                 false, plan.Entry.SnapshotId, false,
-                ["Der Rueckbau wurde nicht ausgefuehrt."], Lines(context));
+                ["The removal was not executed."], Lines(context));
         }
 
-        log.Info($"Spiele Snapshot {plan.Snapshot.Id} zurueck ({plan.Snapshot.Entries.Count} Pfade).");
+        log.Info($"Restoring snapshot {plan.Snapshot.Id} ({plan.Snapshot.Entries.Count} paths).");
         var failures = snapshots.Restore(plan.Snapshot);
 
         foreach (var failure in failures)
         {
-            log.Error($"Nicht wiederhergestellt: {failure}");
+            log.Error($"Not restored: {failure}");
         }
 
-        // Das Ledger wird auch dann bereinigt, wenn einzelne Dateien nicht
-        // zurueckkonnten: sonst behaupten wir weiter, das Rezept sei installiert,
-        // obwohl es das nicht mehr ist. Die Fehler stehen im Ergebnis.
+        // The ledger is cleaned up even when individual files could not be put
+        // back: otherwise we keep claiming the recipe is installed when it is
+        // not. The failures are reported in the outcome.
         try
         {
             var ledger = ledgerStore.Load();
             ledgerStore.Save(ledgerStore.Remove(ledger, plan.Entry.RecipeId));
-            log.Info($"{plan.Entry.RecipeId} aus dem Ledger entfernt.");
+            log.Info($"{plan.Entry.RecipeId} removed from the ledger.");
         }
         catch (Exception e) when (e is IOException or UnauthorizedAccessException or InvalidOperationException)
         {
-            failures = [.. failures, $"Ledger nicht schreibbar: {e.Message}"];
+            failures = [.. failures, $"Ledger is not writable: {e.Message}"];
         }
 
         return new ExecutionOutcome(

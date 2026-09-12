@@ -20,7 +20,7 @@ internal static class Program
 
         if (options.Error is not null)
         {
-            Console.Error.WriteLine($"Fehler: {options.Error}");
+            Console.Error.WriteLine($"Error: {options.Error}");
             Console.Error.WriteLine();
             Console.Error.WriteLine(CommandLine.HelpText);
             return ExitCode.BadUsage;
@@ -50,13 +50,13 @@ internal static class Program
         }
         catch (Exception e) when (e is IOException or UnauthorizedAccessException or InvalidOperationException)
         {
-            // Ein Diagnosewerkzeug darf nie mit einem Stacktrace enden.
-            Console.Error.WriteLine($"Abgebrochen: {e.Message}");
+            // A diagnostic tool must never end in a stack trace.
+            Console.Error.WriteLine($"Aborted: {e.Message}");
             return ExitCode.Failed;
         }
     }
 
-    /// <summary>Führt einen Befehl aus, der eine gefundene Installation braucht.</summary>
+    /// <summary>Runs a command that needs an installation to have been found.</summary>
     private static int WithInstall(CliOptions options, Func<Detection.GameInstall, int> command)
     {
         var install = RecipeCommands.FindInstall(options);
@@ -85,7 +85,7 @@ internal static class Program
 
     private static int Unknown(string command)
     {
-        Console.Error.WriteLine($"Unbekannter Befehl: {command}");
+        Console.Error.WriteLine($"Unknown command: {command}");
         return ExitCode.BadUsage;
     }
 }

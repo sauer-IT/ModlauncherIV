@@ -1,6 +1,6 @@
 namespace ModlauncherIV.Cli;
 
-/// <summary>Die Rückgabewerte des Programms. Auch für CI gedacht.</summary>
+/// <summary>The program's exit codes. Meant for CI as well.</summary>
 internal static class ExitCode
 {
     public const int Ok = 0;
@@ -30,7 +30,7 @@ internal sealed record CliOptions(
     string? OutputFile = null,
     string? Error = null);
 
-/// <summary>Minimale Argumentbehandlung — dafür braucht es keine Bibliothek.</summary>
+/// <summary>Minimal argument handling — this needs no library.</summary>
 internal static class CommandLine
 {
     private static readonly string[] Commands =
@@ -40,56 +40,56 @@ internal static class CommandLine
     public const string HelpText = """
         mliv -- Modlauncher IV
 
-        Verwendung:
-          mliv <befehl> [argument] [optionen]
+        Usage:
+          mliv <command> [argument] [options]
 
-        Befehle:
-          detect                 Installationen suchen und Diagnosebericht ausgeben.
-          catalog                Verfügbare Rezepte auflisten.
-          plan   <rezept-id>     Zeigen, was ein Rezept tun würde. Ändert nichts.
-          fetch  <rezept-id>     Benötigte Dateien laden und per SHA-256 prüfen.
-          apply  <rezept-id>     Rezept ausführen. Fragt vorher nach.
-          remove <rezept-id>     Rezept zurueckbauen. --all fuer alles, neueste zuerst.
-          status                 Was der Launcher an dieser Installation verändert hat.
-          route  [version]       Welcher Weg zu einer anderen Spielversion führt.
-          journey <id,id,...>    Voller Weg zum Wunschzustand, mit Abhängigkeiten.
-          guard                  Ob die Plattform das Spiel zurückpatchen kann.
-          verify                 Ob noch alles so liegt, wie der Launcher es einbaute.
+        Commands:
+          detect                 Find installations and print a diagnostic report.
+          catalog                List the available recipes.
+          plan   <recipe-id>     Show what a recipe would do. Changes nothing.
+          fetch  <recipe-id>     Download required files and check them by SHA-256.
+          apply  <recipe-id>     Run a recipe. Asks first.
+          remove <recipe-id>     Take a recipe back. --all for everything, newest first.
+          status                 What the launcher changed about this installation.
+          route  [version]       Which path leads to another game version.
+          journey <id,id,...>    Full path to the wanted state, with dependencies.
+          guard                  Whether the platform can patch the game back.
+          verify                 Whether everything still sits as the launcher left it.
 
-        Werkzeuge für die Katalogpflege:
-          catalog-key            Neues Signierschlüsselpaar erzeugen.
-          catalog-sign           Katalog indizieren und signieren.  --key <Datei>
+        Catalog maintenance tools:
+          catalog-key            Create a new signing key pair.
+          catalog-sign           Index and sign the catalog.  --key <file>
 
-        Optionen:
-          --path <Ordner>        Spielverzeichnis, statt danach zu suchen.
-          --catalog <Ordner>     Rezeptverzeichnis. Standard: ./catalog
-          --cache <Ordner>       Arbeitsverzeichnis für beschaffte Dateien.
-          --key <Datei>          Privater Schlüssel für catalog-sign.
-          --public-key <Base64>  Abweichender Signierschlüssel, dem vertraut wird.
-          --allow-unsigned       Unsignierten Katalog zulassen. Nur zum Entwickeln.
-          --assume-version <v>   Spielversion vorgeben, wenn sie nicht lesbar ist.
-          --target <version>     Bei journey: gewünschte Spielversion.
-          --json                 Maschinenlesbare Ausgabe (nur detect).
-          --out <Datei>          Ausgabe in eine Datei schreiben.
-          --yes                  Rückfrage bei apply überspringen.
-          --apply                Bei guard: die Sperre wirklich setzen.
-          --all                  Bei remove: alle Rezepte zurueckbauen.
-          -h, --help             Diese Hilfe.
+        Options:
+          --path <folder>        Game directory, instead of searching for it.
+          --catalog <folder>     Recipe directory. Default: ./catalog
+          --cache <folder>       Working directory for acquired files.
+          --key <file>           Private key for catalog-sign.
+          --public-key <base64>  A different signing key to trust.
+          --allow-unsigned       Accept an unsigned catalog. Development only.
+          --assume-version <v>   Give the game version when it cannot be read.
+          --target <version>     For journey: the wanted game version.
+          --json                 Machine-readable output (detect only).
+          --out <file>           Write the output to a file.
+          --yes                  Skip the confirmation in apply.
+          --apply                For guard: actually set the lock.
+          --all                  For remove: take every recipe back.
+          -h, --help             This help.
 
-        Rückgabewerte:
-          0  erfolgreich
-          1  nichts gefunden
-          2  fehlerhafter Aufruf
-          3  Blocker gefunden, nichts ausgeführt
-          4  Ausgabe konnte nicht geschrieben werden
-          5  Ausführung fehlgeschlagen
+        Exit codes:
+          0  success
+          1  nothing found
+          2  bad usage
+          3  blockers found, nothing executed
+          4  output could not be written
+          5  execution failed
 
-        detect, catalog, plan und status lesen nur. fetch schreibt ausschließlich
-        ins Arbeitsverzeichnis. Nur apply verändert das Spiel, und auch das nur
-        nach Rückfrage und mit vorherigem Snapshot.
+        detect, catalog, plan and status only read. fetch writes exclusively into
+        the working directory. Only apply changes the game, and even that only
+        after asking and with a snapshot taken first.
 
-        Der Katalog wird standardmäßig nur mit gültiger Signatur geladen — er
-        bestimmt, welche Dateien ins Spielverzeichnis geschrieben werden.
+        By default the catalog is only loaded with a valid signature — it decides
+        which files get written into the game directory.
         """;
 
     public static CliOptions Parse(string[] args)
@@ -101,7 +101,7 @@ internal static class CommandLine
         {
             if (!Commands.Contains(args[0], StringComparer.OrdinalIgnoreCase))
             {
-                return options with { Error = $"Unbekannter Befehl: {args[0]}" };
+                return options with { Error = $"Unknown command: {args[0]}" };
             }
 
             options = options with { Command = args[0].ToLowerInvariant() };
@@ -145,7 +145,7 @@ internal static class CommandLine
                 case "--assume-version":
                     if (!TryValue(args, ref i, out var assumed))
                     {
-                        return options with { Error = "--assume-version erwartet eine Versionsnummer." };
+                        return options with { Error = "--assume-version expects a version number." };
                     }
 
                     options = options with { AssumeVersion = assumed };
@@ -154,7 +154,7 @@ internal static class CommandLine
                 case "--target":
                     if (!TryValue(args, ref i, out var target))
                     {
-                        return options with { Error = "--target erwartet eine Versionsnummer." };
+                        return options with { Error = "--target expects a version number." };
                     }
 
                     options = options with { TargetVersion = target };
@@ -163,7 +163,7 @@ internal static class CommandLine
                 case "--public-key":
                     if (!TryValue(args, ref i, out var pub))
                     {
-                        return options with { Error = "--public-key erwartet einen Base64-Schlüssel." };
+                        return options with { Error = "--public-key expects a base64 key." };
                     }
 
                     options = options with { PublicKey = pub };
@@ -172,7 +172,7 @@ internal static class CommandLine
                 case "--key":
                     if (!TryValue(args, ref i, out var key))
                     {
-                        return options with { Error = "--key erwartet eine Datei." };
+                        return options with { Error = "--key expects a file." };
                     }
 
                     options = options with { KeyPath = key };
@@ -181,7 +181,7 @@ internal static class CommandLine
                 case "--path":
                     if (!TryValue(args, ref i, out var path))
                     {
-                        return options with { Error = "--path erwartet einen Ordner." };
+                        return options with { Error = "--path expects a folder." };
                     }
 
                     options = options with { GamePath = path };
@@ -190,7 +190,7 @@ internal static class CommandLine
                 case "--catalog":
                     if (!TryValue(args, ref i, out var catalog))
                     {
-                        return options with { Error = "--catalog erwartet einen Ordner." };
+                        return options with { Error = "--catalog expects a folder." };
                     }
 
                     options = options with { CatalogPath = catalog };
@@ -199,7 +199,7 @@ internal static class CommandLine
                 case "--cache":
                     if (!TryValue(args, ref i, out var cache))
                     {
-                        return options with { Error = "--cache erwartet einen Ordner." };
+                        return options with { Error = "--cache expects a folder." };
                     }
 
                     options = options with { CachePath = cache };
@@ -208,14 +208,14 @@ internal static class CommandLine
                 case "--out":
                     if (!TryValue(args, ref i, out var output))
                     {
-                        return options with { Error = "--out erwartet einen Dateinamen." };
+                        return options with { Error = "--out expects a file name." };
                     }
 
                     options = options with { OutputFile = output };
                     break;
 
                 default:
-                    return options with { Error = $"Unbekanntes Argument: {args[i]}" };
+                    return options with { Error = $"Unknown argument: {args[i]}" };
             }
         }
 

@@ -7,9 +7,9 @@ using ModlauncherIV.Core.Verification;
 namespace ModlauncherIV.Cli;
 
 /// <summary>
-/// Befehle rund um den Zustand einer Installation: was sie gegen Updates
-/// schützt, ob noch alles so liegt wie eingebaut, und welcher Weg zu einer
-/// anderen Spielversion führt. Alle drei lesen nur, mit Ausnahme von
+/// Commands about the state of an installation: what protects it against
+/// updates, whether everything still sits as installed, and which path leads to
+/// another game version. All three only read, with the exception of
 /// <c>guard --apply</c>.
 /// </summary>
 internal static class StateCommands
@@ -21,7 +21,7 @@ internal static class StateCommands
         var status = UpdateGuard.Check(install);
 
         Console.WriteLine($"  Installation   {install.Path}");
-        Console.WriteLine($"  Plattform      {install.Platform}");
+        Console.WriteLine($"  Platform       {install.Platform}");
         Console.WriteLine();
         Console.WriteLine($"  [{Tag(status.State)}] {status.Summary}");
 
@@ -38,7 +38,7 @@ internal static class StateCommands
         if (status.Instructions.Count > 0)
         {
             Console.WriteLine();
-            Console.WriteLine("  SO GEHT ES");
+            Console.WriteLine("  HOW TO DO IT");
             Console.WriteLine("  ----------------");
             foreach (var line in status.Instructions)
             {
@@ -49,7 +49,7 @@ internal static class StateCommands
         if (!options.Apply)
         {
             Console.WriteLine();
-            Console.WriteLine("  Mit --apply wird die Sperre gesetzt, sofern die Plattform eine kennt.");
+            Console.WriteLine("  --apply sets the lock, if the platform has one.");
             return status.State == GuardState.Unlocked ? ExitCode.Blocked : ExitCode.Ok;
         }
 
@@ -60,7 +60,7 @@ internal static class StateCommands
             return ExitCode.Ok;
         }
 
-        Console.Error.WriteLine($"  Nicht gesetzt: {message}");
+        Console.Error.WriteLine($"  Not set: {message}");
         return ExitCode.Failed;
     }
 
@@ -72,14 +72,14 @@ internal static class StateCommands
         var result = InstallVerifier.Verify(install, ledger);
 
         Console.WriteLine($"  Installation   {result.GameRoot}");
-        Console.WriteLine($"  Version jetzt  {result.CurrentVersion ?? "(unbekannt)"}");
+        Console.WriteLine($"  Version now    {result.CurrentVersion ?? "(unknown)"}");
 
         if (result.ExpectedVersion is not null)
         {
-            Console.WriteLine($"  Erwartet       {result.ExpectedVersion}");
+            Console.WriteLine($"  Expected       {result.ExpectedVersion}");
         }
 
-        Console.WriteLine($"  Geprüft        {result.Files.Count} Datei(en) aus {ledger.Entries.Count} Rezept(en)");
+        Console.WriteLine($"  Checked        {result.Files.Count} file(s) from {ledger.Entries.Count} recipe(s)");
         Console.WriteLine();
 
         var auffaellig = result.Files
@@ -88,18 +88,18 @@ internal static class StateCommands
 
         if (auffaellig.Length > 0)
         {
-            Console.WriteLine("  AUFFÄLLIG");
+            Console.WriteLine("  NOTABLE");
             Console.WriteLine("  ---------------");
             foreach (var file in auffaellig)
             {
-                var state = file.State == OwnedFileState.Missing ? "fehlt   " : "verändert";
-                Console.WriteLine($"  {state}  {file.RelativePath,-40} aus {file.RecipeId}");
+                var state = file.State == OwnedFileState.Missing ? "missing " : "changed ";
+                Console.WriteLine($"  {state}  {file.RelativePath,-40} from {file.RecipeId}");
             }
 
             Console.WriteLine();
         }
 
-        Console.WriteLine("  BEFUNDE");
+        Console.WriteLine("  FINDINGS");
         Console.WriteLine("  -------------");
         foreach (var note in result.Notes.OrderByDescending(n => n.Level))
         {
@@ -121,7 +121,7 @@ internal static class StateCommands
         var graph = VersionGraph.Build(catalog.Recipes);
         var from = install.Version.Raw;
 
-        Console.WriteLine($"  Ist-Version    {from}  ({install.Version.DisplayName})");
+        Console.WriteLine($"  Current        {from}  ({install.Version.DisplayName})");
         Console.WriteLine();
 
         if (string.IsNullOrWhiteSpace(target))
@@ -130,21 +130,21 @@ internal static class StateCommands
 
             if (reachable.Count == 0)
             {
-                Console.WriteLine("  Von hier aus führt kein Rezept zu einer anderen Version.");
-                Console.WriteLine("  Der Katalog enthält keine passende Kante.");
+                Console.WriteLine("  No recipe leads from here to another version.");
+                Console.WriteLine("  The catalog holds no matching edge.");
                 return ExitCode.NothingFound;
             }
 
-            Console.WriteLine("  ERREICHBARE VERSIONEN");
+            Console.WriteLine("  REACHABLE VERSIONS");
             Console.WriteLine("  ---------------------------");
             foreach (var version in reachable)
             {
                 var path = graph.FindPath(from, version);
-                Console.WriteLine($"  {version,-12} {path?.Count ?? 0} Schritt(e)");
+                Console.WriteLine($"  {version,-12} {path?.Count ?? 0} step(s)");
             }
 
             Console.WriteLine();
-            Console.WriteLine("  mliv route <version> zeigt den Weg im Einzelnen.");
+            Console.WriteLine("  mliv route <version> shows the path in detail.");
             return ExitCode.Ok;
         }
 
@@ -152,18 +152,18 @@ internal static class StateCommands
 
         if (route is null)
         {
-            Console.Error.WriteLine($"  Kein Weg von {from} nach {target}.");
-            Console.Error.WriteLine("  Entweder fehlt ein Rezept im Katalog, oder die Zielversion ist unbekannt.");
+            Console.Error.WriteLine($"  No path from {from} to {target}.");
+            Console.Error.WriteLine("  Either a recipe is missing from the catalog, or the target version is unknown.");
             return ExitCode.NothingFound;
         }
 
         if (route.Count == 0)
         {
-            Console.WriteLine($"  Das Spiel ist bereits auf {target}. Nichts zu tun.");
+            Console.WriteLine($"  The game is already on {target}. Nothing to do.");
             return ExitCode.Ok;
         }
 
-        Console.WriteLine($"  WEG NACH {target}");
+        Console.WriteLine($"  PATH TO {target}");
         Console.WriteLine("  " + new string('-', 20));
 
         for (var i = 0; i < route.Count; i++)
@@ -174,8 +174,8 @@ internal static class StateCommands
         }
 
         Console.WriteLine();
-        Console.WriteLine($"  {route.Count} Rezept(e), jedes mit eigenem Snapshot und eigenem Rollback.");
-        Console.WriteLine("  Ausführen einzeln mit: mliv apply <rezept-id>");
+        Console.WriteLine($"  {route.Count} recipe(s), each with its own snapshot and its own rollback.");
+        Console.WriteLine("  Run them one at a time with: mliv apply <recipe-id>");
 
         return ExitCode.Ok;
     }

@@ -4,16 +4,17 @@ using ModlauncherIV.Core.Detection;
 namespace ModlauncherIV.Core.Catalog;
 
 /// <summary>
-/// Eine Datei, die ein Rezept braucht und die nicht mitgeliefert wird.
-/// Ohne <see cref="Sha256"/> wird nichts installiert — das ist der einzige Schutz
-/// davor, dass eine ausgetauschte Quelle beliebigen Code ins Spiel schreibt.
+/// A file a recipe needs and that is not shipped with it.
+/// Without <see cref="Sha256"/> nothing gets installed — that checksum is the
+/// only thing standing between a swapped source and arbitrary code landing in
+/// the game directory.
 /// </summary>
-/// <param name="Id">Referenzname, unter dem Schritte die Datei ansprechen.</param>
-/// <param name="FileName">Dateiname im Arbeitsverzeichnis.</param>
-/// <param name="Sha256">Erwartete Prüfsumme, klein geschrieben.</param>
-/// <param name="SizeBytes">Erwartete Größe. Erlaubt eine Absage vor dem Download.</param>
-/// <param name="Urls">Bezugsquellen in Reihenfolge. Leer = der Nutzer legt die Datei selbst ab.</param>
-/// <param name="Note">Hinweis für den Nutzer, etwa wo die Datei herkommt.</param>
+/// <param name="Id">Reference name steps use to address the file.</param>
+/// <param name="FileName">File name inside the working directory.</param>
+/// <param name="Sha256">Expected checksum, lower case.</param>
+/// <param name="SizeBytes">Expected size. Allows refusing before downloading.</param>
+/// <param name="Urls">Sources in order. Empty = the user supplies the file.</param>
+/// <param name="Note">Hint for the user, e.g. where the file comes from.</param>
 public sealed record RecipeSource(
     string Id,
     string FileName,
@@ -23,10 +24,10 @@ public sealed record RecipeSource(
     string? Note = null);
 
 /// <summary>
-/// Ein Rezept: eine abgeschlossene, umkehrbare Änderung am Spiel.
+/// A recipe: one self-contained, reversible change to the game.
 ///
-/// Downgrades sind keine Sonderfälle, sondern Rezepte mit gesetztem
-/// <see cref="ProducesVersion"/> — sie bilden damit eine Kante im Versionsgraphen.
+/// Downgrades are not a special case but recipes with <see cref="ProducesVersion"/>
+/// set — which makes them an edge in the version graph.
 /// </summary>
 public sealed record Recipe(
     string Id,
@@ -35,16 +36,16 @@ public sealed record Recipe(
     GameTitle Game,
     string? Description = null,
 
-    /// <summary>Spielversionen, auf die das Rezept angewendet werden darf. Leer = alle.</summary>
+    /// <summary>Game versions this recipe may be applied to. Empty = all of them.</summary>
     IReadOnlyList<string>? AppliesToVersions = null,
 
-    /// <summary>Gesetzt, wenn das Rezept die Spielversion ändert. Macht es zur Kante im Graphen.</summary>
+    /// <summary>Set when the recipe changes the game version. Makes it an edge in the graph.</summary>
     string? ProducesVersion = null,
 
-    /// <summary>IDs anderer Rezepte, die vorher installiert sein müssen.</summary>
+    /// <summary>Ids of other recipes that must be installed first.</summary>
     IReadOnlyList<string>? Requires = null,
 
-    /// <summary>IDs von Rezepten, die nicht gleichzeitig installiert sein dürfen.</summary>
+    /// <summary>Ids of recipes that must not be installed at the same time.</summary>
     IReadOnlyList<string>? ConflictsWith = null,
 
     IReadOnlyList<RecipeSource>? Sources = null,
@@ -60,11 +61,11 @@ public sealed record Recipe(
 
     public IReadOnlyList<RecipeStep> Actions => Steps ?? [];
 
-    /// <summary>True, wenn das Rezept eine Kante im Versionsgraphen bildet.</summary>
+    /// <summary>True when the recipe forms an edge in the version graph.</summary>
     [JsonIgnore]
     public bool IsVersionTransition => !string.IsNullOrWhiteSpace(ProducesVersion);
 
-    /// <summary>Prüft, ob das Rezept auf die gefundene Spielversion passt.</summary>
+    /// <summary>Checks whether the recipe fits the game version that was found.</summary>
     public bool Matches(string gameVersion) =>
         AppliesTo.Count == 0 ||
         AppliesTo.Any(v => string.Equals(v, gameVersion, StringComparison.OrdinalIgnoreCase));

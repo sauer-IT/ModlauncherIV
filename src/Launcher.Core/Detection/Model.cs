@@ -1,6 +1,6 @@
 namespace ModlauncherIV.Core.Detection;
 
-/// <summary>Woher die Installation stammt. Bestimmt, wie das Update gesperrt wird.</summary>
+/// <summary>Where the installation came from. Decides how updates get locked.</summary>
 public enum GamePlatform
 {
     Unknown,
@@ -10,39 +10,39 @@ public enum GamePlatform
     Retail,
 }
 
-/// <summary>Welches Spiel ein Rezept betrifft. v1 befüllt nur GtaIV.</summary>
+/// <summary>Which game a recipe targets. v1 only ever fills in GtaIV.</summary>
 public enum GameTitle
 {
     GtaIV,
     Eflc,
 }
 
-/// <summary>Art einer gefundenen Fremddatei im Spielverzeichnis.</summary>
+/// <summary>Kind of foreign file found in the game directory.</summary>
 public enum ModArtifactKind
 {
-    /// <summary>Proxy-DLL, die ASI-Plugins nachlädt (dsound, dinput8, d3d9 …).</summary>
+    /// <summary>Proxy DLL that loads ASI plugins (dsound, dinput8, d3d9 …).</summary>
     AsiLoader,
 
-    /// <summary>Ein ASI-Plugin.</summary>
+    /// <summary>An ASI plugin.</summary>
     AsiPlugin,
 
-    /// <summary>Alexander Blades ScriptHook.</summary>
+    /// <summary>Alexander Blade's ScriptHook.</summary>
     ScriptHook,
 
-    /// <summary>ScriptHookDotNet für .NET-Skripte.</summary>
+    /// <summary>ScriptHookDotNet, for .NET scripts.</summary>
     ScriptHookDotNet,
 
-    /// <summary>GFWL-Stub (xliveless) oder das echte xlive.dll.</summary>
+    /// <summary>GFWL stub (xliveless), or the real xlive.dll.</summary>
     Xlive,
 
-    /// <summary>Skriptordner eines Mod-Frameworks.</summary>
+    /// <summary>Script folder belonging to a mod framework.</summary>
     ScriptFolder,
 
-    /// <summary>Erkannt, aber nicht zugeordnet.</summary>
+    /// <summary>Recognised as foreign, but not identified.</summary>
     Unknown,
 }
 
-/// <summary>Schweregrad einer Anmerkung im Diagnosebericht.</summary>
+/// <summary>How urgent a note in the diagnostic report is.</summary>
 public enum NoteLevel
 {
     Info,
@@ -50,22 +50,22 @@ public enum NoteLevel
     Blocker,
 }
 
-/// <summary>Eine Feststellung über die Installation, die der Nutzer wissen muss.</summary>
-/// <param name="Level">Wie dringend.</param>
-/// <param name="Message">Was festgestellt wurde.</param>
-/// <param name="Detail">Optional: was daraus folgt.</param>
+/// <summary>Something about the installation the user needs to know.</summary>
+/// <param name="Level">How urgent.</param>
+/// <param name="Message">What was found.</param>
+/// <param name="Detail">Optional: what follows from it.</param>
 public sealed record Note(NoteLevel Level, string Message, string? Detail = null);
 
-/// <summary>Eine im Spielverzeichnis gefundene Datei, die nicht von Rockstar stammt.</summary>
+/// <summary>A file in the game directory that did not come from Rockstar.</summary>
 public sealed record ModArtifact(
     string RelativePath,
     ModArtifactKind Kind,
     long SizeBytes);
 
 /// <summary>
-/// Beschreibt eine bekannte Spielversion. <see cref="IsKnown"/> ist false,
-/// wenn die gefundene Version nicht in <see cref="KnownVersions"/> steht — dann
-/// darf kein Rezept automatisch laufen.
+/// Describes a known game version. <see cref="IsKnown"/> is false when the
+/// version found is not listed in <see cref="KnownVersions"/> — and then no
+/// recipe may run automatically.
 /// </summary>
 public sealed record GameVersionInfo(
     string Raw,
@@ -79,20 +79,20 @@ public sealed record GameVersionInfo(
     public static GameVersionInfo Unrecognised(string raw) => new(
         Raw: raw,
         Parsed: Version.TryParse(raw, out var v) ? v : null,
-        DisplayName: "unbekannte Version",
+        DisplayName: "unknown version",
         IsCompleteEdition: false,
         RequiresGfwl: false,
         IsModdingTarget: false,
         IsKnown: false);
 }
 
-/// <summary>Ein Kandidat, den der Locator gefunden hat, bevor er untersucht wurde.</summary>
+/// <summary>A candidate the locator found, before it was inspected.</summary>
 public sealed record InstallCandidate(
     string Path,
     GamePlatform Platform,
     string FoundVia);
 
-/// <summary>Das vollständige Untersuchungsergebnis einer Installation.</summary>
+/// <summary>The complete result of inspecting one installation.</summary>
 public sealed record GameInstall(
     string Path,
     GamePlatform Platform,
@@ -106,9 +106,9 @@ public sealed record GameInstall(
     IReadOnlyList<ModArtifact> ModArtifacts,
     IReadOnlyList<Note> Notes)
 {
-    /// <summary>True, wenn keinerlei Fremddateien gefunden wurden.</summary>
+    /// <summary>True when no foreign files were found at all.</summary>
     public bool IsVanilla => ModArtifacts.Count == 0;
 
-    /// <summary>True, wenn irgendetwas eine automatische Behandlung verbietet.</summary>
+    /// <summary>True when something rules out handling this automatically.</summary>
     public bool HasBlocker => Notes.Any(n => n.Level == NoteLevel.Blocker);
 }

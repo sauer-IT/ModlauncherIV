@@ -13,7 +13,7 @@ public enum OwnedFileState
     /// <summary>Ist verschwunden.</summary>
     Missing,
 
-    /// <summary>Beim Einbau wurde keine Prüfsumme festgehalten.</summary>
+    /// <summary>No checksum was recorded at install time.</summary>
     Unverifiable,
 }
 
@@ -31,9 +31,9 @@ public sealed record VerificationResult(
     public int MissingCount => Files.Count(f => f.State == OwnedFileState.Missing);
 
     /// <summary>
-    /// Beide Seiten werden vorher auf die kanonische Schreibweise gebracht:
-    /// "1, 0, 7, 0" und "1.0.7.0" sind dieselbe Version, und ein Fehlalarm hier
-    /// wuerde die Warnung entwerten, um die es eigentlich geht.
+    /// Both sides are brought into canonical spelling first: "1, 0, 7, 0" and
+    /// "1.0.7.0" are the same version, and a false alarm here would devalue the
+    /// very warning this is about.
     /// </summary>
     public bool VersionReverted =>
         ExpectedVersion is not null &&
@@ -47,12 +47,12 @@ public sealed record VerificationResult(
 }
 
 /// <summary>
-/// Vergleicht, was der Launcher eingebaut hat, mit dem, was tatsächlich da liegt.
+/// Compares what the launcher installed against what is actually on disk.
 ///
-/// Das ist die Gegenprobe zur Update-Sperre. Steam und der Rockstar Launcher
-/// können eine Installation jederzeit zurücksetzen — meist unbemerkt, und der
-/// Nutzer merkt es erst daran, dass seine Mods stumm bleiben. Hier fällt es auf,
-/// und zwar mit Namen: welche Datei, aus welchem Rezept.
+/// This is the counter-check to the update guard. Steam and the Rockstar
+/// Launcher can reset an installation at any time — usually unnoticed, and the
+/// user only realises it because the mods stay silent. Here it shows up, and by
+/// name: which file, from which recipe.
 /// </summary>
 public static class InstallVerifier
 {
@@ -122,7 +122,7 @@ public static class InstallVerifier
         {
             notes.Add(new Note(
                 NoteLevel.Info,
-                "Der Launcher hat an dieser Installation nichts eingebaut — nichts zu prüfen."));
+                "The launcher has installed nothing here — nothing to check."));
             return;
         }
 
@@ -131,7 +131,7 @@ public static class InstallVerifier
             notes.Add(new Note(
                 NoteLevel.Blocker,
                 $"Die Spielversion ist {result.CurrentVersion}, erwartet war {result.ExpectedVersion}.",
-                "Die Plattform hat das Spiel zurückgesetzt. Ein Downgrade ist damit hinfällig, "
+                "The platform reset the game. That undoes the downgrade, "
                 + "und darauf aufbauende Mods laufen nicht mehr."));
         }
 
@@ -140,22 +140,22 @@ public static class InstallVerifier
             notes.Add(new Note(
                 NoteLevel.Warning,
                 $"{result.MissingCount} eingebaute Datei(en) fehlen.",
-                "Entweder hat die Plattform sie entfernt, oder sie wurden von Hand gelöscht."));
+                "Either the platform removed them, or they were deleted by hand."));
         }
 
         if (result.ModifiedCount > 0)
         {
             notes.Add(new Note(
                 NoteLevel.Warning,
-                $"{result.ModifiedCount} eingebaute Datei(en) wurden verändert.",
-                "Ein Update oder eine Dateiprüfung der Plattform überschreibt genau so."));
+                $"{result.ModifiedCount} installed file(s) have been changed.",
+                "A platform update or file verification overwrites exactly like this."));
         }
 
         if (result.IsIntact)
         {
             notes.Add(new Note(
                 NoteLevel.Info,
-                "Alles unverändert — die Installation ist so, wie der Launcher sie hinterlassen hat."));
+                "Everything unchanged — the installation is as the launcher left it."));
         }
     }
 }

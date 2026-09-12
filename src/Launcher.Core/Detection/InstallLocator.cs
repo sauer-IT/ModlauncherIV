@@ -5,13 +5,13 @@ using Microsoft.Win32;
 namespace ModlauncherIV.Core.Detection;
 
 /// <summary>
-/// Findet GTA-IV-Installationen. Sucht bewusst an mehreren Stellen und meldet
-/// jeden Fund mit der Quelle mit — wenn zwei Quellen sich widersprechen, will
-/// der Nutzer im Bericht sehen, welche was behauptet hat.
+/// Finds GTA IV installations. Deliberately looks in several places and reports
+/// every hit together with its source — when two sources disagree, the user
+/// wants to see in the report which one claimed what.
 /// </summary>
 public sealed class InstallLocator
 {
-    /// <summary>Steam-AppID von Grand Theft Auto IV.</summary>
+    /// <summary>Steam app id of Grand Theft Auto IV.</summary>
     public const int SteamAppId = 12210;
 
     private static readonly string[] CommonRelativePaths =
@@ -22,7 +22,7 @@ public sealed class InstallLocator
         @"Grand Theft Auto IV",
     ];
 
-    /// <summary>Liefert alle gefundenen Kandidaten, dedupliziert nach Pfad.</summary>
+    /// <summary>Returns every candidate found, deduplicated by path.</summary>
     public IReadOnlyList<InstallCandidate> Locate()
     {
         var found = new List<InstallCandidate>();
@@ -32,7 +32,7 @@ public sealed class InstallLocator
         found.AddRange(FromEpic());
         found.AddRange(FromCommonPaths());
 
-        // Erster Fund pro Pfad gewinnt — die Reihenfolge oben ist die Verlässlichkeit.
+        // First hit per path wins — the order above is the order of reliability.
         return found
             .Where(c => LooksLikeGameFolder(c.Path))
             .GroupBy(c => NormalisePath(c.Path), StringComparer.OrdinalIgnoreCase)
@@ -257,14 +257,14 @@ public sealed class InstallLocator
         }
     }
 
-    // ------------------------------------------------------------------ Helfer
+    // ----------------------------------------------------------------- Helpers
 
     /// <summary>
-    /// Bestimmt die Herkunft eines von Hand angegebenen Ordners.
+    /// Determines the origin of a manually specified folder.
     ///
-    /// Zeigt jemand mit --path auf seine Steam-Installation, soll sie auch als
-    /// Steam erkannt werden — sonst wüsste der Launcher nicht, dass es dort einen
-    /// Schalter gegen Updates gibt.
+    /// If somebody points --path at their Steam installation, it should still be
+    /// recognised as Steam — otherwise the launcher would not know there is a
+    /// switch against updates there.
     /// </summary>
     public GamePlatform InferPlatform(string path)
     {
@@ -278,14 +278,14 @@ public sealed class InstallLocator
             return known.Platform;
         }
 
-        // Auch eine Installation, die wir nicht gefunden haben, verrät sich über
-        // das Steam-Manifest oberhalb des Spielordners.
+        // Even an installation we did not find gives itself away through the Steam
+        // manifest sitting above the game folder.
         return FindSteamManifest(path) is not null ? GamePlatform.Steam : GamePlatform.Unknown;
     }
 
     /// <summary>
     /// Das Manifest liegt in steamapps, das Spiel in steamapps/common/&lt;Name&gt;.
-    /// Wir gehen also aufwärts, statt Steam erneut zu befragen.
+    /// So we walk upwards instead of asking Steam again.
     /// </summary>
     public static string? FindSteamManifest(string gamePath)
     {
@@ -312,7 +312,7 @@ public sealed class InstallLocator
         return null;
     }
 
-    /// <summary>Ein Ordner zählt nur als Fund, wenn die Haupt-EXE darin liegt.</summary>
+    /// <summary>A folder only counts as a hit when the main EXE is inside it.</summary>
     private static bool LooksLikeGameFolder(string path)
     {
         try

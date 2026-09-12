@@ -4,11 +4,11 @@ using System.Text;
 namespace ModlauncherIV.Core.Backup;
 
 /// <summary>
-/// Wo der Launcher seinen Zustand ablegt.
+/// Where the launcher keeps its state.
 ///
-/// Bewusst unter %LOCALAPPDATA% und nicht im Spielverzeichnis: das überlebt eine
-/// Neuinstallation des Spiels, wird von "Dateien überprüfen" nicht angefasst und
-/// braucht keine Administratorrechte.
+/// Under %LOCALAPPDATA% and deliberately not in the game directory: that
+/// survives a reinstall of the game, is not touched by "verify files", and
+/// needs no administrator rights.
 /// </summary>
 public static class AppPaths
 {
@@ -18,7 +18,7 @@ public static class AppPaths
         Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
         ProductFolder);
 
-    /// <summary>Ordner für eine bestimmte Installation, benannt nach ihrem Pfad.</summary>
+    /// <summary>Folder for one installation, named after its path.</summary>
     public static string ForInstall(string gameRoot) =>
         Path.Combine(Root, "installs", InstallKey(gameRoot));
 
@@ -28,29 +28,29 @@ public static class AppPaths
     public static string LedgerFor(string gameRoot) =>
         Path.Combine(ForInstall(gameRoot), "ledger.json");
 
-    /// <summary>Arbeitsverzeichnis für beschaffte Dateien. Geteilt über Installationen.</summary>
+    /// <summary>Working directory for acquired files. Shared across installations.</summary>
     public static string Cache => Path.Combine(Root, "cache");
 
     /// <summary>
-    /// Der mitgelieferte Rezeptkatalog, neben dem Programm.
+    /// The shipped recipe catalog, next to the program.
     ///
-    /// Bewusst nicht das aktuelle Arbeitsverzeichnis: ein über eine Verknüpfung
-    /// oder aus dem Startmenü gestartetes Programm hat irgendeins, und dann fände
-    /// der Launcher seine eigenen Rezepte nicht.
+    /// Deliberately not the current working directory: a program started from a
+    /// shortcut or the start menu has an arbitrary one, and then the launcher
+    /// would not find its own recipes.
     /// </summary>
     public static string CatalogDirectory { get; } = Path.Combine(AppContext.BaseDirectory, "catalog");
 
     /// <summary>
-    /// Dateien, die der Launcher selbst mitbringt — allen voran den eigenen
-    /// Trainer. Ihn ins Netz zu legen, nur damit der eigene Launcher ihn wieder
-    /// herunterlädt, wäre ein Umweg mit einer zusätzlichen Fehlerquelle.
+    /// Files the launcher brings along itself — first of all its own trainer.
+    /// Putting it online just so the launcher can download it again would be a
+    /// detour with one more thing that can fail.
     /// </summary>
     public static string BundledDirectory { get; } = Path.Combine(AppContext.BaseDirectory, "bundled");
 
     /// <summary>
-    /// Kurzer, stabiler Bezeichner für einen Spielpfad. Der Pfad selbst taugt
-    /// nicht als Ordnername, und ein reiner Hash wäre beim Draufschauen nutzlos —
-    /// deshalb lesbarer Name plus Hash gegen Kollisionen.
+    /// Short, stable identifier for a game path. The path itself is no good as a
+    /// folder name, and a bare hash would be useless to look at — hence a
+    /// readable name plus a hash against collisions.
     /// </summary>
     public static string InstallKey(string gameRoot)
     {

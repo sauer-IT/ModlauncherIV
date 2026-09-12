@@ -12,16 +12,16 @@ public enum IssueSeverity
 
 public sealed record PreflightIssue(IssueSeverity Severity, string Message, string? Detail = null);
 
-/// <summary>Ein Schritt mitsamt dem, was er anfassen wird — vor der Ausführung bekannt.</summary>
+/// <summary>A step together with what it will touch — known before execution.</summary>
 public sealed record PlannedStep(
     RecipeStep Step,
     string Description,
     IReadOnlyList<string> AffectedPaths);
 
 /// <summary>
-/// Der fertig aufgelöste Plan. Entsteht ohne jede Änderung am Spiel und ist
-/// zugleich die Ausgabe des Dry-Runs — was hier steht, ist genau das, was
-/// passieren würde.
+/// The fully resolved plan. Produced without changing the game at all, and at
+/// the same time the output of the dry run — what is listed here is exactly
+/// what would happen.
 /// </summary>
 public sealed record ExecutionPlan(
     Recipe Recipe,
@@ -47,20 +47,20 @@ public sealed record ExecutionOutcome(
     IReadOnlyList<string> Log);
 
 /// <summary>
-/// Führt Rezepte aus — immer in derselben Reihenfolge:
-/// Pre-Flight, Snapshot, Apply, Verify, Commit. Schlägt irgendetwas fehl, wird
-/// der Snapshot zurückgespielt und das Ledger bleibt unangetastet.
+/// Runs recipes — always in the same order:
+/// pre-flight, snapshot, apply, verify, commit. If anything fails the snapshot
+/// is restored and the ledger is left untouched.
 /// </summary>
 public sealed class TransactionRunner(SnapshotStore snapshots, LedgerStore ledgerStore)
 {
-    /// <summary>Prozessnamen, bei denen nicht geschrieben werden darf.</summary>
+    /// <summary>Process names that forbid writing while they are running.</summary>
     private static readonly string[] BlockingProcesses = ["GTAIV", "PlayGTAIV", "LaunchGTAIV"];
 
     // ------------------------------------------------------------------ Plan
 
     /// <summary>
-    /// Baut den Plan. Rein lesend — diese Methode darf nichts verändern, sonst
-    /// wäre der Dry-Run wertlos.
+    /// Builds the plan. Read-only — this method must not change anything, or the
+    /// dry run would be worthless.
     /// </summary>
     public ExecutionPlan Plan(Recipe recipe, RecipeContext context, string? installedVersion)
     {
@@ -82,7 +82,7 @@ public sealed class TransactionRunner(SnapshotStore snapshots, LedgerStore ledge
             {
                 issues.Add(new PreflightIssue(
                     IssueSeverity.Fatal,
-                    $"Rezept {recipe.Id} enthält einen unzulässigen Pfad.",
+                    $"Recipe {recipe.Id} contains a path that is not allowed.",
                     e.Message));
             }
         }
@@ -99,7 +99,7 @@ public sealed class TransactionRunner(SnapshotStore snapshots, LedgerStore ledge
         {
             issues.Add(new PreflightIssue(
                 IssueSeverity.Warning,
-                "Die Spielversion ist unbekannt — die Eignung des Rezepts wurde nicht geprüft."));
+                "The game version is unknown — the recipe's suitability was not checked."));
             return;
         }
 
@@ -107,8 +107,8 @@ public sealed class TransactionRunner(SnapshotStore snapshots, LedgerStore ledge
         {
             issues.Add(new PreflightIssue(
                 IssueSeverity.Fatal,
-                $"Rezept {recipe.Id} passt nicht zu Version {installedVersion}.",
-                $"Erlaubt: {string.Join(", ", recipe.AppliesTo)}"));
+                $"Recipe {recipe.Id} does not fit version {installedVersion}.",
+                $"Allowed: {string.Join(", ", recipe.AppliesTo)}"));
         }
     }
 
@@ -121,7 +121,7 @@ public sealed class TransactionRunner(SnapshotStore snapshots, LedgerStore ledge
         }
         catch (InvalidOperationException e)
         {
-            issues.Add(new PreflightIssue(IssueSeverity.Fatal, "Ledger nicht lesbar.", e.Message));
+            issues.Add(new PreflightIssue(IssueSeverity.Fatal, "Ledger is not readable.", e.Message));
             return;
         }
 
@@ -129,26 +129,26 @@ public sealed class TransactionRunner(SnapshotStore snapshots, LedgerStore ledge
         {
             issues.Add(new PreflightIssue(
                 IssueSeverity.Warning,
-                $"{recipe.Id} ist bereits installiert und wird ersetzt."));
+                $"{recipe.Id} is already installed and will be replaced."));
         }
 
         foreach (var conflict in recipe.Conflicts.Where(ledger.IsInstalled))
         {
             issues.Add(new PreflightIssue(
                 IssueSeverity.Fatal,
-                $"{recipe.Id} verträgt sich nicht mit dem installierten {conflict}.",
-                "Zuerst das andere Rezept deinstallieren."));
+                $"{recipe.Id} conflicts with the installed {conflict}.",
+                "Remove the other recipe first."));
         }
 
         foreach (var dependency in recipe.Dependencies.Where(d => !ledger.IsInstalled(d)))
         {
             issues.Add(new PreflightIssue(
                 IssueSeverity.Fatal,
-                $"{recipe.Id} setzt {dependency} voraus, das nicht installiert ist."));
+                $"{recipe.Id} requires {dependency}, which is not installed."));
         }
     }
 
-    /// <summary>Prüft die beschafften Dateien. Ohne passende Prüfsumme gilt eine Datei als fehlend.</summary>
+    /// <summary>Checks the acquired files. Without a matching checksum a file counts as missing.</summary>
     private static IReadOnlyList<string> CheckSources(
         Recipe recipe,
         RecipeContext context,
@@ -165,7 +165,7 @@ public sealed class TransactionRunner(SnapshotStore snapshots, LedgerStore ledge
             }
             catch (RecipeSecurityException e)
             {
-                issues.Add(new PreflightIssue(IssueSeverity.Fatal, "Unzulässiger Quelldateiname.", e.Message));
+                issues.Add(new PreflightIssue(IssueSeverity.Fatal, "Source file name is not allowed.", e.Message));
                 missing.Add(source.FileName);
                 continue;
             }
@@ -181,8 +181,8 @@ public sealed class TransactionRunner(SnapshotStore snapshots, LedgerStore ledge
             {
                 issues.Add(new PreflightIssue(
                     IssueSeverity.Fatal,
-                    $"Prüfsumme stimmt nicht: {source.FileName}",
-                    $"erwartet {source.Sha256}, gefunden {actual}"));
+                    $"Checksum does not match: {source.FileName}",
+                    $"expected {source.Sha256}, found {actual}"));
                 missing.Add(source.FileName);
             }
         }
@@ -191,14 +191,14 @@ public sealed class TransactionRunner(SnapshotStore snapshots, LedgerStore ledge
         {
             issues.Add(new PreflightIssue(
                 IssueSeverity.Fatal,
-                $"{missing.Count} benötigte Datei(en) fehlen oder sind nicht verifiziert.",
+                $"{missing.Count} required file(s) are missing or unverified.",
                 string.Join(", ", missing)));
         }
 
         return missing;
     }
 
-    /// <summary>Auch der Rueckbau darf nicht laufen, waehrend das Spiel offen ist.</summary>
+    /// <summary>Removal must not run while the game is open either.</summary>
     public static void CheckProcesses(List<PreflightIssue> issues)
     {
         foreach (var name in BlockingProcesses)
@@ -219,8 +219,8 @@ public sealed class TransactionRunner(SnapshotStore snapshots, LedgerStore ledge
                 {
                     issues.Add(new PreflightIssue(
                         IssueSeverity.Fatal,
-                        $"{name} läuft gerade.",
-                        "Das Spiel muss geschlossen sein, sonst sind die Dateien gesperrt."));
+                        $"{name} is currently running.",
+                        "The game has to be closed, otherwise the files are locked."));
                 }
             }
             finally
@@ -234,9 +234,9 @@ public sealed class TransactionRunner(SnapshotStore snapshots, LedgerStore ledge
     }
 
     /// <summary>
-    /// Der Snapshot kostet so viel Platz wie die Dateien, die er sichert. Das muss
-    /// vorher geprüft werden — mitten im Lauf keinen Platz mehr zu haben ist genau
-    /// der Zustand, den die ganze Pipeline verhindern soll.
+    /// The snapshot costs as much space as the files it preserves. That has to be
+    /// checked beforehand — running out of space mid-run is exactly the state the
+    /// whole pipeline exists to prevent.
     /// </summary>
     private static void CheckDiskSpace(
         Recipe recipe,
@@ -257,7 +257,7 @@ public sealed class TransactionRunner(SnapshotStore snapshots, LedgerStore ledge
             }
             catch (IOException)
             {
-                // Nicht lesbar: dann eben nicht mitgerechnet.
+                // Not readable: then it simply does not count towards the total.
             }
         }
 
@@ -266,8 +266,8 @@ public sealed class TransactionRunner(SnapshotStore snapshots, LedgerStore ledge
 
         foreach (var (root, label) in new[]
                  {
-                     (AppPaths.Root, "Snapshot-Verzeichnis"),
-                     (context.GameRoot, "Spielverzeichnis"),
+                     (AppPaths.Root, "snapshot directory"),
+                     (context.GameRoot, "game directory"),
                  })
         {
             try
@@ -277,15 +277,15 @@ public sealed class TransactionRunner(SnapshotStore snapshots, LedgerStore ledge
                 {
                     issues.Add(new PreflightIssue(
                         IssueSeverity.Fatal,
-                        $"Zu wenig Platz auf {drive.Name} ({label}).",
-                        $"benötigt etwa {needed / 1024 / 1024} MB, frei {drive.AvailableFreeSpace / 1024 / 1024} MB"));
+                        $"Not enough space on {drive.Name} ({label}).",
+                        $"needs about {needed / 1024 / 1024} MB, {drive.AvailableFreeSpace / 1024 / 1024} MB free"));
                 }
             }
             catch (Exception e) when (e is ArgumentException or IOException or UnauthorizedAccessException)
             {
                 issues.Add(new PreflightIssue(
                     IssueSeverity.Warning,
-                    $"Freier Speicher für {label} nicht ermittelbar.",
+                    $"Free space for the {label} could not be determined.",
                     e.Message));
             }
         }
@@ -300,15 +300,15 @@ public sealed class TransactionRunner(SnapshotStore snapshots, LedgerStore ledge
 
         if (!plan.CanRun)
         {
-            return Fail(context, ["Der Plan enthält Blocker und wurde nicht ausgeführt."], null, false);
+            return Fail(context, ["The plan contains blockers and was not executed."], null, false);
         }
 
         if (context.DryRun)
         {
-            return Fail(context, ["Dry-Run: es wurde nichts ausgeführt."], null, false) with { Success = true };
+            return Fail(context, ["Dry run: nothing was executed."], null, false) with { Success = true };
         }
 
-        // --- Phase 1: Pre-Flight, diesmal unmittelbar vor dem Schreiben -------
+        // --- Phase 1: pre-flight, this time immediately before writing --------
         var lateIssues = new List<PreflightIssue>();
         CheckProcesses(lateIssues);
         if (lateIssues.Any(i => i.Severity == IssueSeverity.Fatal))
@@ -320,13 +320,13 @@ public sealed class TransactionRunner(SnapshotStore snapshots, LedgerStore ledge
         Snapshot snapshot;
         try
         {
-            log.Info($"Sichere {plan.AffectedPaths.Count} Pfad(e) vor der Änderung.");
+            log.Info($"Backing up {plan.AffectedPaths.Count} path(s) before changing anything.");
             snapshot = snapshots.Create(plan.AffectedPaths);
-            log.Info($"Snapshot {snapshot.Id} angelegt.");
+            log.Info($"Snapshot {snapshot.Id} created.");
         }
         catch (Exception e) when (e is IOException or UnauthorizedAccessException)
         {
-            return Fail(context, [$"Snapshot fehlgeschlagen: {e.Message}"], null, false);
+            return Fail(context, [$"Snapshot failed: {e.Message}"], null, false);
         }
 
         // --- Phase 3: Apply ---------------------------------------------------
@@ -343,7 +343,7 @@ public sealed class TransactionRunner(SnapshotStore snapshots, LedgerStore ledge
                                            or FileNotFoundException
                                            or RecipeSecurityException)
             {
-                errors.Add($"Schritt {applied + 1} ({planned.Description}) fehlgeschlagen: {e.Message}");
+                errors.Add($"Step {applied + 1} ({planned.Description}) failed: {e.Message}");
                 break;
             }
         }
@@ -359,19 +359,19 @@ public sealed class TransactionRunner(SnapshotStore snapshots, LedgerStore ledge
                 }
                 catch (Exception e) when (e is IOException or UnauthorizedAccessException)
                 {
-                    errors.Add($"Prüfung von '{planned.Description}' fehlgeschlagen: {e.Message}");
+                    errors.Add($"Verification of '{planned.Description}' failed: {e.Message}");
                 }
             }
         }
 
         if (errors.Count > 0)
         {
-            log.Error($"{errors.Count} Fehler — Rollback wird ausgeführt.");
+            log.Error($"{errors.Count} error(s) — rolling back.");
             var failures = snapshots.Restore(snapshot);
 
             foreach (var failure in failures)
             {
-                log.Error($"Rollback unvollständig: {failure}");
+                log.Error($"Rollback incomplete: {failure}");
             }
 
             errors.AddRange(failures.Select(f => $"Rollback: {f}"));
@@ -396,20 +396,20 @@ public sealed class TransactionRunner(SnapshotStore snapshots, LedgerStore ledge
                 InstalledAt: DateTimeOffset.Now,
                 SnapshotId: snapshot.Id,
                 Files: owned,
-                // Die Version wird neu ausgelesen, nicht aus dem Rezept uebernommen:
-                // was tatsaechlich im Verzeichnis liegt, ist die Wahrheit.
+                // The version is read again rather than taken from the recipe:
+                // what actually sits in the directory is the truth.
                 GameVersionAfter: ReadGameVersion(context.GameRoot))));
 
-            log.Info($"{plan.Recipe.Id} eingetragen ({owned.Length} Datei(en)).");
+            log.Info($"{plan.Recipe.Id} recorded ({owned.Length} file(s)).");
         }
         catch (Exception e) when (e is IOException or UnauthorizedAccessException or InvalidOperationException)
         {
-            // Die Änderung steht, aber wir können sie nicht buchführen. Das ist ein
-            // Zustand, den wir nicht stehen lassen dürfen: ohne Ledger gibt es
-            // später keinen Weg zurück.
-            log.Error($"Ledger nicht schreibbar: {e.Message} — Rollback.");
+            // The change is in place but we cannot record it. That is a state we
+            // must not leave behind: without a ledger entry there is no way
+            // back later.
+            log.Error($"Ledger is not writable: {e.Message} — rolling back.");
             var failures = snapshots.Restore(snapshot);
-            errors.Add($"Ledger nicht schreibbar: {e.Message}");
+            errors.Add($"Ledger is not writable: {e.Message}");
             errors.AddRange(failures.Select(f => $"Rollback: {f}"));
             return new ExecutionOutcome(false, snapshot.Id, RolledBack: true, errors, LogLines(context));
         }
@@ -425,13 +425,13 @@ public sealed class TransactionRunner(SnapshotStore snapshots, LedgerStore ledge
         new(false, snapshotId, rolledBack, errors, LogLines(context));
 
     /// <summary>
-    /// Stellt fest, ob wir überhaupt ins Spielverzeichnis schreiben dürfen.
+    /// Determines whether we may write into the game directory at all.
     ///
-    /// Bewusst ohne Schreibprobe: der Plan darf nichts verändern, auch keine
-    /// Testdatei. Stattdessen die beiden Tatsachen, die den Fall ausmachen —
-    /// geschützter Pfad und fehlende erhöhte Rechte. Ohne diese Prüfung würde
-    /// apply mitten im Entpacken scheitern und zurückrollen: das funktioniert,
-    /// ist aber die unnötig teure Art, es herauszufinden.
+    /// Deliberately without a write probe: the plan must not change anything, not
+    /// even a temporary file. Checked instead is the combination that actually
+    /// occurs — a protected path plus missing elevation. Without this check,
+    /// apply would fail halfway through extracting and roll back: that works,
+    /// but it is the needlessly expensive way to find out.
     /// </summary>
     public static void CheckWritable(RecipeContext context, List<PreflightIssue> issues)
     {
@@ -461,11 +461,11 @@ public sealed class TransactionRunner(SnapshotStore snapshots, LedgerStore ledge
 
         issues.Add(new PreflightIssue(
             IssueSeverity.Fatal,
-            "Das Spiel liegt in einem geschützten Verzeichnis, der Launcher läuft ohne Administratorrechte.",
-            "Schreiben würde mitten im Lauf scheitern. Den Launcher als Administrator starten."));
+            "The game sits in a protected directory and the launcher is running without administrator rights.",
+            "Writing would fail halfway through. Start the launcher as administrator."));
     }
 
-    /// <summary>Liest die Spielversion aus der EXE. Null, wenn sie nicht lesbar ist.</summary>
+    /// <summary>Reads the game version from the EXE. Null when it is not readable.</summary>
     public static string? ReadGameVersion(string gameRoot)
     {
         try
@@ -476,8 +476,8 @@ public sealed class TransactionRunner(SnapshotStore snapshots, LedgerStore ledge
                 return null;
             }
 
-            // Kanonisch ablegen: die Rohform schwankt je nach Binary zwischen
-            // "1.0.7.0" und "1, 0, 7, 0".
+            // Store it canonically: the raw form varies between "1.0.7.0" and
+            // "1, 0, 7, 0" depending on the binary.
             return Detection.KnownVersions.Normalise(FileVersionInfo.GetVersionInfo(exe).FileVersion);
         }
         catch (Exception e) when (e is IOException or UnauthorizedAccessException)

@@ -1,13 +1,13 @@
 namespace ModlauncherIV.Core.Execution;
 
 /// <summary>
-/// Wird geworfen, wenn ein Rezept etwas verlangt, das es nicht verlangen darf.
-/// Das ist kein Bedienfehler, sondern ein Angriffsversuch oder ein kaputtes
-/// Rezept — in beiden Fällen wird nichts ausgeführt.
+/// Thrown when a recipe asks for something it is not allowed to ask for.
+/// That is not a usage mistake but either an attack or a broken recipe — in
+/// both cases nothing gets executed.
 /// </summary>
 public sealed class RecipeSecurityException(string message) : Exception(message);
 
-/// <summary>Protokoll eines Ausführungslaufs.</summary>
+/// <summary>Log of one execution run.</summary>
 public interface IExecutionLog
 {
     void Info(string message);
@@ -17,7 +17,7 @@ public interface IExecutionLog
     void Error(string message);
 }
 
-/// <summary>Sammelt das Protokoll im Speicher und reicht es optional weiter.</summary>
+/// <summary>Collects the log in memory and optionally passes it on.</summary>
 public sealed class ExecutionLog(Action<string>? sink = null) : IExecutionLog
 {
     private readonly List<string> _lines = [];
@@ -39,13 +39,13 @@ public sealed class ExecutionLog(Action<string>? sink = null) : IExecutionLog
 }
 
 /// <summary>
-/// Alles, was ein Schritt zur Ausführung braucht.
+/// Everything a step needs in order to run.
 ///
-/// Der wichtigste Teil sind <see cref="ResolveGamePath"/> und
-/// <see cref="ResolveSourcePath"/>: jeder Pfad aus einem Rezept läuft durch sie
-/// hindurch, und beide stellen sicher, dass das Ergebnis innerhalb des jeweils
-/// erlaubten Verzeichnisses liegt. Ohne diese Prüfung könnte ein Rezept mit
-/// <c>..\..\Windows\System32</c> beliebige Dateien überschreiben.
+/// The important part is <see cref="ResolveGamePath"/> and
+/// <see cref="ResolveSourcePath"/>: every path coming out of a recipe passes
+/// through them, and both make sure the result stays inside the directory it is
+/// allowed to touch. Without that check a recipe containing
+/// <c>..\..\Windows\System32</c> could overwrite arbitrary files.
 /// </summary>
 public sealed class RecipeContext
 {
@@ -57,34 +57,34 @@ public sealed class RecipeContext
         DryRun = dryRun;
     }
 
-    /// <summary>Das Spielverzeichnis. Ziel aller schreibenden Schritte.</summary>
+    /// <summary>The game directory. Target of every writing step.</summary>
     public string GameRoot { get; }
 
-    /// <summary>Arbeitsverzeichnis mit den beschafften Dateien. Wird nur gelesen.</summary>
+    /// <summary>Working directory holding the acquired files. Only ever read.</summary>
     public string SourceRoot { get; }
 
     public IExecutionLog Log { get; }
 
-    /// <summary>True, wenn nichts geschrieben werden darf.</summary>
+    /// <summary>True when nothing may be written.</summary>
     public bool DryRun { get; }
 
-    /// <summary>Löst einen spielrelativen Pfad auf und stellt sicher, dass er im Spiel liegt.</summary>
-    public string ResolveGamePath(string relative) => Resolve(GameRoot, relative, "Spielverzeichnis");
+    /// <summary>Resolves a game-relative path and makes sure it stays inside the game.</summary>
+    public string ResolveGamePath(string relative) => Resolve(GameRoot, relative, "game directory");
 
-    /// <summary>Löst einen Dateinamen im Arbeitsverzeichnis auf.</summary>
-    public string ResolveSourcePath(string relative) => Resolve(SourceRoot, relative, "Arbeitsverzeichnis");
+    /// <summary>Resolves a file name inside the working directory.</summary>
+    public string ResolveSourcePath(string relative) => Resolve(SourceRoot, relative, "working directory");
 
     private static string Resolve(string root, string relative, string label)
     {
         if (string.IsNullOrWhiteSpace(relative))
         {
-            throw new RecipeSecurityException($"Leerer Pfad im Rezept ({label}).");
+            throw new RecipeSecurityException($"Empty path in the recipe ({label}).");
         }
 
         if (Path.IsPathRooted(relative))
         {
             throw new RecipeSecurityException(
-                $"Rezepte dürfen keine absoluten Pfade verwenden: {relative}");
+                $"Recipes must not use absolute paths: {relative}");
         }
 
         string full;
@@ -94,7 +94,7 @@ public sealed class RecipeContext
         }
         catch (Exception e) when (e is ArgumentException or NotSupportedException or PathTooLongException)
         {
-            throw new RecipeSecurityException($"Unbrauchbarer Pfad im Rezept: {relative} ({e.Message})");
+            throw new RecipeSecurityException($"Unusable path in the recipe: {relative} ({e.Message})");
         }
 
         var prefix = root.EndsWith(Path.DirectorySeparatorChar)
@@ -105,7 +105,7 @@ public sealed class RecipeContext
             !full.Equals(root, StringComparison.OrdinalIgnoreCase))
         {
             throw new RecipeSecurityException(
-                $"Das Rezept zeigt aus dem {label} heraus: {relative} -> {full}");
+                $"The recipe points outside the {label}: {relative} -> {full}");
         }
 
         return full;
@@ -115,7 +115,7 @@ public sealed class RecipeContext
     {
         if (string.IsNullOrWhiteSpace(path))
         {
-            throw new ArgumentException("Pfad darf nicht leer sein.", argument);
+            throw new ArgumentException("Path must not be empty.", argument);
         }
 
         return Path.GetFullPath(path).TrimEnd(Path.DirectorySeparatorChar);

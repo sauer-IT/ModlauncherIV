@@ -5,31 +5,30 @@ using Microsoft.Win32;
 namespace ModlauncherIV.Core.Detection;
 
 /// <summary>
-/// Zustand von Smart App Control. Die Richtlinie wird reputationsbasiert
-/// durchgesetzt: unsignierte Binaries ohne Ruf werden blockiert, dieselbe Datei
-/// kann aber Minuten später durchgehen. Deshalb ist "Enforced" eine Warnung und
-/// keine Gewissheit.
+/// State of Smart App Control. The policy is enforced by reputation: unsigned
+/// binaries without a reputation get blocked, yet the same file may pass minutes
+/// later. That is why "Enforced" is a warning and not a certainty.
 /// </summary>
 public enum SmartAppControlState
 {
-    /// <summary>Kein Wert in der Registry — ältere Windows-Version.</summary>
+    /// <summary>No value in the registry — an older Windows version.</summary>
     NotPresent,
 
     Off,
 
-    /// <summary>Aktiv. Blockiert unsignierte DLLs, auch in fremden Prozessen.</summary>
+    /// <summary>Active. Blocks unsigned DLLs, including inside other processes.</summary>
     Enforced,
 
-    /// <summary>Evaluierungsmodus. Kann jederzeit in Enforced umschlagen.</summary>
+    /// <summary>Evaluation mode. Can flip to Enforced at any time.</summary>
     Evaluation,
 
-    /// <summary>Wert vorhanden, aber unbekannt.</summary>
+    /// <summary>Value present, but not recognised.</summary>
     Unknown,
 }
 
 /// <summary>
-/// Maschinenweite Randbedingungen. Gehören nicht zu einer einzelnen Installation,
-/// entscheiden aber darüber, ob Rezepte überhaupt laufen können.
+/// Machine-wide conditions. They do not belong to a single installation, but
+/// they decide whether recipes can run at all.
 /// </summary>
 public sealed record SystemEnvironment(
     string OperatingSystem,
@@ -55,8 +54,8 @@ public static class SystemEnvironmentProbe
         {
             notes.Add(new Note(
                 NoteLevel.Info,
-                "Der Launcher läuft ohne Administratorrechte.",
-                "Zum Lesen reicht das. Sobald Rezepte in Program Files schreiben, werden erhöhte Rechte gebraucht."));
+                "The launcher is running without administrator rights.",
+                "That is enough for reading. As soon as recipes write into Program Files, elevation is needed."));
         }
 
         return new SystemEnvironment(
@@ -73,38 +72,37 @@ public static class SystemEnvironmentProbe
             case SmartAppControlState.Enforced:
                 notes.Add(new Note(
                     NoteLevel.Warning,
-                    "Smart App Control ist aktiv.",
-                    "Es blockiert unsignierte DLLs — auch solche, die in GTAIV.exe geladen werden. "
-                    + "Ein Trainer ist genau das. Die Durchsetzung ist reputationsbasiert und damit "
-                    + "nicht vorhersehbar: dieselbe Datei kann beim einen Start blockiert werden und "
-                    + "beim nächsten nicht."));
+                    "Smart App Control is active.",
+                    "It blocks unsigned DLLs — including the ones loaded into GTAIV.exe. "
+                    + "A trainer is exactly that. Enforcement is reputation-based and therefore "
+                    + "unpredictable: the same file can be blocked on one start and not on the next."));
 
                 notes.Add(new Note(
                     NoteLevel.Info,
-                    "Smart App Control kennt keine Ausnahmeliste.",
-                    "Anders als beim Defender lässt sich kein Ordner freigeben. Abschalten wirkt sofort, "
-                    + "ist laut Microsoft aber nicht ohne Windows-Neuinstallation umkehrbar."));
+                    "Smart App Control has no exclusion list.",
+                    "Unlike Defender, no folder can be exempted. Turning it off takes effect immediately "
+                    + "but, according to Microsoft, cannot be undone without reinstalling Windows."));
                 break;
 
             case SmartAppControlState.Evaluation:
                 notes.Add(new Note(
                     NoteLevel.Warning,
-                    "Smart App Control ist im Evaluierungsmodus.",
-                    "Windows entscheidet selbst, wann es scharf schaltet. Bis dahin laufen unsignierte "
-                    + "Mods, danach womöglich nicht mehr."));
+                    "Smart App Control is in evaluation mode.",
+                    "Windows decides by itself when to switch it on. Until then unsigned mods run, "
+                    + "afterwards they may not."));
                 break;
 
             case SmartAppControlState.Off:
                 notes.Add(new Note(
                     NoteLevel.Info,
-                    "Smart App Control ist aus — unsignierte Mods werden nicht blockiert."));
+                    "Smart App Control is off — unsigned mods will not be blocked."));
                 break;
 
             case SmartAppControlState.Unknown:
                 notes.Add(new Note(
                     NoteLevel.Info,
-                    "Smart App Control meldet einen unbekannten Zustand.",
-                    "Die Richtlinie könnte unsignierte Mods blockieren."));
+                    "Smart App Control reports a state we do not recognise.",
+                    "The policy might block unsigned mods."));
                 break;
 
             case SmartAppControlState.NotPresent:

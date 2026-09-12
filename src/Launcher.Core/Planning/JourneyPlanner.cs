@@ -4,39 +4,39 @@ using ModlauncherIV.Core.Detection;
 
 namespace ModlauncherIV.Core.Planning;
 
-/// <summary>Warum ein Rezept im Weg steht.</summary>
+/// <summary>Why a recipe is on the path.</summary>
 public enum JourneyReason
 {
-    /// <summary>Der Nutzer hat es ausgewählt.</summary>
+    /// <summary>The user picked it.</summary>
     Requested,
 
-    /// <summary>Es bringt das Spiel auf die gewünschte Version.</summary>
+    /// <summary>It brings the game to the wanted version.</summary>
     VersionTransition,
 
-    /// <summary>Ein anderes Rezept verlangt es.</summary>
+    /// <summary>Another recipe requires it.</summary>
     Dependency,
 }
 
 public enum JourneyStepState
 {
-    /// <summary>Muss noch laufen.</summary>
+    /// <summary>Still has to run.</summary>
     Pending,
 
-    /// <summary>Steht schon im Ledger, in derselben Fassung. Wird übersprungen.</summary>
+    /// <summary>Already in the ledger, same release. Gets skipped.</summary>
     AlreadyInstalled,
 
     /// <summary>
-    /// Steht im Ledger, aber in einer anderen Fassung als der im Katalog.
+    /// In the ledger, but at a different release than the catalog has.
     ///
-    /// Muss laufen. Ohne diese Unterscheidung bliebe jeder Nutzer auf der
-    /// Fassung sitzen, mit der er einmal angefangen hat — der Assistent hielte
-    /// ein veraltetes Rezept für erledigt und sagte "es gibt nichts zu tun".
+    /// Has to run. Without this distinction every user would be stuck on the
+    /// release they first installed — the wizard would consider an outdated
+    /// recipe finished and report "there is nothing to do".
     /// </summary>
     NeedsUpdate,
 }
 
-/// <param name="AtVersion">Spielversion, die zum Zeitpunkt dieses Schritts vorliegt.</param>
-/// <param name="InstalledVersion">Fassung laut Ledger, falls schon installiert.</param>
+/// <param name="AtVersion">The game version in place at the time of this step.</param>
+/// <param name="InstalledVersion">The release per the ledger, if already installed.</param>
 public sealed record JourneyStep(
     Recipe Recipe,
     JourneyReason Reason,
@@ -44,11 +44,11 @@ public sealed record JourneyStep(
     string AtVersion,
     string? InstalledVersion = null);
 
-/// <param name="Message">Was den Weg unmöglich macht, in der Sprache des Nutzers.</param>
+/// <param name="Message">What makes the path impossible, in the user's language.</param>
 public sealed record JourneyProblem(string Message, string? Detail = null);
 
 /// <summary>
-/// Ein geplanter Weg von der vorgefundenen Installation zum gewünschten Zustand.
+/// A planned path from the installation as found to the wanted state.
 /// </summary>
 public sealed record Journey(
     string FromVersion,
@@ -58,30 +58,30 @@ public sealed record Journey(
 {
     public bool IsPossible => Problems.Count == 0;
 
-    /// <summary>Die Schritte, die tatsächlich noch laufen müssen.</summary>
+    /// <summary>The steps that actually still have to run.</summary>
     public IReadOnlyList<JourneyStep> Remaining =>
         Steps.Where(s => s.State != JourneyStepState.AlreadyInstalled).ToArray();
 
     public bool IsComplete => IsPossible && Remaining.Count == 0;
 }
 
-/// <param name="TargetVersion">Gewünschte Spielversion. Null = die vorhandene behalten.</param>
-/// <param name="WantedRecipeIds">Rezepte, die der Nutzer angehakt hat.</param>
+/// <param name="TargetVersion">Wanted game version. Null = keep the one in place.</param>
+/// <param name="WantedRecipeIds">The recipes the user ticked.</param>
 public sealed record JourneyRequest(
     string? TargetVersion,
     IReadOnlyList<string> WantedRecipeIds);
 
 /// <summary>
-/// Entscheidet, was in welcher Reihenfolge zu tun ist.
+/// Decides what has to happen, and in what order.
 ///
-/// Das ist der Unterschied zwischen der CLI und einem Assistenten: die CLI führt
-/// ein Rezept aus, das man ihr nennt. Der Assistent soll aus "ich will den Trainer"
-/// selbst ableiten, dass davor ein Downgrade, ein ASI-Loader und eine Laufzeit
-/// stehen — und dass drei davon schon installiert sind.
+/// This is the difference between the CLI and a wizard: the CLI runs the recipe
+/// you name. The wizard is supposed to work out by itself that "I want the
+/// trainer" implies a downgrade, an ASI loader and a runtime first — and that
+/// three of those are already installed.
 ///
-/// Die Logik liegt bewusst hier und nicht im Fenster. Ein Fenster lässt sich nicht
-/// gegen Fixtures testen, diese Klasse schon; und genau hier liegen die Fehler, die
-/// ein Nutzer als "der Launcher hat mir das Spiel zerlegt" erlebt.
+/// The logic lives here and not in the window on purpose. A window cannot be
+/// tested against fixtures, this class can; and this is exactly where the bugs
+/// live that a user experiences as "the launcher wrecked my game".
 /// </summary>
 public static class JourneyPlanner
 {
@@ -103,42 +103,43 @@ public static class JourneyPlanner
 
         var byId = BuildIndex(catalog, game, problems);
 
-        // Ohne bekannte Ausgangsversion gibt es weder einen Weg noch eine
-        // Eignungspruefung. Das einmal sagen, und zwar bevor daraus ein Dutzend
-        // Folgemeldungen werden - aber nur, wenn ueberhaupt etwas geplant werden
-        // soll. Wer nichts will, braucht auch keine Version.
+        // Without a known starting version there is neither a path to search nor
+        // a way to check suitability. Say it once, before it turns into a dozen
+        // follow-up messages — but only when there is something to plan at all.
+        // Someone who wants nothing needs no version either.
         var hasWork = request.WantedRecipeIds.Count > 0 || !string.Equals(from, target, StringComparison.OrdinalIgnoreCase);
 
         if (!fromInfo.IsKnown && hasWork)
         {
             problems.Add(new JourneyProblem(
-                "Die vorhandene Spielversion lässt sich nicht bestimmen.",
-                "Ohne Ausgangspunkt lässt sich weder ein Weg suchen noch prüfen, ob ein "
-                + "Rezept passt. Version vorgeben oder das Spiel einmal unverändert starten."));
+                "The installed game version cannot be determined.",
+                "Without a starting point there is no way to search a path or to check "
+                + "whether a recipe fits. Give the version explicitly, or start the game "
+                + "once unmodified."));
         }
 
-        // ---------------------------------------------------------- Versionsweg
+        // ---------------------------------------------------------- Version path
         //
-        // Der Versionswechsel steht immer vorn. Ein Downgrade tauscht hunderte
-        // Dateien aus; alles, was vorher hineingelegt wurde, wäre danach
-        // überschrieben oder — schlimmer — halb überschrieben.
+        // The version change always goes first. A downgrade swaps hundreds of
+        // files; anything installed before it would afterwards be overwritten —
+        // or, worse, half overwritten.
 
         var versionSteps = PlanVersionPath(catalog, game, from, fromInfo.IsKnown, target, problems);
         steps.AddRange(versionSteps);
 
-        // Ab hier rechnen wir mit der Version, die das Spiel nach dem Wechsel hat.
-        // Das ist der Punkt, an dem ein Assistent sich von einer Befehlszeile
-        // unterscheidet: ein Rezept für 1.0.7.0 ist für einen Nutzer auf 1.2.0.59
-        // nicht etwa ungeeignet, sondern schlicht noch nicht an der Reihe.
+        // From here on we reckon with the version the game has AFTER the change.
+        // This is the point where a wizard differs from a command line: a recipe
+        // for 1.0.7.0 is not unsuitable for a user on 1.2.0.59 — it is simply not
+        // its turn yet.
         var effectiveVersion = versionSteps.Count > 0 ? target : from;
 
-        // Ob die Eignung ueberhaupt pruefbar ist. Ist sie es nicht, steht der
-        // Grund schon als eigener Befund da - dann jedes Rezept einzeln als
-        // "passt nicht zu (keine Versionsinformation)" zu melden, vergraebt die
-        // eine Meldung, auf die es ankommt, unter lauter Folgemeldungen.
+        // Whether suitability is checkable at all. If it is not, the reason is
+        // already its own finding — reporting every recipe separately as "does
+        // not fit (no version information)" would bury the one message that
+        // matters under a pile of consequences.
         var versionIsUsable = versionSteps.Count > 0 || fromInfo.IsKnown;
 
-        // ------------------------------------------------------------- Rezepte
+        // ------------------------------------------------------------- Recipes
 
         var ordered = Resolve(request.WantedRecipeIds, byId, ledger, problems);
 
@@ -147,16 +148,16 @@ public static class JourneyPlanner
             if (versionIsUsable && !recipe.Matches(effectiveVersion))
             {
                 problems.Add(new JourneyProblem(
-                    $"{recipe.Name} passt nicht zu Version {effectiveVersion}.",
-                    $"Vorgesehen für: {string.Join(", ", recipe.AppliesTo)}"));
+                    $"{recipe.Name} does not fit version {effectiveVersion}.",
+                    $"Intended for: {string.Join(", ", recipe.AppliesTo)}"));
 
                 continue;
             }
 
-            // Installiert heißt nicht erledigt: steht im Katalog eine andere
-            // Fassung als im Ledger, muss das Rezept laufen. Das Ledger führt
-            // dann weiterhin genau einen Eintrag, und der Snapshot davor
-            // sichert die Dateien der alten Fassung.
+            // Installed does not mean finished: if the catalog holds a different
+            // release than the ledger, the recipe has to run. The ledger still
+            // keeps exactly one entry, and the snapshot taken beforehand
+            // preserves the files of the old release.
             var installed = ledger.Find(recipe.Id);
 
             var state = installed switch
@@ -175,7 +176,7 @@ public static class JourneyPlanner
         return new Journey(from, target, steps, problems);
     }
 
-    // ------------------------------------------------------------------ Helfer
+    // ------------------------------------------------------------------ Helpers
 
     private static Dictionary<string, Recipe> BuildIndex(
         IReadOnlyList<Recipe> catalog,
@@ -186,13 +187,13 @@ public static class JourneyPlanner
 
         foreach (var recipe in catalog.Where(r => r.Game == game))
         {
-            // Zwei Rezepte mit derselben ID sind kein Randfall, sondern ein Katalog,
-            // dem man nicht trauen kann: welches von beiden gemeint ist, entscheidet
-            // sonst die Reihenfolge im Dateisystem.
+            // Two recipes sharing an id is not an edge case, it is a catalog you
+            // cannot trust: otherwise the order of the file system decides which
+            // of the two was meant.
             if (!byId.TryAdd(recipe.Id, recipe))
             {
                 problems.Add(new JourneyProblem(
-                    $"Die Rezept-ID {recipe.Id} kommt im Katalog mehrfach vor."));
+                    $"The recipe id {recipe.Id} appears more than once in the catalog."));
             }
         }
 
@@ -212,8 +213,8 @@ public static class JourneyPlanner
             return [];
         }
 
-        // Die unbekannte Ausgangsversion ist oben schon gemeldet; hier bliebe
-        // nur eine zweite Meldung fuer dieselbe Ursache.
+        // The unknown starting version is already reported above; here it would
+        // only be a second message for the same cause.
         if (!fromIsKnown)
         {
             return [];
@@ -224,14 +225,14 @@ public static class JourneyPlanner
         if (path is null)
         {
             problems.Add(new JourneyProblem(
-                $"Von {from} führt kein bekannter Weg auf {target}.",
-                "Im Katalog fehlt ein Rezept für diesen Versionswechsel."));
+                $"No known path leads from {from} to {target}.",
+                "The catalog is missing a recipe for this version change."));
 
             return [];
         }
 
-        // Der Ausgangsknoten wandert mit: nach der ersten Kante steht das Spiel
-        // auf deren Zielversion, und die nächste Kante setzt dort an.
+        // The starting node travels along: after the first edge the game sits on
+        // that edge's target version, and the next edge starts from there.
         return path
             .Select(edge => new JourneyStep(
                 edge.Recipe,
@@ -242,12 +243,11 @@ public static class JourneyPlanner
     }
 
     /// <summary>
-    /// Löst Abhängigkeiten auf und bringt die Rezepte in eine Reihenfolge, in der
-    /// jedes nach allem steht, was es braucht.
+    /// Resolves dependencies and orders the recipes so that each one comes after
+    /// everything it needs.
     ///
-    /// Tiefensuche statt Kahn-Algorithmus, weil sie den Zyklus mitliefert: "a
-    /// braucht b braucht a" ist für den Nutzer brauchbar, "es bleiben 2 Rezepte
-    /// übrig" nicht.
+    /// Depth-first rather than Kahn's algorithm, because it hands back the cycle:
+    /// "a needs b needs a" is useful to a user, "2 recipes left over" is not.
     /// </summary>
     private static List<(Recipe Recipe, JourneyReason Reason)> Resolve(
         IReadOnlyList<string> wanted,
@@ -270,7 +270,7 @@ public static class JourneyPlanner
             if (cycleAt >= 0)
             {
                 problems.Add(new JourneyProblem(
-                    "Zwei Rezepte verlangen einander gegenseitig.",
+                    "Two recipes require one another.",
                     string.Join(" -> ", onPath.Skip(cycleAt).Append(id))));
 
                 return;
@@ -278,8 +278,8 @@ public static class JourneyPlanner
 
             if (!byId.TryGetValue(id, out var recipe))
             {
-                // Ein bereits installiertes Rezept darf aus dem Katalog verschwinden,
-                // ohne dass deshalb nichts mehr geht — die Dateien liegen ja da.
+                // An already installed recipe may vanish from the catalog without
+                // everything grinding to a halt — its files are still there.
                 if (ledger.IsInstalled(id))
                 {
                     done.Add(id);
@@ -287,9 +287,9 @@ public static class JourneyPlanner
                 }
 
                 problems.Add(new JourneyProblem(
-                    $"Das Rezept {id} steht nicht im Katalog.",
+                    $"The recipe {id} is not in the catalog.",
                     reason == JourneyReason.Dependency
-                        ? "Es wird von einem anderen Rezept verlangt."
+                        ? "Another recipe requires it."
                         : null));
 
                 return;
@@ -317,18 +317,18 @@ public static class JourneyPlanner
     }
 
     /// <summary>
-    /// Prüft <c>ConflictsWith</c> gegen den Weg selbst und gegen das, was schon
-    /// installiert ist. Zwei ASI-Loader nebeneinander sind kein Fehler, den man
-    /// erst nach dem Schreiben bemerken will.
+    /// Checks <c>ConflictsWith</c> against the path itself and against what is
+    /// already installed. Two ASI loaders side by side is not a problem you want
+    /// to notice only after writing files.
     /// </summary>
     private static void CheckConflicts(
         List<JourneyStep> steps,
         InstallLedger ledger,
         List<JourneyProblem> problems)
     {
-        // ID -> Klartextname. Ein Nutzer hat "ultimate-asi-loader" nicht
-        // ausgewaehlt, sondern "Ultimate ASI Loader"; eine Meldung, die beide
-        // Schreibweisen mischt, liest sich wie ein halb uebersetzter Fehler.
+        // Id -> readable name. A user did not pick "ultimate-asi-loader", they
+        // picked "Ultimate ASI Loader"; a message mixing both spellings reads
+        // like a half-translated error.
         var names = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
 
         foreach (var entry in ledger.Entries)
@@ -348,8 +348,8 @@ public static class JourneyPlanner
         {
             foreach (var other in step.Recipe.Conflicts.Where(present.Contains))
             {
-                // Konflikte sind gegenseitig gemeint, stehen aber oft nur auf einer
-                // Seite. Das Paar einmal melden, nicht zweimal.
+                // Conflicts are meant mutually but are often only declared on one
+                // side. Report the pair once, not twice.
                 var pair = string.CompareOrdinal(step.Recipe.Id, other) < 0
                     ? $"{step.Recipe.Id}|{other}"
                     : $"{other}|{step.Recipe.Id}";
@@ -357,8 +357,8 @@ public static class JourneyPlanner
                 if (reported.Add(pair))
                 {
                     problems.Add(new JourneyProblem(
-                        $"{step.Recipe.Name} verträgt sich nicht mit {names[other]}.",
-                        "Beide wollen dieselbe Stelle im Spiel besetzen. Nur eines von beiden auswählen."));
+                        $"{step.Recipe.Name} conflicts with {names[other]}.",
+                        "Both want to occupy the same place in the game. Pick only one of them."));
                 }
             }
         }

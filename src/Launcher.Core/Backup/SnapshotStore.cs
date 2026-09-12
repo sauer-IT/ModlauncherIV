@@ -4,10 +4,10 @@ using System.Text.Json;
 namespace ModlauncherIV.Core.Backup;
 
 /// <summary>
-/// Der Zustand einer einzelnen Datei vor der Änderung.
-/// <paramref name="Existed"/> false bedeutet: die Datei gab es nicht, der Rollback
-/// muss sie also löschen statt zurückzuschreiben. Ohne diese Unterscheidung
-/// bliebe nach einem fehlgeschlagenen Lauf jede neu angelegte Datei liegen.
+/// The state of one file before it was changed.
+/// <paramref name="Existed"/> false means: the file did not exist, so the
+/// rollback has to delete it rather than write it back. Without that
+/// distinction every newly created file would survive a failed run.
 /// </summary>
 public sealed record SnapshotEntry(
     string RelativePath,
@@ -23,13 +23,13 @@ public sealed record Snapshot(
     IReadOnlyList<SnapshotEntry> Entries);
 
 /// <summary>
-/// Sichert Dateien, bevor sie verändert werden, und stellt sie wieder her.
+/// Backs files up before they are changed, and restores them again.
 ///
-/// Bewusst ECHTE KOPIEN statt Hardlinks, auch wenn das mehr Platz kostet.
-/// Ein Hardlink teilt sich den Inhalt mit dem Original: schreibt ein Schritt in
-/// die bestehende Datei, statt sie zu ersetzen — und genau das tut etwa
-/// File.Copy mit overwrite — dann ändert sich der "Snapshot" mit. Die Sicherung
-/// wäre in dem Moment wertlos, in dem man sie braucht.
+/// REAL COPIES on purpose rather than hard links, even though that costs more
+/// space. A hard link shares its content with the original: if a step writes
+/// into the existing file instead of replacing it — and that is exactly what
+/// File.Copy with overwrite does — the "snapshot" changes along with it. The
+/// backup would be worthless at the very moment it is needed.
 /// </summary>
 public sealed class SnapshotStore(string gameRoot)
 {
@@ -41,9 +41,8 @@ public sealed class SnapshotStore(string gameRoot)
     public string DirectoryFor(string id) => Path.Combine(_root, id);
 
     /// <summary>
-    /// Sichert alle angegebenen Pfade. Doppelte Einträge werden zusammengefasst,
-    /// damit eine Datei nicht zweimal gesichert und beim Rollback in der falschen
-    /// Reihenfolge zurückgeschrieben wird.
+    /// Backs up every given path. Duplicate entries are merged so that a file is
+    /// not backed up twice and written back in the wrong order during a rollback.
     /// </summary>
     public Snapshot Create(IEnumerable<string> absolutePaths, string? id = null)
     {
@@ -106,9 +105,9 @@ public sealed class SnapshotStore(string gameRoot)
     }
 
     /// <summary>
-    /// Spielt einen Snapshot zurück. Wirft nicht beim ersten Fehler, sondern
-    /// versucht jede Datei — ein halb wiederhergestellter Zustand ist schlechter
-    /// als einer, bei dem eine einzelne Datei fehlschlägt und gemeldet wird.
+    /// Restores a snapshot. Does not throw on the first error but tries every
+    /// file — a half-restored state is worse than one where a single file fails
+    /// and gets reported.
     /// </summary>
     public IReadOnlyList<string> Restore(Snapshot snapshot)
     {
@@ -183,7 +182,7 @@ public sealed class SnapshotStore(string gameRoot)
         }
     }
 
-    /// <summary>Gesamtgröße aller Sicherungen dieser Installation.</summary>
+    /// <summary>Total size of every backup belonging to this installation.</summary>
     public long TotalSizeBytes()
     {
         if (!Directory.Exists(_root))

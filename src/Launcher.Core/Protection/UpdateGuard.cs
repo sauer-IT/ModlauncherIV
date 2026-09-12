@@ -5,13 +5,13 @@ namespace ModlauncherIV.Core.Protection;
 
 public enum GuardState
 {
-    /// <summary>Die Plattform kann das Spiel nicht ungefragt aktualisieren.</summary>
+    /// <summary>The platform cannot update the game behind your back.</summary>
     Locked,
 
-    /// <summary>Die Plattform darf aktualisieren. Ein Downgrade ist in Gefahr.</summary>
+    /// <summary>The platform is allowed to update. A downgrade is at risk.</summary>
     Unlocked,
 
-    /// <summary>Für diese Plattform gibt es keinen Schalter, den wir setzen könnten.</summary>
+    /// <summary>This platform has no switch we could set.</summary>
     NoSwitch,
 
     Unknown,
@@ -25,22 +25,22 @@ public sealed record GuardStatus(
     IReadOnlyList<string> Instructions);
 
 /// <summary>
-/// Hält die Plattform davon ab, einen Downgrade zurückzudrehen.
+/// Keeps the platform from undoing a downgrade.
 ///
-/// Das ist bewusst kein Rezept: ein Rezept läuft einmal, diese Sperre muss bei
-/// jedem Start neu geprüft werden. Steam setzt sein appmanifest bei Gelegenheit
-/// selbst zurück, und "Dateien überprüfen" hebt ohnehin jeden Downgrade auf.
+/// Deliberately not a recipe: a recipe runs once, this guard has to be checked
+/// again on every start. Steam resets its appmanifest by itself now and then,
+/// and "verify files" undoes any downgrade regardless.
 ///
-/// Für den Rockstar Games Launcher gibt es keinen Schalter. Der Weg dort ist ein
-/// anderer: mit FusionFix und dessen Legacy Addon startet GTAIV.exe direkt, der
-/// Launcher ist aus dem Spiel. Das ist zuverlässiger als der Offline-Modus, der
-/// nach Launcher-Updates immer wieder aufhört zu wirken.
+/// For the Rockstar Games Launcher there is no switch. The route there is a
+/// different one: with FusionFix and its Legacy Addon, GTAIV.exe starts
+/// directly and the launcher is out of the picture. That is more reliable than
+/// offline mode, which keeps breaking after launcher updates.
 /// </summary>
 public static class UpdateGuard
 {
     private const string AutoUpdateKey = "AutoUpdateBehavior";
 
-    /// <summary>"1" = nur beim Starten aktualisieren. "2" wäre nie, ist aber unzuverlässig.</summary>
+    /// <summary>"1" = only update on launch. "2" would be never, but is unreliable.</summary>
     private const string LockedValue = "1";
 
     public static GuardStatus Check(GameInstall install) => install.Platform switch
@@ -48,36 +48,36 @@ public static class UpdateGuard
         GamePlatform.Steam => CheckSteam(install),
         GamePlatform.RockstarLauncher => new GuardStatus(
             GuardState.NoSwitch,
-            "Rockstar Games Launcher: kein Schalter gegen Updates.",
-            "Der Launcher lässt sich nicht davon abhalten, die Installation zu prüfen und zurückzusetzen.",
+            "Rockstar Games Launcher: no switch against updates.",
+            "The launcher cannot be stopped from checking the installation and resetting it.",
             null,
             [
-                "FusionFix und FusionFix Legacy Addon ins Spielverzeichnis entpacken.",
-                "Das Spiel danach direkt über GTAIV.exe starten, nicht über den Launcher.",
-                "Achtung: das Überspringen des Launchers kann den Zugang zu TLAD und TBoGT kappen.",
+                "Extract FusionFix and the FusionFix Legacy Addon into the game directory.",
+                "Afterwards start the game directly via GTAIV.exe, not through the launcher.",
+                "Careful: skipping the launcher can cut off access to TLAD and TBoGT.",
             ]),
 
         GamePlatform.Epic => new GuardStatus(
             GuardState.NoSwitch,
-            "Epic: Auto-Update lässt sich nur in den Einstellungen abschalten.",
-            "Es gibt keine Datei, die wir dafür setzen könnten.",
+            "Epic: auto-update can only be turned off in the settings.",
+            "There is no file we could set for it.",
             null,
             [
-                "In der Epic-Bibliothek beim Spiel die automatischen Updates deaktivieren.",
-                "Niemals \"Verify\" ausführen — das stellt den Originalzustand wieder her.",
+                "Disable automatic updates for the game in the Epic library.",
+                "Never run \"Verify\" — that restores the original state.",
             ]),
 
         GamePlatform.Retail => new GuardStatus(
             GuardState.Locked,
-            "Retail-Installation: nichts aktualisiert hier von selbst.",
+            "Retail installation: nothing updates itself here.",
             null,
             null,
             []),
 
         _ => new GuardStatus(
             GuardState.Unknown,
-            "Herkunft der Installation unbekannt.",
-            "Ohne bekannte Plattform lässt sich nicht sagen, ob etwas zurückpatchen kann.",
+            "The origin of this installation is unknown.",
+            "Without a known platform there is no way to tell whether something can patch it back.",
             null,
             []),
     };
@@ -90,8 +90,8 @@ public static class UpdateGuard
         {
             return new GuardStatus(
                 GuardState.Unknown,
-                "Steam-Manifest nicht gefunden.",
-                $"Gesucht wurde nach appmanifest_{InstallLocator.SteamAppId}.acf oberhalb des Spielordners.",
+                "Steam manifest not found.",
+                $"Looked for appmanifest_{InstallLocator.SteamAppId}.acf above the game folder.",
                 null,
                 []);
         }
@@ -101,34 +101,34 @@ public static class UpdateGuard
         return value == LockedValue
             ? new GuardStatus(
                 GuardState.Locked,
-                "Steam aktualisiert nur beim Starten.",
-                "Achtung: \"Dateien überprüfen\" hebt einen Downgrade trotzdem auf.",
+                "Steam only updates on launch.",
+                "Careful: \"verify files\" still undoes a downgrade.",
                 manifest,
                 [])
             : new GuardStatus(
                 GuardState.Unlocked,
-                $"Steam darf jederzeit aktualisieren ({AutoUpdateKey} = {value ?? "nicht gesetzt"}).",
-                "Ein Downgrade kann dadurch ohne Vorwarnung zurückgesetzt werden.",
+                $"Steam may update at any time ({AutoUpdateKey} = {value ?? "not set"}).",
+                "A downgrade can be reverted by that without warning.",
                 manifest,
-                ["mliv guard --apply setzt den Schalter."]);
+                ["mliv guard --apply sets the switch."]);
     }
 
     /// <summary>
-    /// Setzt die Sperre. Legt vorher eine Kopie des Manifests an — es liegt
-    /// außerhalb des Spielverzeichnisses und damit außerhalb der Snapshots.
+    /// Sets the lock. Makes a copy of the manifest first — it lives outside the
+    /// game directory and therefore outside the snapshots.
     /// </summary>
     public static bool TryLock(GameInstall install, out string message)
     {
         if (install.Platform != GamePlatform.Steam)
         {
-            message = "Nur bei Steam gibt es einen Schalter, den wir setzen könnten.";
+            message = "Only Steam has a switch we could set.";
             return false;
         }
 
         var manifest = InstallLocator.FindSteamManifest(install.Path);
         if (manifest is null)
         {
-            message = $"appmanifest_{InstallLocator.SteamAppId}.acf nicht gefunden.";
+            message = $"appmanifest_{InstallLocator.SteamAppId}.acf not found.";
             return false;
         }
 
@@ -150,22 +150,22 @@ public static class UpdateGuard
 
             if (updated is null)
             {
-                message = "Das Manifest hat ein unerwartetes Format und wurde nicht angefasst.";
+                message = "The manifest has an unexpected format and was left untouched.";
                 return false;
             }
 
             File.WriteAllText(manifest, updated);
-            message = $"{AutoUpdateKey} auf {LockedValue} gesetzt. Sicherung: {Path.GetFileName(backup)}";
+            message = $"{AutoUpdateKey} set to {LockedValue}. Backup: {Path.GetFileName(backup)}";
             return true;
         }
         catch (Exception e) when (e is IOException or UnauthorizedAccessException)
         {
-            message = $"Manifest nicht schreibbar: {e.Message}";
+            message = $"Manifest is not writable: {e.Message}";
             return false;
         }
     }
 
-    /// <summary>Fügt den Schlüssel nach der öffnenden Klammer ein, wenn er fehlt.</summary>
+    /// <summary>Inserts the key after the opening brace when it is missing.</summary>
     private static string? InsertValue(string content, string line)
     {
         var brace = content.IndexOf('{');

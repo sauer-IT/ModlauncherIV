@@ -3,8 +3,8 @@ using System.Security.Cryptography;
 namespace ModlauncherIV.Core;
 
 /// <summary>
-/// SHA-256 an einer Stelle. Jede Prüfsumme im Projekt ist kleingeschriebenes Hex,
-/// damit Vergleiche nie an der Schreibweise scheitern.
+/// SHA-256 in one place. Every checksum in this project is lower-case hex, so
+/// that comparisons never fail over spelling.
 /// </summary>
 public static class Hashing
 {
@@ -14,7 +14,7 @@ public static class Hashing
         return Convert.ToHexString(SHA256.HashData(stream)).ToLowerInvariant();
     }
 
-    /// <summary>Vergleicht zwei Prüfsummen unabhängig von Schreibweise und Leerzeichen.</summary>
+    /// <summary>Compares two checksums regardless of case and surrounding spaces.</summary>
     public static bool Equal(string? a, string? b) =>
         !string.IsNullOrWhiteSpace(a) &&
         !string.IsNullOrWhiteSpace(b) &&
