@@ -32,10 +32,14 @@ vorherigem Snapshot.
 ## Bauen und ausführen
 
 ```
-.scriptsun.ps1 detect        Launcher
-.scriptsplay.ps1            GTA IV starten, am Rockstar-Launcher vorbei
-.scriptsbuild-trainer.ps1 -Deploy   Trainer bauen und ins Spiel legen
+.\scripts\run.ps1 detect               Launcher aufrufen
+.\scripts\play.ps1                     GTA IV starten, am Rockstar-Launcher vorbei
+.\scripts\build-trainer.ps1 -Deploy    Trainer bauen und ins Spiel legen
 ```
+
+**Der Trainer startet nicht separat.** Er liegt als
+`plugins\ModlauncherIV-Trainer.asi` im Spielverzeichnis und wird vom ASI-Loader
+beim Spielstart mitgeladen. Im Spiel öffnet `F7` das Menü.
 
 Befehle:
 
@@ -150,7 +154,7 @@ Voraussetzung:
   voraussetzt, wäre ausgerechnet hier fehl am Platz: an genau einer fehlenden
   Visual-C++-Laufzeit ist das Spiel nach dem Downgrade zuerst gescheitert.
 
-**Stand: T1.** Das Menü läuft im Spiel — F7 öffnet, Numblock oder Pfeiltasten
+**Das Menü läuft im Spiel** — F7 öffnet, Numblock oder Pfeiltasten
 bedienen, Schalter und Auswahl reagieren, Aktionen laufen bis ins Logfile durch.
 
 | Taste | Wirkung |
