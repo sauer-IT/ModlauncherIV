@@ -250,7 +250,7 @@ because it could not write its own log would be a bad joke.
 .\tests\run-tests.ps1
 ```
 
-282 tests against fake game directories. No real installation is touched. If GTA
+294 tests against fake game directories. No real installation is touched. If GTA
 IV happens to be running, the script aborts up front - otherwise every pre-flight
 rightly blocks and four tests fail without anything being wrong with the code.
 Among the things covered:

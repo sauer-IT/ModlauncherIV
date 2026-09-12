@@ -9,6 +9,7 @@ using ModlauncherIV.Core.Catalog;
 using ModlauncherIV.Core.Detection;
 using ModlauncherIV.Core.Execution;
 using ModlauncherIV.Core.Planning;
+using ModlauncherIV.Core.Protection;
 using ModlauncherIV.Core.Verification;
 
 namespace ModlauncherIV.App;
@@ -81,6 +82,61 @@ public sealed class HomeViewModel : Observable
         VerifyCommand = new AsyncRelayCommand(VerifyAsync, () => !_busy);
         FolderCommand = new RelayCommand(OpenFolder, () => _session.Install is not null);
         LogCommand = new RelayCommand(Diary.Show);
+        LockCommand = new RelayCommand(Lock, () => CanLock && !_busy);
+    }
+
+    /// <summary>
+    /// Sets the platform's switch against automatic updates, where there is one.
+    ///
+    /// Only Steam has a file for it. Everything else gets a sentence instead,
+    /// because a button that claims to lock something it cannot would be worse
+    /// than none.
+    /// </summary>
+    private void Lock()
+    {
+        if (_session.Install is not { } install)
+        {
+            return;
+        }
+
+        var locked = UpdateGuard.TryLock(install, out var message);
+
+        Diary.Info($"Update lock: {message}");
+
+        MessageBox.Show(
+            message,
+            SelfInstall.ProgramName,
+            MessageBoxButton.OK,
+            locked ? MessageBoxImage.Information : MessageBoxImage.Warning);
+
+        DescribeGuard(install);
+    }
+
+    /// <summary>Reads the platform's state and puts it into one readable line.</summary>
+    private void DescribeGuard(GameInstall install)
+    {
+        var guard = UpdateGuard.Check(install);
+
+        Guard = guard.State switch
+        {
+            GuardState.Locked => guard.Summary,
+            GuardState.Unlocked => $"{guard.Summary} {guard.Detail}".Trim(),
+
+            // For the ones without a switch the summary alone is a statement of
+            // fact; what to do about it is the first line of the advice.
+            _ => string.Join(
+                "  ",
+                new[] { guard.Summary, guard.Instructions.FirstOrDefault() }
+                    .Where(s => !string.IsNullOrWhiteSpace(s))),
+        };
+
+        GuardFine = guard.State == GuardState.Locked;
+        CanLock = guard.State == GuardState.Unlocked;
+
+        Raise(nameof(Guard));
+        Raise(nameof(GuardFine));
+        Raise(nameof(CanLock));
+        LockCommand.RaiseCanExecuteChanged();
     }
 
     private readonly ConnectedInstall? _connected = GtaConnected.Find();
@@ -129,6 +185,25 @@ public sealed class HomeViewModel : Observable
         GamePlatform.Retail => "Disc",
         _ => "unknown origin",
     };
+
+    /// <summary>
+    /// Whether the platform can put this installation back, in one line.
+    ///
+    /// It used to be said once, on the last page of the wizard, and then never
+    /// again. The risk is not a one-off: Steam resets its own manifest now and
+    /// then, the Rockstar launcher checks the installation on every start, and
+    /// the person this happens to opens this page weeks later wondering why the
+    /// mods went quiet. It belongs where they live, not where they passed once.
+    /// </summary>
+    public string Guard { get; private set; } = string.Empty;
+
+    /// <summary>False when something out there may undo the downgrade.</summary>
+    public bool GuardFine { get; private set; } = true;
+
+    /// <summary>Steam is the only one with a switch we can actually set.</summary>
+    public bool CanLock { get; private set; }
+
+    public RelayCommand LockCommand { get; }
 
     /// <summary>The sentence above the play button. Says whether something is wrong.</summary>
     public string Status
@@ -402,6 +477,11 @@ public sealed class HomeViewModel : Observable
         Raise(nameof(Version));
         Raise(nameof(Platform));
         Raise(nameof(GamePath));
+
+        if (_session.Install is { } reinspected)
+        {
+            DescribeGuard(reinspected);
+        }
 
         if (_session.Install is not { } install)
         {

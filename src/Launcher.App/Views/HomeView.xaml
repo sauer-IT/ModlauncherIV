@@ -48,14 +48,44 @@
                                 <TextBlock Text="{Binding Platform}" Style="{StaticResource Head}" />
                                 <TextBlock Text="{Binding GamePath}" Style="{StaticResource Mono}" Margin="0,4,0,0" TextWrapping="Wrap" />
                                 <TextBlock Text="{Binding Version}" Style="{StaticResource Dim}" Margin="0,6,0,0" />
+
+                                <!-- Whether anything out there can put this back.
+                                     Said here rather than once on the last page of
+                                     the wizard: the risk does not happen once, and
+                                     the person it happens to is looking at this
+                                     page weeks later. -->
+                                <TextBlock Text="{Binding Guard}"
+                                           Margin="0,8,0,0"
+                                           TextWrapping="Wrap"
+                                           Visibility="{Binding Guard, Converter={StaticResource HasContent}}">
+                                    <TextBlock.Style>
+                                        <Style TargetType="TextBlock" BasedOn="{StaticResource Dim}">
+                                            <Style.Triggers>
+                                                <!-- Amber, not red: nothing is broken.
+                                                     Something else is merely allowed to
+                                                     break it. -->
+                                                <DataTrigger Binding="{Binding GuardFine}" Value="False">
+                                                    <Setter Property="Foreground" Value="{StaticResource Accent}" />
+                                                </DataTrigger>
+                                            </Style.Triggers>
+                                        </Style>
+                                    </TextBlock.Style>
+                                </TextBlock>
                             </StackPanel>
 
-                            <Button Grid.Column="1"
-                                    Content="Open folder"
-                                    Command="{Binding FolderCommand}"
-                                    VerticalAlignment="Top"
-                                    MinWidth="0"
-                                    Margin="12,0,0,0" />
+                            <StackPanel Grid.Column="1" VerticalAlignment="Top">
+                                <Button Content="Open folder"
+                                        Command="{Binding FolderCommand}"
+                                        MinWidth="0"
+                                        Margin="12,0,0,0" />
+
+                                <Button Content="Lock updates"
+                                        Command="{Binding LockCommand}"
+                                        MinWidth="0"
+                                        Margin="12,8,0,0"
+                                        ToolTip="Stops Steam from updating the game by itself. Verifying files still undoes a downgrade."
+                                        Visibility="{Binding CanLock, Converter={StaticResource Show}}" />
+                            </StackPanel>
                         </Grid>
                     </StackPanel>
                 </Border>

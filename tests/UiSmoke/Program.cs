@@ -89,6 +89,7 @@ internal static class Program
         CheckTooltip(session);
         CheckReinspection(session);
         CheckVersionAttribution(session);
+        CheckGuardOnHome(session);
 
         // Only when asked for: this one talks to somebody else's server, and a
         // test suite that fails because a stranger's host is down is a test
@@ -819,6 +820,58 @@ internal static class Program
         var blind = InstallVerifier.Verify(onCe, withoutDowngrade);
         Report("attribution: without the catalog it claims nothing", !blind.DowngradeRemoved);
     }
+
+    /// <summary>
+    /// What the home page says about the platform putting the game back.
+    ///
+    /// Each platform is a different answer and only one of them has a switch
+    /// that can actually be set. The wrong answer here is worse than none: a
+    /// "Lock updates" button on a Rockstar installation would promise something
+    /// no file can deliver.
+    /// </summary>
+    private static void CheckGuardOnHome(Session session)
+    {
+        foreach (var (platform, name) in new[]
+                 {
+                     (GamePlatform.RockstarLauncher, "Rockstar"),
+                     (GamePlatform.Epic, "Epic"),
+                     (GamePlatform.Retail, "a disc"),
+                     (GamePlatform.Unknown, "an unknown origin"),
+                 })
+        {
+            var home = new HomeViewModel(Platform(session, platform), () => { });
+            home.EnterAsync().GetAwaiter().GetResult();
+
+            Report($"guard: {name} says something about updates", !string.IsNullOrWhiteSpace(home.Guard));
+            Report($"guard: and offers no switch it does not have", !home.CanLock);
+        }
+
+        // A disc updates itself never, and that is the one case where the line
+        // is good news rather than a warning.
+        var retail = new HomeViewModel(Platform(session, GamePlatform.Retail), () => { });
+        retail.EnterAsync().GetAwaiter().GetResult();
+        Report("guard: a disc installation is fine", retail.GuardFine);
+
+        var rockstar = new HomeViewModel(Platform(session, GamePlatform.RockstarLauncher), () => { });
+        rockstar.EnterAsync().GetAwaiter().GetResult();
+        Report("guard: the Rockstar launcher is not", !rockstar.GuardFine);
+        Report(
+            "guard: and the line says what to do instead",
+            rockstar.Guard.Contains("GTAIV.exe", StringComparison.OrdinalIgnoreCase)
+            || rockstar.Guard.Contains("FusionFix", StringComparison.OrdinalIgnoreCase));
+
+        Check("home on a Rockstar installation", rockstar);
+    }
+
+    /// <summary>The same session, with the installation coming from elsewhere.</summary>
+    private static Session Platform(Session session, GamePlatform platform) => new()
+    {
+        Install = session.Install! with { Platform = platform },
+        Found = session.Found,
+        Environment = session.Environment,
+        Catalog = session.Catalog,
+        CacheRoot = session.CacheRoot,
+    };
 
     private static void CheckTooltip(Session session)
     {
