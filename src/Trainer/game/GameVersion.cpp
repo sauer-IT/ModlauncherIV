@@ -87,11 +87,23 @@ namespace mliv
 
     bool IsSupported(const GameVersion version)
     {
-        // For now only 1.0.7.0. The Complete Edition has different memory
-        // layouts and different native hashes; running there would mean writing
-        // to wrong addresses. A trainer that refuses to start is infinitely
-        // better than one that wrecks save games.
-        return version == GameVersion::V1070;
+        // 1.0.7.0 and 1.0.8.0, and deliberately nothing else.
+        //
+        // Not our choice but the SDK's: it carries an address for both versions
+        // at every call site - AddressSetter::Get(addr1070, addr1080) - and picks
+        // by the same version resource this file reads. Everything below that is
+        // native calls, which the game resolves by hash and which therefore do
+        // not care about the version at all.
+        //
+        // On anything else the SDK hooks nothing and gameStartupEvent is never
+        // reached, so this check is the second line rather than the first. It
+        // stays because a check that only exists further down is one refactor
+        // away from not existing: a trainer that refuses to start is infinitely
+        // better than one writing to wrong addresses.
+        //
+        // Measured on 1.0.7.0. 1.0.8.0 rests on the SDK's address set, not on a
+        // run of our own.
+        return version == GameVersion::V1070 || version == GameVersion::V1080;
     }
 
     const char* Describe(const GameVersion version)
@@ -102,7 +114,7 @@ namespace mliv
             case GameVersion::V1070:           return "1.0.7.0";
             case GameVersion::V1080:           return "1.0.8.0";
             case GameVersion::CompleteEdition: return "Complete Edition (1.2.0.x)";
-            default:                           return "unbekannt";
+            default:                           return "unknown";
         }
     }
 }

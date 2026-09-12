@@ -16,7 +16,7 @@ namespace mliv
     struct GameInfo
     {
         GameVersion version = GameVersion::Unknown;
-        std::wstring raw;       ///< Versionsangabe, wie die EXE sie meldet.
+        std::wstring raw;       ///< The version string as the EXE reports it.
         std::wstring exePath;
     };
 

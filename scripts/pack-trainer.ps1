@@ -23,11 +23,12 @@
   launcher can download it again would be a detour with one more thing that can
   fail - it sits next to the program and is taken from there.
 
-  appliesToVersions lists only 1.0.7.0, even though the launcher also knows
-  1.0.8.0 and 1.0.4.0. The reason is in GameVersion.cpp: the trainer only runs
-  on 1.0.7.0 and refuses to load on anything else. Were more listed here, the
-  wizard would happily install it on 1.0.8.0, and the user would end up with a
-  file in the plugins folder that silently does nothing.
+  appliesToVersions lists 1.0.7.0 and 1.0.8.0, and not 1.0.4.0, which the
+  launcher also knows. That list has to match IsSupported in GameVersion.cpp
+  exactly: the trainer refuses to load on anything else, and a wider list here
+  would only get it installed into a plugins folder where it silently does
+  nothing. Both versions come from the IV-SDK, which carries an address for each
+  at every call site; 1.0.4.0 it explicitly does not support.
 
 .PARAMETER Key
   Private catalog key. Without it the build runs but nothing gets signed.
@@ -108,7 +109,7 @@ $recipe = @"
   "game": "GtaIV",
   "description": "The trainer menu of this project. In game F7 opens it, on a controller L3+R3; it is operated with the numpad or the arrow keys. Player, weapons, wanted level, money, vehicles, world, movement and pedestrians, each in its own submenu. Key bindings and menu position live in sauer.ini, which is created next to the game on the first start.",
 
-  "appliesToVersions": [ "1.0.7.0" ],
+  "appliesToVersions": [ "1.0.7.0", "1.0.8.0" ],
 
   "requires": [ "ultimate-asi-loader" ],
 
