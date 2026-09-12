@@ -1,6 +1,6 @@
 {
   "FormatVersion": 1,
-  "GeneratedAt": "2026-09-12T22:05:26.3718097+02:00",
+  "GeneratedAt": "2026-09-12T22:15:26.4133054+02:00",
   "Entries": [
     {
       "File": "downgrade-ce-1070.json",
@@ -12,27 +12,27 @@
     },
     {
       "File": "fusionfix.json",
-      "Sha256": "eb9956b4ccf541f22f9bdf294f4b1ed5eba01721ba2d2c5fa5e89b852527b542"
+      "Sha256": "ae418cb1dc12e3cb5f2cbcf9e25a7fe9735558eac8c47b1f3e614a1a786c5887"
     },
     {
       "File": "gfwl-stub.json",
-      "Sha256": "c0f503d2e849f2292b1c8a38f16e825c990c3cd466789aefcb5ff27e2eb7d7b1"
+      "Sha256": "504c07c98497f1d162ccebdaa5eab184121ba4b759366676f9b214351797aa0f"
     },
     {
       "File": "hires-misc-pack.json",
-      "Sha256": "2527947035808aa49c9507c291cdf2fb891634330ffeac7c577b5fd150f7fd69"
+      "Sha256": "c9ca85afb972b54e48c3a99922ab158594fbd8a0087fefae393efd4a66aa8b8a"
     },
     {
       "File": "hires-vehicle-pack.json",
-      "Sha256": "44be4ab872c1e57d56bdc59703d0f083a9e4c1d72bb001926ff90d8008034483"
+      "Sha256": "0c1c8b461dccdd1ba856d35d14f387d4972f4c32a116ea6711b85e3dd6bf28d7"
     },
     {
       "File": "libertys-legacy.json",
-      "Sha256": "88a023d70bd85f1c0693d900d82b772f2f36941173eb2aba86a7d7737028acd1"
+      "Sha256": "6b3d3036fad9e399e254d0343eb4f512e81d001c3a0683ba06c9ffbf82f5fe8e"
     },
     {
       "File": "mliv-trainer.json",
-      "Sha256": "42b1b9b4b1ae01df96b3e770c50a15f03bb7d5ec2a53785cdd0b9d41ccc638aa"
+      "Sha256": "ea8f63ada756e2668a2748726f363bc40c52af7a75b931eb04eff645fd524e77"
     },
     {
       "File": "tools/gta-connected.json",
@@ -40,19 +40,19 @@
     },
     {
       "File": "ultimate-asi-loader.json",
-      "Sha256": "80f04a0110a094e3cabed7f49a7c5db2d0fe9122400d023dd05864df918c3bd3"
+      "Sha256": "383ad8325f5744c279a0ea808142dcc0fd668bc10201adb6eae1493cad89e783"
     },
     {
       "File": "various-fixes.json",
-      "Sha256": "0e59aaf708a74b69a8ace418f5cf191bfa0986ee90e72a8fe0af712b4c10cf57"
+      "Sha256": "277c301c4ca1efc8bf32f7dbb3118b9072daec844515bd8441ab2b0706385083"
     },
     {
       "File": "vc80-runtime.json",
-      "Sha256": "6557e4e19890c4c084f268eacd9952f739dd73bfec798ac53415deac60cca2fc"
+      "Sha256": "cd1ae67d60e7126fa77bac8a92399b07fd101a624a9cdac36a0104e5f16131da"
     },
     {
       "File": "xbox-rain-droplets.json",
-      "Sha256": "25b129e923bc0fc71da0bcad41c026a4bf25ea168d733a9c3aaff8a220554662"
+      "Sha256": "bb59d2608a35e2317fed03b57fa50d15fca6778777099f200ab4528e0442f468"
     }
   ]
 }

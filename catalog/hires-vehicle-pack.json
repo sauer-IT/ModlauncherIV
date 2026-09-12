@@ -3,6 +3,7 @@
   "name": "Higher Resolution Vehicle Pack",
   "version": "2.4",
   "game": "GtaIV",
+  "category": "Visuals",
   "description": "Higher resolution textures for every vehicle in the game, inside and out, including the dirt and the graffiti. Covers GTA IV and both episodes. By Ash735, 15th Anniversary Edition.",
 
   "appliesToVersions": [ "1.0.8.0" ],

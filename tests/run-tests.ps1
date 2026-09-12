@@ -1064,6 +1064,37 @@ Assert ($report.Installs[0].Platform -eq "Steam") "complete edition: the manifes
 $r = Invoke-Mliv @("guard", "--path", $steamGame)
 Assert ($r.Output -match "appmanifest_12210") "complete edition: the update guard finds the manifest too"
 
+# ------------------------------------------------------------------- Views
+
+Write-Host "`n== Views ==" -ForegroundColor Cyan
+
+# The window cannot be looked at from here, and the mistakes that matter in it
+# are not build errors: a mistyped resource key, a template that does not parse,
+# a binding to a property that was renamed. So every page is built once and laid
+# out, with WPF's own binding trace treated as a failure. It reports in the same
+# PASS/FAIL form as everything else here, and those lines are counted in.
+
+& $dotnet build (Join-Path $root "tests\UiSmoke\UiSmoke.csproj") -c Debug --nologo -v q | Out-Null
+
+if ($LASTEXITCODE -ne 0) {
+    Assert $false "views: the smoke test builds"
+} else {
+    $smoke = Join-Path $root "tests\UiSmoke\bin\Debug\net10.0-windows\ui-smoke.exe"
+
+    $previous = $ErrorActionPreference
+    $ErrorActionPreference = "Continue"
+    try {
+        $output = & $smoke (Join-Path $root "catalog") 2>&1 | Out-String
+    }
+    finally { $ErrorActionPreference = $previous }
+
+    foreach ($line in ($output -split "`r?`n")) {
+        if ($line -match '^\s+(PASS|FAIL)\s+(.+?)\s*$') {
+            Assert ($matches[1] -eq "PASS") "views: $($matches[2])"
+        }
+    }
+}
+
 # ------------------------------------------------------------------- Result
 
 Write-Host "`n$('=' * 50)"

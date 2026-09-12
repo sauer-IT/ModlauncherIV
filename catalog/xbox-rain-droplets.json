@@ -3,6 +3,7 @@
   "name": "Xbox Rain Droplets",
   "version": "1.0.0",
   "game": "GtaIV",
+  "category": "Visuals",
   "description": "Brings back the rain running down the screen the way the Xbox 360 version had it - drops that gather on the camera and are wiped away by speed and wind. The PC release dropped the effect. Settings for size, amount and speed are in plugins\\GTAIV.XboxRainDroplets.ini.",
 
   "appliesToVersions": [ "1.0.7.0", "1.0.8.0" ],

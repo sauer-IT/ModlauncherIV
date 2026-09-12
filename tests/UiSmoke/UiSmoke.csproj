@@ -1,0 +1,28 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!--
+    Loads every view of the launcher once and lays it out.
+
+    A console application rather than a WinExe on purpose: it has to be able to
+    write what it found. It never shows a window - measuring is enough to make
+    WPF parse the XAML, resolve every StaticResource and run every binding, and
+    those are exactly the mistakes that are invisible until somebody clicks the
+    page in question.
+  -->
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net10.0-windows</TargetFramework>
+    <UseWPF>true</UseWPF>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <AssemblyName>ui-smoke</AssemblyName>
+    <RootNamespace>ModlauncherIV.UiSmoke</RootNamespace>
+    <PlatformTarget>x64</PlatformTarget>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\Launcher.App\Launcher.App.csproj" />
+  </ItemGroup>
+
+</Project>

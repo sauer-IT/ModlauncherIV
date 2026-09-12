@@ -24,7 +24,7 @@ The only thing that changes the game is the "Install" step in the wizard, or
 | `src/Launcher.App` | The program you start (WPF): home page and wizard. |
 | `src/Trainer` | C++ ASI plugin, x86, IV-SDK. Player, weapons, vehicles, world, movement, peds, time and physics. |
 | `catalog/` | The declarative recipes, twelve of them, six proven - and in `tools/` the programs the launcher can fetch but not undo. |
-| `tests/` | Fixtures and the test script. |
+| `tests/` | Fixtures, the test script, and `UiSmoke` - which builds every page of the window without showing one. |
 
 **Journey planning** (`Core/Planning`) is the difference between the CLI and the
 wizard. The CLI runs a recipe you name. The planner derives from "I want the
@@ -165,7 +165,7 @@ Exit codes: `0` success - `1` nothing found - `2` wrong invocation -
 .\tests\run-tests.ps1
 ```
 
-172 tests against fake game directories. No real installation is touched. If GTA
+189 tests against fake game directories. No real installation is touched. If GTA
 IV happens to be running, the script aborts up front - otherwise every pre-flight
 rightly blocks and four tests fail without anything being wrong with the code.
 Among the things covered:
@@ -194,6 +194,10 @@ Among the things covered:
   leftover nor reported as changed by the counter-check
 - empty folders: the folders a recipe created go with it when it is removed, and
   a folder that was already there stays even when it ends up empty
+- views: every page of the window is built once and laid out, with WPF's own
+  binding trace treated as a failure. A mistyped resource key or a binding to a
+  property that was renamed is not a build error - it is a page that looks
+  broken five clicks into the wizard, and nothing else here would have caught it
 - Steam and Epic: a library folder list as Steam writes it - escaped
   backslashes, the game in the second library, an entry for a disk that is gone
   - plus an Epic manifest folder in which one manifest belongs to another game

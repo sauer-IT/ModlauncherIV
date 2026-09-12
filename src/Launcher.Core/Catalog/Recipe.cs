@@ -49,7 +49,14 @@ public sealed record Recipe(
     IReadOnlyList<string>? ConflictsWith = null,
 
     IReadOnlyList<RecipeSource>? Sources = null,
-    IReadOnlyList<RecipeStep>? Steps = null)
+    IReadOnlyList<RecipeStep>? Steps = null,
+
+    /// <summary>
+    /// What kind of thing this is, for sorting the list a user has to read.
+    /// Free text: the launcher knows an order for the ones it expects and puts
+    /// everything else after them, so a new category needs no code change.
+    /// </summary>
+    string? Category = null)
 {
     public IReadOnlyList<string> AppliesTo => AppliesToVersions ?? [];
 

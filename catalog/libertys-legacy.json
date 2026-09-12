@@ -3,6 +3,7 @@
   "name": "Liberty's Legacy Trainer",
   "version": "2.4.1",
   "game": "GtaIV",
+  "category": "Trainers",
   "description": "A large trainer with a polished menu: vehicle spawner, outfits, cameras, themes, and a great deal besides. Sits alongside sauer rather than replacing it - the two use different keys and do not get in each other's way.",
 
   "appliesToVersions": [ "1.0.7.0", "1.0.8.0" ],

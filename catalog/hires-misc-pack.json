@@ -3,6 +3,7 @@
   "name": "Higher Resolution Miscellaneous Pack",
   "version": "3.1",
   "game": "GtaIV",
+  "category": "Visuals",
   "description": "Higher resolution textures for everything the other packs forget: cut-scene props, bowling and billiards, litter, newspapers and cans, interior fittings, the sky dome and the binoculars. By Ash735.",
 
   "appliesToVersions": [ "1.0.8.0" ],

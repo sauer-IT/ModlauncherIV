@@ -3,6 +3,7 @@
   "name": "Ultimate ASI Loader",
   "version": "9.7.4",
   "game": "GtaIV",
+  "category": "Foundation",
   "description": "Loads ASI plugins when the game starts. The basis for trainers and most mods. Installs dinput8.dll.",
 
   "appliesToVersions": [ "1.0.7.0", "1.0.8.0", "1.0.4.0" ],
