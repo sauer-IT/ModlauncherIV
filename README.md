@@ -128,6 +128,40 @@ irgendetwas das Spielverzeichnis erreicht.
 **Nach dem Downgrade nicht über den Rockstar Games Launcher starten**, sondern
 direkt über `GTAIV.exe` — sonst bemerkt der Launcher die veränderte Installation.
 
+## Trainer
+
+```
+.\scripts\build-trainer.ps1 -Deploy
+```
+
+Baut `src/Trainer` zu `ModlauncherIV-Trainer.asi` und legt es in
+`<Spiel>\plugins\`. Zwei Randbedingungen sind keine Bequemlichkeit, sondern
+Voraussetzung:
+
+- **x86.** GTA IV ist 32-bit. Eine x64-DLL wird vom ASI-Loader kommentarlos
+  ignoriert — der Fehler äußert sich als „nichts passiert".
+- **Statische C-Laufzeit (`/MT`).** Ein Trainer, der eine Redistributable
+  voraussetzt, wäre ausgerechnet hier fehl am Platz: an genau einer fehlenden
+  Visual-C++-Laufzeit ist das Spiel nach dem Downgrade zuerst gescheitert.
+
+**Stufe T0** lädt, meldet sich im Logfile und tut sonst nichts. Das ist der
+ganze Zweck: ohne echtes Laden lässt sich nicht beantworten, ob der ASI-Loader
+das Plugin annimmt und ob Smart App Control eine unsignierte DLL in
+`GTAIV.exe` zulässt.
+
+Der `VersionAdapter` prüft beim Laden die Spielversion und **bricht ab, wenn
+sie nicht unterstützt wird**. Auf einer anderen Version stimmen Native-Hashes
+und Speicheradressen nicht, und Schreiben an falschen Adressen fällt nicht
+sofort auf, sondern später und an ganz anderer Stelle.
+
+Gearbeitet wird nicht in `DllMain`, sondern in einem eigenen Thread — dort hält
+Windows die Loader-Sperre, und wer mehr tut als das Nötigste riskiert einen
+Deadlock, der sich als „hängt beim Spielstart" äußert.
+
+Das Logfile liegt als `ModlauncherIV-Trainer.log` neben der DLL und wird nach
+jeder Zeile geleert; sonst fehlt nach einem Absturz genau die Zeile, die den
+Grund verraten hätte.
+
 ## Katalogsignatur
 
 Der Katalog bestimmt, welche Dateien ins Spielverzeichnis geschrieben werden.
