@@ -18,3 +18,4 @@ Release/
 !tests/fixtures/
 cache/
 tests/work/
+third_party/

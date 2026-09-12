@@ -68,12 +68,84 @@ if (-not $vcvars) {
 
 Write-Host "Toolchain: $vcvars" -ForegroundColor Cyan
 
+# ---------------------------------------------------------------------- SDK
+
+# Das IV-SDK wird geholt und geprueft, nicht mitgeliefert - dieselbe Haltung wie
+# beim Launcher. Festgenagelt auf einen Commit statt auf einen Branch: ein
+# Branch-Archiv aendert sich unter der Hand, ein Commit-Archiv nie. Damit ist
+# die Pruefsumme ueberhaupt erst sinnvoll.
+$sdkCommit = "3fb076443afd1b3d5557c9c329bd2131065da99e"
+$sdkSha256 = "271b1ae06d1096f3f3936fc1a8aa2c1f104ed40156363412de8a75c236f0fe63"
+$sdkRoot   = Join-Path $root "third_party\iv-sdk"
+$sdkInclude = Join-Path $sdkRoot "iv-sdk-$sdkCommit\include"
+
+if (-not (Test-Path (Join-Path $sdkInclude "IVSDK.cpp"))) {
+    Write-Host "Hole IV-SDK ($($sdkCommit.Substring(0,7))) ..." -ForegroundColor Cyan
+    New-Item -ItemType Directory -Force -Path $sdkRoot | Out-Null
+
+    $zip = Join-Path $sdkRoot "iv-sdk.zip"
+    Invoke-WebRequest -Uri "https://github.com/PHARTGAMES/iv-sdk/archive/$sdkCommit.zip" `
+                      -OutFile $zip -UseBasicParsing
+
+    $actual = (Get-FileHash $zip -Algorithm SHA256).Hash.ToLower()
+    if ($actual -ne $sdkSha256) {
+        Remove-Item $zip -Force
+        throw "SDK-Pruefsumme stimmt nicht.`n  erwartet $sdkSha256`n  erhalten $actual"
+    }
+
+    Add-Type -AssemblyName System.IO.Compression.FileSystem
+    [System.IO.Compression.ZipFile]::ExtractToDirectory($zip, $sdkRoot)
+    Remove-Item $zip -Force
+    Write-Host "IV-SDK verifiziert und entpackt." -ForegroundColor Green
+}
+
+if (-not (Test-Path (Join-Path $sdkInclude "IVSDK.cpp"))) {
+    throw "IV-SDK unvollstaendig unter $sdkInclude"
+}
+
+# --------------------------------------------------------------------- D3DX
+#
+# Das SDK bindet d3dx9.h ein. Die Header gehoerten zum DirectX SDK von Juni
+# 2010, das Microsoft eingestellt hat und dessen Installer fuer den Fehler
+# S1023 beruechtigt ist. Dieselben Dateien liegen als NuGet-Paket vor - das ist
+# ein ZIP, kein Installer, und laesst sich wie alles andere hier holen und
+# pruefen, ohne am System etwas zu veraendern.
+$d3dxVersion = "9.29.952.8"
+$d3dxSha256  = "ead0906ae8a26c18a7525da7490127a2110f7c58f18293738283e30e97c6ea4b"
+$d3dxRoot    = Join-Path $root "third_party\d3dx"
+$d3dxInclude = Join-Path $d3dxRoot "build\native\include"
+$d3dxLib     = Join-Path $d3dxRoot "build\native\release\lib\x86"
+
+if (-not (Test-Path (Join-Path $d3dxInclude "d3dx9.h"))) {
+    Write-Host "Hole D3DX-Header ($d3dxVersion) ..." -ForegroundColor Cyan
+    New-Item -ItemType Directory -Force -Path $d3dxRoot | Out-Null
+
+    $pkg = Join-Path $d3dxRoot "d3dx.zip"
+    Invoke-WebRequest -UseBasicParsing -OutFile $pkg `
+        -Uri "https://api.nuget.org/v3-flatcontainer/microsoft.dxsdk.d3dx/$d3dxVersion/microsoft.dxsdk.d3dx.$d3dxVersion.nupkg"
+
+    $actual = (Get-FileHash $pkg -Algorithm SHA256).Hash.ToLower()
+    if ($actual -ne $d3dxSha256) {
+        Remove-Item $pkg -Force
+        throw "D3DX-Pruefsumme stimmt nicht.`n  erwartet $d3dxSha256`n  erhalten $actual"
+    }
+
+    Add-Type -AssemblyName System.IO.Compression.FileSystem
+    [System.IO.Compression.ZipFile]::ExtractToDirectory($pkg, $d3dxRoot)
+    Remove-Item $pkg -Force
+    Write-Host "D3DX verifiziert und entpackt." -ForegroundColor Green
+}
+
+if (-not (Test-Path (Join-Path $d3dxInclude "d3dx9.h"))) {
+    throw "d3dx9.h fehlt unter $d3dxInclude"
+}
+
 # ------------------------------------------------------------------- Bauen
 
 New-Item -ItemType Directory -Force -Path $out, $obj | Out-Null
 
 $sources = @(
-    (Join-Path $source "dllmain.cpp"),
+    (Join-Path $source "plugin.cpp"),
     (Join-Path $source "core\Log.cpp"),
     (Join-Path $source "game\GameVersion.cpp"),
     (Join-Path $source "menu\Menu.cpp")
@@ -125,9 +197,10 @@ $sourceArgs = ($sources | ForEach-Object { '"' + $_ + '"' }) -join ' '
 
 $compile = "cl.exe /nologo /std:c++20 /W4 /WX /EHsc /MT /LD $flags " +
            "/permissive- /Zc:__cplusplus " +
-           "/I`"$source`" /Fo`"$obj\\`" /Fe`"$out\$asiName`" " +
+           "/I`"$source`" /I`"$sdkInclude`" /I`"$d3dxInclude`" " +
+           "/Fo`"$obj\\`" /Fe`"$out\$asiName`" " +
            "$sourceArgs " +
-           "/link /MACHINE:X86 /SUBSYSTEM:WINDOWS"
+           "/link /MACHINE:X86 /SUBSYSTEM:WINDOWS /LIBPATH:`"$d3dxLib`" user32.lib"
 
 Write-Host "Baue $asiName ($Configuration, x86) ..." -ForegroundColor Cyan
 
