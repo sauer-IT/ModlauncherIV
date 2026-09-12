@@ -65,9 +65,9 @@ $recipe = @"
 {
   "id": "mliv-trainer",
   "name": "Modlauncher IV Trainer",
-  "version": "0.3.0",
+  "version": "0.4.0",
   "game": "GtaIV",
-  "description": "Das Trainer-Menue dieses Projekts. Im Spiel oeffnet F7; bedient wird mit dem Numblock oder den Pfeiltasten. Spieler, Waffen, Fahrzeuge und Welt.",
+  "description": "Das Trainer-Menue dieses Projekts. Im Spiel oeffnet F7; bedient wird mit dem Numblock oder den Pfeiltasten. Spieler, Waffen, Fahrzeuge und Welt. Tastenbelegung und Menuelage stehen in ModlauncherIV-Trainer.ini, die beim ersten Start angelegt wird.",
 
   "appliesToVersions": [ "1.0.7.0", "1.0.8.0", "1.0.4.0" ],
 

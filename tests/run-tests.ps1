@@ -465,6 +465,29 @@ $r = Invoke-Mliv (@("journey", "--assume-version", "1.0.7.0") + $jArgs)
 Assert ($r.ExitCode -eq 0) "journey: ohne Wuensche ist nichts zu tun"
 Assert ($r.Output -match "nichts zu tun") "journey: sagt das auch"
 
+# Ein installiertes Rezept in neuerer Fassung. Ohne Versionsvergleich hielte der
+# Planer es fuer erledigt, und jeder Nutzer bliebe auf der Fassung sitzen, mit
+# der er einmal angefangen hat.
+$r = Invoke-Mliv (@("apply", "test-j-base", "--yes", "--assume-version", "1.0.7.0", "--cache", $cache) + $jArgs)
+Assert ($r.ExitCode -eq 0) "aktualisierung: Rezept in Fassung 1.0.0 installiert"
+
+$r = Invoke-Mliv (@("journey", "test-j-base", "--assume-version", "1.0.7.0") + $jArgs)
+Assert ($r.Output -match "bereits da") "aktualisierung: gleiche Fassung gilt als erledigt"
+Assert ($r.Output -match "Offen: 0") "aktualisierung: und ist kein offener Schritt"
+
+(Get-Content (Join-Path $catalog "test-j-base.json") -Raw).Replace('"version": "1.0.0"', '"version": "2.0.0"') |
+    Set-Content (Join-Path $catalog "test-j-base.json") -Encoding utf8 -NoNewline
+
+$r = Invoke-Mliv (@("journey", "test-j-base", "--assume-version", "1.0.7.0") + $jArgs)
+Assert ($r.Output -match "Aktualisierung 1\.0\.0 -> 2\.0\.0") "aktualisierung: neuere Fassung faellt auf"
+Assert ($r.Output -match "Offen: 1") "aktualisierung: und wird zum offenen Schritt"
+
+# Zuruecksetzen, damit die folgenden Abschnitte denselben Katalog vorfinden.
+(Get-Content (Join-Path $catalog "test-j-base.json") -Raw).Replace('"version": "2.0.0"', '"version": "1.0.0"') |
+    Set-Content (Join-Path $catalog "test-j-base.json") -Encoding utf8 -NoNewline
+$r = Invoke-Mliv (@("remove", "test-j-base", "--yes") + $jArgs)
+Assert ($r.ExitCode -eq 0) "aktualisierung: Testrezept wieder zurueckgebaut"
+
 # ------------------------------------------------------------------- guard
 
 Write-Host "`n== Update-Sperre ==" -ForegroundColor Cyan

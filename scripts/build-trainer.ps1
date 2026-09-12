@@ -147,41 +147,56 @@ New-Item -ItemType Directory -Force -Path $out, $obj | Out-Null
 $sources = @(
     (Join-Path $source "plugin.cpp"),
     (Join-Path $source "core\Log.cpp"),
+    (Join-Path $source "core\Config.cpp"),
     (Join-Path $source "game\GameVersion.cpp"),
     (Join-Path $source "menu\Menu.cpp")
 )
 
-# Der Menue-Pruefstand ist eine Konsolenanwendung, kein ASI. Er haengt an keiner
-# Spielfunktion und laeuft deshalb hier, statt erst im Spiel.
+# Die Pruefstaende sind Konsolenanwendungen, keine ASIs. Sie haengen an keiner
+# Spielfunktion und laufen deshalb hier, statt erst im Spiel.
+#
+# Genau deshalb sind Menue und Konfiguration frei von Spiel- und
+# Plattformheadern: ein Navigationsfehler oder eine nicht erkannte Taste faellt
+# damit in Millisekunden auf statt nach Spielstart und Ladebildschirm.
 if ($Test) {
-    $testExe = Join-Path $out "menu-test.exe"
-    $testCompile = "cl.exe /nologo /std:c++20 /W4 /WX /EHsc /MT /O2 " +
-                   "/Fo`"$obj\test\\`" /Fe`"$testExe`" " +
-                   "`"$source\test\menu-test.cpp`" `"$source\menu\Menu.cpp`""
+    $suites = @(
+        @{ Name = "Menue";         Exe = "menu-test.exe";   Files = @("test\menu-test.cpp", "menu\Menu.cpp") },
+        @{ Name = "Konfiguration"; Exe = "config-test.exe"; Files = @("test\config-test.cpp", "core\Config.cpp") }
+    )
 
     New-Item -ItemType Directory -Force -Path (Join-Path $obj "test") | Out-Null
-    $testBatch = Join-Path $out "build-test.cmd"
-    @(
-        "@echo off",
-        "call `"$vcvars`" x86 >nul",
-        "if errorlevel 1 exit /b 1",
-        $testCompile,
-        "exit /b %ERRORLEVEL%"
-    ) | Set-Content -Path $testBatch -Encoding ASCII
 
-    $previous = $ErrorActionPreference
-    $ErrorActionPreference = "Continue"
-    try {
-        & cmd.exe /c $testBatch 2>&1 | Where-Object { $_ -notmatch 'vswhere|konnte nicht gefunden' } |
-            ForEach-Object { "  $_" }
-        $testCode = $LASTEXITCODE
+    foreach ($suite in $suites) {
+        $testExe = Join-Path $out $suite.Exe
+        $files = ($suite.Files | ForEach-Object { "`"$source\$_`"" }) -join " "
+
+        $testCompile = "cl.exe /nologo /std:c++20 /W4 /WX /EHsc /MT /O2 " +
+                       "/Fo`"$obj\test\\`" /Fe`"$testExe`" " + $files
+
+        $testBatch = Join-Path $out "build-test.cmd"
+        @(
+            "@echo off",
+            "call `"$vcvars`" x86 >nul",
+            "if errorlevel 1 exit /b 1",
+            $testCompile,
+            "exit /b %ERRORLEVEL%"
+        ) | Set-Content -Path $testBatch -Encoding ASCII
+
+        $previous = $ErrorActionPreference
+        $ErrorActionPreference = "Continue"
+        try {
+            & cmd.exe /c $testBatch 2>&1 | Where-Object { $_ -notmatch 'vswhere|konnte nicht gefunden' } |
+                ForEach-Object { "  $_" }
+            $testCode = $LASTEXITCODE
+        }
+        finally { $ErrorActionPreference = $previous }
+
+        if ($testCode -ne 0) { throw "Pruefstand $($suite.Name) liess sich nicht bauen (Exitcode $testCode)." }
+
+        & $testExe
+        if ($LASTEXITCODE -ne 0) { throw "Pruefstand $($suite.Name) fehlgeschlagen." }
     }
-    finally { $ErrorActionPreference = $previous }
 
-    if ($testCode -ne 0) { throw "Pruefstand liess sich nicht bauen (Exitcode $testCode)." }
-
-    & $testExe
-    if ($LASTEXITCODE -ne 0) { throw "Menue-Pruefstand fehlgeschlagen." }
     exit 0
 }
 

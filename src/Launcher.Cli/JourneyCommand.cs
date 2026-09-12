@@ -64,7 +64,13 @@ internal static class JourneyCommand
             for (var i = 0; i < journey.Steps.Count; i++)
             {
                 var step = journey.Steps[i];
-                var mark = step.State == JourneyStepState.AlreadyInstalled ? "[bereits da]" : "[offen]";
+
+                var mark = step.State switch
+                {
+                    JourneyStepState.AlreadyInstalled => "[bereits da]",
+                    JourneyStepState.NeedsUpdate => $"[Aktualisierung {step.InstalledVersion} -> {step.Recipe.Version}]",
+                    _ => "[offen]",
+                };
 
                 Console.WriteLine($"  {i + 1,2}. {step.Recipe.Name}  {mark}");
                 Console.WriteLine($"        {step.Recipe.Id}  ({Describe(step.Reason)})");

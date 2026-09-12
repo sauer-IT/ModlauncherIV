@@ -22,16 +22,27 @@ public enum JourneyStepState
     /// <summary>Muss noch laufen.</summary>
     Pending,
 
-    /// <summary>Steht schon im Ledger. Wird übersprungen.</summary>
+    /// <summary>Steht schon im Ledger, in derselben Fassung. Wird übersprungen.</summary>
     AlreadyInstalled,
+
+    /// <summary>
+    /// Steht im Ledger, aber in einer anderen Fassung als der im Katalog.
+    ///
+    /// Muss laufen. Ohne diese Unterscheidung bliebe jeder Nutzer auf der
+    /// Fassung sitzen, mit der er einmal angefangen hat — der Assistent hielte
+    /// ein veraltetes Rezept für erledigt und sagte "es gibt nichts zu tun".
+    /// </summary>
+    NeedsUpdate,
 }
 
 /// <param name="AtVersion">Spielversion, die zum Zeitpunkt dieses Schritts vorliegt.</param>
+/// <param name="InstalledVersion">Fassung laut Ledger, falls schon installiert.</param>
 public sealed record JourneyStep(
     Recipe Recipe,
     JourneyReason Reason,
     JourneyStepState State,
-    string AtVersion);
+    string AtVersion,
+    string? InstalledVersion = null);
 
 /// <param name="Message">Was den Weg unmöglich macht, in der Sprache des Nutzers.</param>
 public sealed record JourneyProblem(string Message, string? Detail = null);
@@ -49,7 +60,7 @@ public sealed record Journey(
 
     /// <summary>Die Schritte, die tatsächlich noch laufen müssen.</summary>
     public IReadOnlyList<JourneyStep> Remaining =>
-        Steps.Where(s => s.State == JourneyStepState.Pending).ToArray();
+        Steps.Where(s => s.State != JourneyStepState.AlreadyInstalled).ToArray();
 
     public bool IsComplete => IsPossible && Remaining.Count == 0;
 }
@@ -142,11 +153,21 @@ public static class JourneyPlanner
                 continue;
             }
 
-            steps.Add(new JourneyStep(
-                recipe,
-                reason,
-                ledger.IsInstalled(recipe.Id) ? JourneyStepState.AlreadyInstalled : JourneyStepState.Pending,
-                effectiveVersion));
+            // Installiert heißt nicht erledigt: steht im Katalog eine andere
+            // Fassung als im Ledger, muss das Rezept laufen. Das Ledger führt
+            // dann weiterhin genau einen Eintrag, und der Snapshot davor
+            // sichert die Dateien der alten Fassung.
+            var installed = ledger.Find(recipe.Id);
+
+            var state = installed switch
+            {
+                null => JourneyStepState.Pending,
+                _ when string.Equals(installed.RecipeVersion, recipe.Version, StringComparison.OrdinalIgnoreCase)
+                    => JourneyStepState.AlreadyInstalled,
+                _ => JourneyStepState.NeedsUpdate,
+            };
+
+            steps.Add(new JourneyStep(recipe, reason, state, effectiveVersion, installed?.RecipeVersion));
         }
 
         CheckConflicts(steps, ledger, problems);

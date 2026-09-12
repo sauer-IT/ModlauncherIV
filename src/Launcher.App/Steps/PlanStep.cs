@@ -14,11 +14,12 @@ public sealed class PlanRow(int number, JourneyStep step)
 
     public bool IsDone => step.State == JourneyStepState.AlreadyInstalled;
 
-    public string State => step.Reason switch
+    public string State => step switch
     {
-        _ when IsDone => "bereits vorhanden",
-        JourneyReason.VersionTransition => "Versionswechsel",
-        JourneyReason.Dependency => "wird vorausgesetzt",
+        { State: JourneyStepState.AlreadyInstalled } => "bereits vorhanden",
+        { State: JourneyStepState.NeedsUpdate } => $"Aktualisierung auf {step.Recipe.Version}",
+        { Reason: JourneyReason.VersionTransition } => "Versionswechsel",
+        { Reason: JourneyReason.Dependency } => "wird vorausgesetzt",
         _ => "von dir gewählt",
     };
 }
