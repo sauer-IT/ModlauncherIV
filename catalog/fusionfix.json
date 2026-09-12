@@ -18,7 +18,7 @@
       "urls": [
         "https://github.com/ThirteenAG/GTAIV.EFLC.FusionFix/releases/download/v5.0.1/GTAIV.EFLC.FusionFix.zip"
       ],
-      "note": "By ThirteenAG, from the project's own GitHub release - the same release the Legacy Addon in gfwl-stub comes from, so the two halves always match. 197 MB, mostly the update folder with textures and shaders."
+      "note": "By ThirteenAG, from the project's own GitHub release - the same release the Legacy Addon in gfwl-stub comes from, so the two halves always match. 197 MB, mostly the update folder with textures and shaders. If the download fails: https://github.com/ThirteenAG/GTAIV.EFLC.FusionFix/releases, tag v5.0.1 - a later release has a different checksum and would be rejected, which is the point of the checksum."
     }
   ],
 

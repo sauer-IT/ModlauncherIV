@@ -17,7 +17,7 @@
       "urls": [
         "https://github.com/ThirteenAG/GTAIV.EFLC.FusionFix/releases/download/v5.0.1/GTAIV.EFLC.FusionFixLegacyAddon.zip"
       ],
-      "note": "Legacy Addon by FusionFix. Contains plugins/XLivelessAddon.asi and xlive.dll."
+      "note": "Legacy Addon by FusionFix. Contains plugins/XLivelessAddon.asi and xlive.dll. If the download fails: https://github.com/ThirteenAG/GTAIV.EFLC.FusionFix/releases, tag v5.0.1 - the same release fusionfix takes its own file from, and only that version matches the checksum above."
     }
   ],
 

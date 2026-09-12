@@ -18,7 +18,7 @@
       "urls": [
         "https://github.com/valentyn-l/GTAIV.EFLC.Various.Fixes/releases/download/verified_2.2/Installation.through.Fusion.Overloader.zip"
       ],
-      "note": "By valentyn-l. Of the two ways the project offers this is the one it recommends, and the one that fits here: everything lands in update\\, which FusionFix's overloader reads, so no original game file is overwritten. The manual variant would replace files in place."
+      "note": "By valentyn-l. Of the two ways the project offers this is the one it recommends, and the one that fits here: everything lands in update\\, which FusionFix's overloader reads, so no original game file is overwritten. The manual variant would replace files in place. If the download fails: https://github.com/valentyn-l/GTAIV.EFLC.Various.Fixes/releases, tag verified_2.2 - 1.7 GB, and only that file matches the checksum above."
     }
   ],
 

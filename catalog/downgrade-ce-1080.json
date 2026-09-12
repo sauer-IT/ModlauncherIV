@@ -17,7 +17,7 @@
       "urls": [
         "https://github.com/gillian-guide/GTAIVFullDowngradeAssets/releases/download/Base/1080FullFiles.zip"
       ],
-      "note": "Game files for 1.0.8.0, 213 entries, from the same GitHub release as the 1.0.7.0 package. Checked rather than assumed: the GTAIV.exe inside (SHA-256 3d90e7c516fa450ca002e5031e62c0f66b404590f33e6cc9793b0da4fffbfd0f, 15628696 bytes) reports 1.0.8.0 in its own version resource, which is what the launcher and the trainer both read."
+      "note": "Game files for 1.0.8.0, 213 entries, from the same GitHub release as the 1.0.7.0 package. Checked rather than assumed: the GTAIV.exe inside (SHA-256 3d90e7c516fa450ca002e5031e62c0f66b404590f33e6cc9793b0da4fffbfd0f, 15628696 bytes) reports 1.0.8.0 in its own version resource, which is what the launcher and the trainer both read. If the download fails, the release page is https://github.com/gillian-guide/GTAIVFullDowngradeAssets/releases - but only this exact file matches the checksum above; a re-uploaded or newer one needs a new recipe."
     }
   ],
 

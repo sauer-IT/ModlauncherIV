@@ -7,8 +7,17 @@ One file goes out. Everything else here is about what to say alongside it.
 ```
 .\tests\run-tests.ps1                  172 tests, and they have to pass
 .\scripts\build-trainer.ps1 -Test      120 more, without the game
+.\scripts\check-sources.ps1            is everything still downloadable?
 .\scripts\package.ps1                  the release
 ```
+
+`check-sources.ps1` asks every URL in the catalog whether it still answers and
+still announces the size the recipe expects, and hashes the files the launcher
+ships itself. A source that has been deleted or silently re-uploaded otherwise
+becomes visible as a failed installation on somebody else's machine, and the
+checksums that make that failure safe also make it certain. `-Deep` downloads
+everything and checks the checksums instead of the sizes - over two gigabytes,
+which is why it is not what runs by default.
 
 `package.ps1` does the whole chain in the order that matters: fetch the VC++
 runtime from Microsoft, build the trainer, write its recipe with the measured
@@ -69,7 +78,11 @@ snapshot, mod by mod, with Remove on the home page. It removes itself through
       installation, which nobody here owns.
 - [ ] Decide what happens when a third-party download disappears. The Dropbox
       the usual downgrader used is already gone; everything here points at
-      GitHub releases, and those can be deleted too. There are no mirrors.
+      GitHub releases, and those can be deleted too. There are still no mirrors,
+      because a mirror means hosting somebody else's gigabytes. What exists
+      instead: `check-sources.ps1` notices it here first, and every recipe now
+      names the project page in its note, so a dead link leaves the user with a
+      place to go rather than a checksum and no address.
 
 ## What is knowingly not ready
 

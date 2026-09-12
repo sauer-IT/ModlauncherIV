@@ -1,22 +1,22 @@
 {
   "FormatVersion": 1,
-  "GeneratedAt": "2026-09-12T21:39:24.3811141+02:00",
+  "GeneratedAt": "2026-09-12T22:01:40.6104679+02:00",
   "Entries": [
     {
       "File": "downgrade-ce-1070.json",
-      "Sha256": "bac410fe035dbc06c9ac7257c3ea0e4e59edd1b700e4ffa6709d894f8d824723"
+      "Sha256": "eac2f42837e8fab0206eaa81ba61fc1d8e891774b8036f0ed2f0991c2b110aae"
     },
     {
       "File": "downgrade-ce-1080.json",
-      "Sha256": "136b603c32ad2cf4f2776c4d6a9ab0ea9fb5200b74792a3886063ffaa4ddba73"
+      "Sha256": "1013ee681053c5feceb90625b04ef0c6b7f74d68c0788be565be2b4f392878ff"
     },
     {
       "File": "fusionfix.json",
-      "Sha256": "53e0fa359c82fef1b02cb615b50d099d32e8300f2f2c1ddb345952673d06169d"
+      "Sha256": "eb9956b4ccf541f22f9bdf294f4b1ed5eba01721ba2d2c5fa5e89b852527b542"
     },
     {
       "File": "gfwl-stub.json",
-      "Sha256": "d755fb5d5e5f112003a9732d7dc8e1c1725ca21954a082f8ae60e4adda9c0cd6"
+      "Sha256": "c0f503d2e849f2292b1c8a38f16e825c990c3cd466789aefcb5ff27e2eb7d7b1"
     },
     {
       "File": "hires-misc-pack.json",
@@ -32,19 +32,19 @@
     },
     {
       "File": "mliv-trainer.json",
-      "Sha256": "5857c07f5d620fc3cad0f69d6d12f32623209f466be76eb65387624b3f75b568"
+      "Sha256": "b2e42d03610eed5c39af4f168f79a5c981592750c844b2f2dac055f0f6b96d52"
     },
     {
       "File": "tools/gta-connected.json",
-      "Sha256": "b4daae6da0ac9a595170440769774e8049f651ab917a03fd821335e61d5f26c3"
+      "Sha256": "52b5e8431a8725d185d919bec44baa8eea36485ce8405b9a03b170d8542c7178"
     },
     {
       "File": "ultimate-asi-loader.json",
-      "Sha256": "c76cd0b94f2064a3435da4ac5ae9206274e4521361b7252656cbdbf5c7890a02"
+      "Sha256": "80f04a0110a094e3cabed7f49a7c5db2d0fe9122400d023dd05864df918c3bd3"
     },
     {
       "File": "various-fixes.json",
-      "Sha256": "0ecdc0867f628c92fa4ef88e0f31518c39a963075d3f28d29a72a9db1257dd42"
+      "Sha256": "0e59aaf708a74b69a8ace418f5cf191bfa0986ee90e72a8fe0af712b4c10cf57"
     },
     {
       "File": "vc80-runtime.json",
@@ -52,7 +52,7 @@
     },
     {
       "File": "xbox-rain-droplets.json",
-      "Sha256": "2597c26616778aa32c7e32adcf7fb6337a24af7370be39afc0bb1a6696f18dfb"
+      "Sha256": "25b129e923bc0fc71da0bcad41c026a4bf25ea168d733a9c3aaff8a220554662"
     }
   ]
 }

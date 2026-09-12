@@ -63,6 +63,7 @@ through `mliv journey`.
 .\scripts\pack-trainer.ps1             build the trainer and make it installable
 .\scripts\pack-vc80.ps1                fetch the VC++ 2005 runtime from Microsoft
 .\scripts\build-trainer.ps1 -Deploy    build the trainer and drop it in by hand
+.\scripts\check-sources.ps1            are the catalog's downloads still there?
 .\scripts\make-icon.ps1                regenerate the application icon
 ```
 
@@ -289,6 +290,18 @@ launcher then says what to download and where to put it, and refuses anything
 whose checksum does not match. That is the same "supplied by hand" path
 `vc80-runtime` used to take, and it is acceptable here for the reason it was not
 acceptable there: without these the game still starts. They are cosmetic.
+
+**Every download is one URL, and that is the weak point.** Eight files come from
+seven third-party releases, none of which anybody here controls; the Dropbox the
+usual downgrader used is already gone, and GitHub releases get deleted too. A
+mirror would mean hosting other people's gigabytes, which is not on. So two
+cheaper things instead: `check-sources.ps1` asks every URL whether it still
+answers and still announces the expected size - a file silently re-uploaded
+shows up as a size that no longer matches, before a tester finds it - and every
+recipe's note now names the project page and the exact tag. A dead link then
+leaves the user with an address rather than a checksum and nowhere to go, and
+the "supplied by hand" path that the Nexus recipes use is open to every other
+one as well.
 
 **What is not in the catalog, and why.** The radio restoration for the Complete
 Edition is published as a `.rar` that contains an installer - `IVCERadioRestoration.exe`

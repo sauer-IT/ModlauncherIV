@@ -18,7 +18,7 @@
       "urls": [
         "https://github.com/ThirteenAG/XboxRainDroplets/releases/download/gtaiv/GTAIV.XboxRainDroplets.zip"
       ],
-      "note": "By ThirteenAG. The project serves several games, each under its own release tag - this is the gtaiv one. The archive has no plugins folder of its own, so the step puts it there."
+      "note": "By ThirteenAG. The project serves several games, each under its own release tag - this is the gtaiv one. The archive has no plugins folder of its own, so the step puts it there. If the download fails: https://github.com/ThirteenAG/XboxRainDroplets/releases, tag gtaiv - only that file matches the checksum above."
     }
   ],
 

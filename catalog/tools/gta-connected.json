@@ -12,7 +12,7 @@
     "urls": [
       "https://gtaconnected.com/downloads/client/GTAC-1.9.0.zip"
     ],
-    "note": "From the project's own download page. The archive holds nothing but the installer."
+    "note": "From the project's own download page, https://gtaconnected.com. The archive holds nothing but the installer. If the download fails, version 1.9.0 is the one that matches the checksum above - a newer client has a different one and would be refused."
   },
 
   "installerEntry": "GTAC-1.9.0.exe",

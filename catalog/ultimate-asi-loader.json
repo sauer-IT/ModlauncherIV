@@ -16,7 +16,7 @@
       "urls": [
         "https://github.com/ThirteenAG/Ultimate-ASI-Loader/releases/download/v9.7.4/Ultimate-ASI-Loader-NoPDB.zip"
       ],
-      "note": "x86 build without debug symbols. GTA IV is 32-bit; the x64 variant would be wrong."
+      "note": "x86 build without debug symbols. GTA IV is 32-bit; the x64 variant would be wrong. If the download fails: https://github.com/ThirteenAG/Ultimate-ASI-Loader/releases, tag v9.7.4, file Ultimate-ASI-Loader-NoPDB.zip - another version has another checksum and would be refused."
     }
   ],
 
