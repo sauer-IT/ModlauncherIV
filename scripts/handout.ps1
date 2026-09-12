@@ -19,12 +19,19 @@
 .PARAMETER Out
   Where the folder goes. Defaults to artifacts\handout.
 
+.PARAMETER Dropbox
+  Also puts it in Dropbox, under one folder that keeps its name across builds -
+  so a link shared once keeps working, and the people who have it get the next
+  version without being sent anything.
+
 .EXAMPLE
   .\scripts\handout.ps1
+  .\scripts\handout.ps1 -Dropbox
 #>
 [CmdletBinding()]
 param(
-    [string] $Out = (Join-Path (Split-Path -Parent $PSScriptRoot) "artifacts\handout")
+    [string] $Out = (Join-Path (Split-Path -Parent $PSScriptRoot) "artifacts\handout"),
+    [switch] $Dropbox
 )
 
 $ErrorActionPreference = "Stop"
@@ -137,3 +144,39 @@ Write-Host "Ready to hand out: $Out" -ForegroundColor Green
 Get-ChildItem $Out | ForEach-Object { "  {0,-24} {1,10:N0} bytes" -f $_.Name, $_.Length }
 Write-Host ""
 Write-Host "  sha256  $hash" -ForegroundColor DarkGray
+
+# ------------------------------------------------------------------- Dropbox
+
+if (-not $Dropbox) { return }
+
+# The path out of Dropbox's own info.json rather than guessed at. Somebody who
+# moved their Dropbox folder, or runs a business account alongside a personal
+# one, has a path no guess would find - and writing the files into a folder
+# that only looks like Dropbox syncs nothing while appearing to have worked.
+$info = Join-Path $env:LOCALAPPDATA "Dropbox\info.json"
+if (-not (Test-Path $info)) {
+    throw "Dropbox does not appear to be installed - no $info"
+}
+
+$config = Get-Content $info -Raw | ConvertFrom-Json
+$base = $config.personal.path
+if (-not $base) { $base = $config.business.path }
+
+if (-not $base -or -not (Test-Path $base)) {
+    throw "Dropbox's info.json names a folder that is not there: $base"
+}
+
+# One folder, same name every time. A link shared once then keeps working, and
+# whoever has it picks up the next build without being sent anything - which is
+# the whole difference between handing out a file and handing out a place.
+$target = Join-Path $base "Modlauncher IV"
+New-Item -ItemType Directory -Path $target -Force | Out-Null
+
+Get-ChildItem $Out -File | ForEach-Object {
+    Copy-Item $_.FullName (Join-Path $target $_.Name) -Force
+}
+
+Write-Host ""
+Write-Host "Copied into Dropbox: $target" -ForegroundColor Green
+Write-Host "Dropbox is uploading now - wait for the tick before sharing the link." -ForegroundColor DarkGray
+Write-Host "Right-click the folder in Explorer -> Share, and send that link." -ForegroundColor DarkGray
