@@ -1,0 +1,27 @@
+﻿{
+  "id": "mliv-trainer",
+  "name": "Modlauncher IV Trainer",
+  "version": "0.3.0",
+  "game": "GtaIV",
+  "description": "Das Trainer-Menue dieses Projekts. Im Spiel oeffnet F7; bedient wird mit dem Numblock oder den Pfeiltasten. Spieler, Waffen, Fahrzeuge und Welt.",
+
+  "appliesToVersions": [ "1.0.7.0", "1.0.8.0", "1.0.4.0" ],
+
+  "requires": [ "ultimate-asi-loader" ],
+
+  "sources": [
+    {
+      "id": "asi",
+      "fileName": "ModlauncherIV-Trainer.asi",
+      "sha256": "caf2969c6527a5e1496c126f6312847842e2a4685d28f6bbf9d2e655d590915b",
+      "sizeBytes": 209672,
+      "urls": [],
+      "note": "Wird vom Launcher mitgeliefert und nicht heruntergeladen. Diese Datei erzeugt scripts\\pack-trainer.ps1; die Pruefsumme wird beim Bauen gemessen."
+    }
+  ],
+
+  "steps": [
+    { "type": "ensureDirectory", "target": "plugins" },
+    { "type": "copyFile", "source": "ModlauncherIV-Trainer.asi", "target": "plugins\\ModlauncherIV-Trainer.asi" }
+  ]
+}

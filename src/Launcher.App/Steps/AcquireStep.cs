@@ -1,6 +1,7 @@
 using System.Collections.ObjectModel;
 using System.Net.Http;
 using ModlauncherIV.Core.Acquisition;
+using ModlauncherIV.Core.Backup;
 using ModlauncherIV.Core.Catalog;
 using ModlauncherIV.Core.Execution;
 
@@ -141,7 +142,8 @@ public sealed class AcquireStep(Session session) : WizardStep(session)
             return;
         }
 
-        var acquirer = new SourceAcquirer(Http, Session.CacheRoot, new ExecutionLog());
+        var acquirer = new SourceAcquirer(
+            Http, Session.CacheRoot, new ExecutionLog(), AppPaths.BundledDirectory);
 
         foreach (var row in needed)
         {
@@ -181,6 +183,10 @@ public sealed class AcquireStep(Session session) : WizardStep(session)
 
             case AcquisitionStatus.Downloaded:
                 row.State = "geladen und geprüft";
+                break;
+
+            case AcquisitionStatus.Bundled:
+                row.State = "mitgeliefert, Prüfsumme stimmt";
                 break;
 
             case AcquisitionStatus.NeedsUserAction:

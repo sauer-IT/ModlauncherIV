@@ -28,4 +28,20 @@
     </Content>
   </ItemGroup>
 
+  <!--
+    Dateien, die der Launcher selbst mitbringt - derzeit nur der eigene Trainer.
+    Sie werden trotzdem gegen die Pruefsumme im Rezept geprueft: der
+    Lieferumfang ist kein Vertrauensbonus, der Ordner liegt neben einem
+    Programm, in den jeder schreiben kann, der dort Rechte hat.
+
+    Angelegt von scripts\pack-trainer.ps1. Fehlt der Ordner, faellt hier nichts
+    aus - dann kennt der Katalog eben ein Rezept, dessen Datei fehlt, und der
+    Assistent sagt das auch.
+  -->
+  <ItemGroup>
+    <Content Include="bundled\**\*">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+  </ItemGroup>
+
 </Project>

@@ -39,7 +39,9 @@ internal static class FetchCommand
         http.DefaultRequestHeaders.UserAgent.ParseAdd("ModlauncherIV/0.1");
 
         var log = new ExecutionLog(line => Console.WriteLine($"  {line}"));
-        var acquirer = new SourceAcquirer(http, cache, log);
+        // Auch die CLI kennt den Lieferumfang, damit sich "fetch mliv-trainer"
+        // nicht anders verhaelt als derselbe Schritt im Assistenten.
+        var acquirer = new SourceAcquirer(http, cache, log, AppPaths.BundledDirectory);
         var progress = new ConsoleProgress();
 
         var results = await acquirer.AcquireAllAsync(recipe, progress, CancellationToken.None)
@@ -63,6 +65,7 @@ internal static class FetchCommand
             {
                 AcquisitionStatus.AlreadyPresent => "lag bereits vor",
                 AcquisitionStatus.Downloaded => "geladen",
+                AcquisitionStatus.Bundled => "mitgeliefert",
                 AcquisitionStatus.NeedsUserAction => "FEHLT",
                 _ => "FEHLER",
             };

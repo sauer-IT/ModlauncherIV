@@ -10,6 +10,12 @@ public enum AcquisitionStatus
 
     Downloaded,
 
+    /// <summary>
+    /// Kam aus dem Lieferumfang des Launchers selbst — nichts geladen, aber
+    /// genauso gegen die Prüfsumme im Rezept gemessen wie alles andere.
+    /// </summary>
+    Bundled,
+
     /// <summary>Keine Quelle erreichbar — der Nutzer muss die Datei selbst ablegen.</summary>
     NeedsUserAction,
 
@@ -23,7 +29,8 @@ public sealed record AcquisitionResult(
     IReadOnlyList<string> Attempts,
     string? Error)
 {
-    public bool Ok => Status is AcquisitionStatus.AlreadyPresent or AcquisitionStatus.Downloaded;
+    public bool Ok => Status is AcquisitionStatus.AlreadyPresent or AcquisitionStatus.Downloaded
+        or AcquisitionStatus.Bundled;
 }
 
 public sealed record AcquisitionProgress(string FileName, long BytesRead, long? TotalBytes)
@@ -43,9 +50,14 @@ public sealed record AcquisitionProgress(string FileName, long BytesRead, long? 
 /// Prüfung an seinen Platz verschoben. Ein Abbruch hinterlässt damit nie eine
 /// halbe Datei, die beim nächsten Lauf für vollständig gehalten wird.
 /// </summary>
-public sealed class SourceAcquirer(HttpClient http, string cacheRoot, IExecutionLog log)
+/// <param name="bundledRoot">
+/// Ordner mit Dateien, die der Launcher selbst mitbringt — etwa den eigenen
+/// Trainer. Null, wenn es keinen gibt.
+/// </param>
+public sealed class SourceAcquirer(HttpClient http, string cacheRoot, IExecutionLog log, string? bundledRoot = null)
 {
     private readonly string _cache = Path.GetFullPath(cacheRoot);
+    private readonly string? _bundled = bundledRoot is null ? null : Path.GetFullPath(bundledRoot);
 
     public async Task<IReadOnlyList<AcquisitionResult>> AcquireAllAsync(
         Recipe recipe,
@@ -90,11 +102,24 @@ public sealed class SourceAcquirer(HttpClient http, string cacheRoot, IExecution
             TryDelete(target);
         }
 
+        // Bringt der Launcher die Datei selbst mit? Das betrifft vor allem den
+        // eigenen Trainer: ihn im Netz abzulegen, nur damit der eigene Launcher
+        // ihn wieder herunterlädt, wäre ein Umweg mit zusätzlicher Fehlerquelle.
+        //
+        // Geprüft wird trotzdem gegen die Prüfsumme aus dem Rezept. Der
+        // Lieferumfang ist kein Vertrauensbonus: die Datei liegt neben einem
+        // Programm, in dessen Ordner jeder schreiben kann, der dort Rechte hat.
+        if (TryTakeBundled(source, target, out var bundledError))
+        {
+            log.Info($"{source.FileName}: aus dem Lieferumfang übernommen.");
+            return new AcquisitionResult(source, AcquisitionStatus.Bundled, target, [], null);
+        }
+
         if (source.Urls.Count == 0)
         {
             return new AcquisitionResult(
                 source, AcquisitionStatus.NeedsUserAction, null, [],
-                "Für diese Datei ist keine Bezugsquelle hinterlegt.");
+                bundledError ?? "Für diese Datei ist keine Bezugsquelle hinterlegt.");
         }
 
         var attempts = new List<string>();
@@ -236,6 +261,61 @@ public sealed class SourceAcquirer(HttpClient http, string cacheRoot, IExecution
             : _cache + Path.DirectorySeparatorChar;
 
         return full.StartsWith(prefix, StringComparison.OrdinalIgnoreCase) ? full : null;
+    }
+
+    /// <summary>
+    /// Holt eine Datei aus dem Lieferumfang ins Arbeitsverzeichnis, sofern dort
+    /// eine mit passender Prüfsumme liegt.
+    /// </summary>
+    /// <param name="error">
+    /// Gesetzt, wenn zwar eine Datei da lag, aber die falsche. Das ist ein anderer
+    /// Fall als "gar nichts dabei" und verdient eine andere Auskunft — sonst
+    /// sucht jemand nach einer Datei, die die ganze Zeit da war.
+    /// </param>
+    private bool TryTakeBundled(RecipeSource source, string target, out string? error)
+    {
+        error = null;
+
+        if (_bundled is null)
+        {
+            return false;
+        }
+
+        // Derselbe Schutz wie beim Ziel: der Dateiname kommt aus dem Rezept.
+        if (!string.Equals(Path.GetFileName(source.FileName), source.FileName, StringComparison.Ordinal))
+        {
+            return false;
+        }
+
+        var candidate = Path.Combine(_bundled, source.FileName);
+        if (!File.Exists(candidate))
+        {
+            return false;
+        }
+
+        var actual = Hashing.Sha256File(candidate);
+        if (!Hashing.Equal(actual, source.Sha256))
+        {
+            error = $"Im Lieferumfang liegt eine {source.FileName}, aber mit falscher "
+                + $"Prüfsumme (erwartet {Short(source.Sha256)}, gefunden {Short(actual)}). "
+                + "Sie wird nicht verwendet.";
+
+            log.Warn($"{source.FileName}: mitgelieferte Datei hat die falsche Prüfsumme.");
+            return false;
+        }
+
+        try
+        {
+            File.Copy(candidate, target, overwrite: true);
+            return true;
+        }
+        catch (Exception e) when (e is IOException or UnauthorizedAccessException)
+        {
+            error = $"Die mitgelieferte {source.FileName} ließ sich nicht ins "
+                + $"Arbeitsverzeichnis kopieren: {e.Message}";
+
+            return false;
+        }
     }
 
     private static void TryDelete(string path)

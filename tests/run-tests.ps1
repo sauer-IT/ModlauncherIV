@@ -509,6 +509,59 @@ Assert ($r.Output -match "VON HAND ABZULEGEN") "fetch: gibt eine Anleitung zum S
 Assert ($r.Output -match "1111111111") "fetch: nennt die erwartete Pruefsumme"
 Assert ($r.Output -match "Community-Downgrader") "fetch: gibt den Hinweis aus dem Rezept weiter"
 
+# ----------------------------------------------------------- Lieferumfang
+
+Write-Host "`n== Lieferumfang ==" -ForegroundColor Cyan
+
+# Der Launcher bringt eine Datei selbst mit - den eigenen Trainer. Sie liegt
+# neben dem Programm statt im Netz. Geprueft wird sie trotzdem: der Ordner ist
+# beschreibbar fuer jeden, der dort Rechte hat, also ist Mitliefern kein
+# Vertrauensbonus.
+$bundledDir = Join-Path $root "artifacts\fd\bundled"
+New-Item -ItemType Directory -Path $bundledDir -Force | Out-Null
+$bundledFile = Join-Path $bundledDir "mitgeliefert.dll"
+Set-Content -Path $bundledFile -Value "stellvertretend fuer den Trainer" -NoNewline -Encoding utf8
+
+$bundledHash = Get-Sha $bundledFile
+$bundledSize = Get-Size $bundledFile
+
+@"
+{
+  "id": "test-bundled",
+  "name": "Testrezept, mitgelieferte Datei",
+  "version": "1.0.0",
+  "game": "GtaIV",
+  "sources": [
+    { "id": "mit", "fileName": "mitgeliefert.dll", "sha256": "$bundledHash", "sizeBytes": $bundledSize, "urls": [] }
+  ],
+  "steps": [ { "type": "copyFile", "source": "mitgeliefert.dll", "target": "mitgeliefert.dll" } ]
+}
+"@ | Set-Content -Path (Join-Path $catalog "test-bundled.json") -Encoding utf8
+
+$bundledCache = Join-Path $work "bundled-cache"
+New-Item -ItemType Directory -Path $bundledCache -Force | Out-Null
+$bundledArgs = @("--catalog", $catalog, "--cache", $bundledCache, "--allow-unsigned")
+
+$r = Invoke-Mliv (@("fetch", "test-bundled") + $bundledArgs)
+Assert ($r.ExitCode -eq 0) "lieferumfang: Datei wird uebernommen"
+Assert ($r.Output -match "mitgeliefert\s") "lieferumfang: wird als mitgeliefert ausgewiesen"
+Assert (Test-Path (Join-Path $bundledCache "mitgeliefert.dll")) "lieferumfang: liegt im Arbeitsverzeichnis"
+Assert ((Get-Sha (Join-Path $bundledCache "mitgeliefert.dll")) -eq $bundledHash) "lieferumfang: Inhalt stimmt"
+
+# Der eigentliche Zweck der Pruefung: jemand tauscht die mitgelieferte Datei
+# aus. Ohne den Pruefsummenvergleich landete beliebiger Code im Spiel.
+Remove-Item (Join-Path $bundledCache "mitgeliefert.dll") -Force
+Set-Content -Path $bundledFile -Value "ausgetauscht" -NoNewline -Encoding utf8
+
+$r = Invoke-Mliv (@("fetch", "test-bundled") + $bundledArgs)
+Assert ($r.ExitCode -eq 5) "lieferumfang: ausgetauschte Datei wird abgelehnt"
+Assert ($r.Output -match "falscher Pr..?fsumme|falsche Pr..?fsumme") "lieferumfang: nennt die Pruefsumme als Grund"
+Assert (-not (Test-Path (Join-Path $bundledCache "mitgeliefert.dll"))) "lieferumfang: nichts ins Arbeitsverzeichnis gelangt"
+
+Remove-Item $bundledFile -Force
+$r = Invoke-Mliv (@("fetch", "test-bundled") + $bundledArgs)
+Assert ($r.ExitCode -eq 5) "lieferumfang: fehlende Datei meldet Fehlschlag"
+
 # ------------------------------------------------------- Download und Mirror
 
 Write-Host "`n== Download und Mirror ==" -ForegroundColor Cyan
@@ -649,7 +702,7 @@ Assert (Test-Path (Join-Path $catalog "index.json.sig")) "catalog-sign: Signatur
 
 $r = Invoke-Mliv @("catalog", "--catalog", $catalog, "--public-key", $publicKey)
 Assert ($r.ExitCode -eq 0) "signatur: signierter Katalog wird akzeptiert"
-Assert ($r.Output -match "13 Rezept") "signatur: laedt alle Rezepte aus dem Index"
+Assert ($r.Output -match "14 Rezept") "signatur: laedt alle Rezepte aus dem Index"
 Assert (-not ($r.Output -match "NICHT auf eine Signatur")) "signatur: keine Unsigniert-Warnung"
 
 # Eine Rezeptdatei nach dem Signieren aendern. Der Index ist signiert, also muss

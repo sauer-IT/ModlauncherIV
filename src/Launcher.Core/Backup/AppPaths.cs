@@ -41,6 +41,13 @@ public static class AppPaths
     public static string CatalogDirectory { get; } = Path.Combine(AppContext.BaseDirectory, "catalog");
 
     /// <summary>
+    /// Dateien, die der Launcher selbst mitbringt — allen voran den eigenen
+    /// Trainer. Ihn ins Netz zu legen, nur damit der eigene Launcher ihn wieder
+    /// herunterlädt, wäre ein Umweg mit einer zusätzlichen Fehlerquelle.
+    /// </summary>
+    public static string BundledDirectory { get; } = Path.Combine(AppContext.BaseDirectory, "bundled");
+
+    /// <summary>
     /// Kurzer, stabiler Bezeichner für einen Spielpfad. Der Pfad selbst taugt
     /// nicht als Ordnername, und ein reiner Hash wäre beim Draufschauen nutzlos —
     /// deshalb lesbarer Name plus Hash gegen Kollisionen.
