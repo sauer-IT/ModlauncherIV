@@ -1,36 +1,36 @@
 <#
 .SYNOPSIS
-  Baut den Trainer und macht ihn im Katalog installierbar.
+  Builds the trainer and makes it installable through the catalog.
 
 .DESCRIPTION
-  Der Trainer ist die einzige Datei im Katalog, die wir selbst herstellen. Sein
-  Rezept laesst sich deshalb nicht von Hand pflegen: Pruefsumme und Groesse
-  aendern sich bei jedem Build, und ein Rezept mit einer Pruefsumme von gestern
-  lehnt genau die Datei ab, die es installieren soll.
+  The trainer is the only file in the catalog we produce ourselves. Its recipe
+  therefore cannot be maintained by hand: checksum and size change with every
+  build, and a recipe carrying yesterday's checksum rejects exactly the file it
+  is supposed to install.
 
-  Also wird das Rezept erzeugt, nicht geschrieben:
+  So the recipe is generated, not written:
 
-    1. Trainer bauen
-    2. ASI in den Lieferumfang legen (src\Launcher.App\bundled)
-    3. catalog\mliv-trainer.json mit gemessener Pruefsumme schreiben
-    4. Katalog neu signieren - die Aenderung macht den alten Index ungueltig
+    1. build the trainer
+    2. put the ASI into the shipped payload (src\Launcher.App\bundled)
+    3. write catalog\mliv-trainer.json with the measured checksum
+    4. sign the catalog again - the change invalidates the old index
 
-  Ohne Schritt 4 laedt der Launcher anschliessend gar nichts mehr, und zwar zu
-  Recht: eine Rezeptdatei, die nicht zum signierten Index passt, ist aus seiner
-  Sicht nicht von einer manipulierten zu unterscheiden.
+  Without step 4 the launcher afterwards loads nothing at all, and rightly so: a
+  recipe file that does not match the signed index is, from its point of view,
+  indistinguishable from a tampered one.
 
-  Der Trainer hat bewusst keine URL. Ihn irgendwo abzulegen, damit der eigene
-  Launcher ihn wieder herunterlaedt, waere ein Umweg mit einer zusaetzlichen
-  Fehlerquelle - er liegt neben dem Programm und wird von dort uebernommen.
+  The trainer deliberately has no URL. Putting it somewhere so that our own
+  launcher can download it again would be a detour with one more thing that can
+  fail - it sits next to the program and is taken from there.
 
-  appliesToVersions nennt nur 1.0.7.0, obwohl der Launcher auch 1.0.8.0 und
-  1.0.4.0 kennt. Der Grund steht in GameVersion.cpp: der Trainer laeuft nur auf
-  1.0.7.0 und weigert sich auf allem anderen zu laden. Stuende hier mehr, wuerde
-  der Assistent ihn auf 1.0.8.0 bereitwillig einbauen, und der Nutzer haette
-  eine Datei im plugins-Ordner, die wortlos nichts tut.
+  appliesToVersions lists only 1.0.7.0, even though the launcher also knows
+  1.0.8.0 and 1.0.4.0. The reason is in GameVersion.cpp: the trainer only runs
+  on 1.0.7.0 and refuses to load on anything else. Were more listed here, the
+  wizard would happily install it on 1.0.8.0, and the user would end up with a
+  file in the plugins folder that silently does nothing.
 
 .PARAMETER Key
-  Privater Katalogschluessel. Ohne ihn wird gebaut, aber nicht signiert.
+  Private catalog key. Without it the build runs but nothing gets signed.
 
 .EXAMPLE
   .\scripts\pack-trainer.ps1
@@ -44,16 +44,16 @@ param(
 $ErrorActionPreference = "Stop"
 $root = Split-Path -Parent $PSScriptRoot
 
-# ------------------------------------------------------------------- 1. Bauen
+# ---------------------------------------------------------------- 1. Building
 
-Write-Host "Baue den Trainer ..." -ForegroundColor Cyan
+Write-Host "Building the trainer ..." -ForegroundColor Cyan
 & (Join-Path $PSScriptRoot "build-trainer.ps1")
-if ($LASTEXITCODE -ne 0) { throw "Der Trainer-Build ist fehlgeschlagen." }
+if ($LASTEXITCODE -ne 0) { throw "The trainer build failed." }
 
 $asi = Join-Path $root "artifacts\trainer\ModlauncherIV-Trainer.asi"
-if (-not (Test-Path $asi)) { throw "Gebaute ASI nicht gefunden: $asi" }
+if (-not (Test-Path $asi)) { throw "Built ASI not found: $asi" }
 
-# --------------------------------------------------------- 2. In den Lieferumfang
+# ------------------------------------------------ 2. Into the shipped payload
 
 $bundled = Join-Path $root "src\Launcher.App\bundled"
 New-Item -ItemType Directory -Path $bundled -Force | Out-Null
@@ -63,25 +63,25 @@ $hash = (Get-FileHash $asi -Algorithm SHA256).Hash.ToLower()
 $size = (Get-Item $asi).Length
 
 Write-Host "  SHA-256  $hash"
-Write-Host "  Groesse  $size Bytes"
+Write-Host "  Size     $size bytes"
 
-# Die Rezeptfassung traegt die Pruefsumme im Namen.
+# The recipe release carries the checksum in its name.
 #
-# Der Grund steht sonst rot auf der Startseite: der Planer vergleicht
-# Rezeptfassungen, nicht Dateiinhalte. Bliebe die Fassung bei jedem Build
-# dieselbe, haette ein neu gebauter Trainer dieselbe Nummer wie der
-# installierte - der Planer haelt ihn fuer erledigt, und der Nutzer sieht
-# zwar "Datei veraendert", bekommt aber nichts angeboten, was es richtet.
+# Otherwise the reason shows up in red on the home page: the planner compares
+# recipe releases, not file contents. If the release stayed the same on every
+# build, a freshly built trainer would carry the same number as the installed
+# one - the planner considers it done, and the user sees "file changed" without
+# being offered anything that fixes it.
 #
-# Mit der Pruefsumme im Namen erzeugt jeder Build eine neue Fassung, und
-# eine Aktualisierung wird genau dann angeboten, wenn sich wirklich etwas
-# geaendert hat.
+# With the checksum in the name every build produces a new release, and an
+# update is offered exactly when something actually changed.
+
 $feature = "0.4.0"
 $version = "$feature+$($hash.Substring(0, 8))"
 
-Write-Host "  Fassung  $version"
+Write-Host "  Release  $version"
 
-# ------------------------------------------------------------------ 3. Rezept
+# ------------------------------------------------------------------ 3. Recipe
 
 $recipe = @"
 {
@@ -89,7 +89,7 @@ $recipe = @"
   "name": "Modlauncher IV Trainer",
   "version": "$version",
   "game": "GtaIV",
-  "description": "Das Trainer-Menue dieses Projekts. Im Spiel oeffnet F7; bedient wird mit dem Numblock oder den Pfeiltasten. Spieler, Waffen, Fahrzeuge und Welt. Tastenbelegung und Menuelage stehen in ModlauncherIV-Trainer.ini, die beim ersten Start angelegt wird.",
+  "description": "The trainer menu of this project. In game F7 opens it; it is operated with the numpad or the arrow keys. Player, weapons, vehicles and world. Key bindings and menu position live in ModlauncherIV-Trainer.ini, which is created on the first start.",
 
   "appliesToVersions": [ "1.0.7.0" ],
 
@@ -102,7 +102,7 @@ $recipe = @"
       "sha256": "$hash",
       "sizeBytes": $size,
       "urls": [],
-      "note": "Wird vom Launcher mitgeliefert und nicht heruntergeladen. Diese Datei erzeugt scripts\\pack-trainer.ps1; die Pruefsumme wird beim Bauen gemessen."
+      "note": "Shipped with the launcher rather than downloaded. This file is produced by scripts\\pack-trainer.ps1; the checksum is measured at build time."
     }
   ],
 
@@ -115,26 +115,26 @@ $recipe = @"
 
 $recipePath = Join-Path $root "catalog\mliv-trainer.json"
 Set-Content -Path $recipePath -Value $recipe -Encoding utf8
-Write-Host "Rezept geschrieben: $recipePath" -ForegroundColor Green
+Write-Host "Recipe written: $recipePath" -ForegroundColor Green
 
-# --------------------------------------------------------------- 4. Signieren
+# ----------------------------------------------------------------- 4. Signing
 
 if (-not (Test-Path $Key)) {
     Write-Host ""
-    Write-Host "Kein Schluessel unter $Key - der Katalog bleibt unsigniert." -ForegroundColor Yellow
-    Write-Host "Der Launcher wird dann KEIN Rezept laden. Zum Signieren:" -ForegroundColor Yellow
-    Write-Host "  .\scripts\pack-trainer.ps1 -Key <pfad\zum\schluessel.pem>" -ForegroundColor Yellow
+    Write-Host "No key under $Key - the catalog stays unsigned." -ForegroundColor Yellow
+    Write-Host "The launcher will then load NO recipe. To sign:" -ForegroundColor Yellow
+    Write-Host "  .\scripts\pack-trainer.ps1 -Key <path\to\key.pem>" -ForegroundColor Yellow
     exit 0
 }
 
 $mliv = Join-Path $root "artifacts\fd\mliv.exe"
 if (-not (Test-Path $mliv)) {
-    Write-Host "Baue die CLI, um den Katalog zu signieren ..." -ForegroundColor Cyan
+    Write-Host "Building the CLI in order to sign the catalog ..." -ForegroundColor Cyan
     & dotnet publish (Join-Path $root "src\Launcher.Cli") -c Release -o (Join-Path $root "artifacts\fd") -v q
 }
 
-# Native stderr bringt Windows PowerShell unter "Stop" zum Abbruch, auch wenn
-# der Aufruf gelingt - hier bewusst nachgeben.
+# Native stderr makes Windows PowerShell abort under "Stop", even when the call
+# succeeds - deliberately give way here.
 $previous = $ErrorActionPreference
 $ErrorActionPreference = "Continue"
 try {
@@ -145,7 +145,7 @@ finally {
     $ErrorActionPreference = $previous
 }
 
-if ($code -ne 0) { throw "Das Signieren ist fehlgeschlagen (Exitcode $code)." }
+if ($code -ne 0) { throw "Signing failed (exit code $code)." }
 
 Write-Host ""
-Write-Host "Fertig. Der Trainer ist jetzt ueber den Assistenten installierbar." -ForegroundColor Green
+Write-Host "Done. The trainer can now be installed through the wizard." -ForegroundColor Green

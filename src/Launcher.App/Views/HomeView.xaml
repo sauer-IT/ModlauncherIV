@@ -14,8 +14,8 @@
             <TextBlock Text="MODLAUNCHER IV" Style="{StaticResource Dim}" />
             <TextBlock Text="Grand Theft Auto IV" Style="{StaticResource Title}" Margin="0,2,0,0" />
 
-            <!-- Der Zustandssatz steht gross und oben. Er ist die einzige Frage,
-                 die jemand beim Oeffnen hat: kann ich spielen? -->
+            <!-- The status line sits large and at the top. It is the only question
+                 anyone has on opening it: can I play? -->
             <TextBlock Text="{Binding Status}" Margin="0,16,0,0">
                 <TextBlock.Style>
                     <Style TargetType="TextBlock" BasedOn="{StaticResource {x:Type TextBlock}}">
@@ -51,7 +51,7 @@
                             </StackPanel>
 
                             <Button Grid.Column="1"
-                                    Content="Ordner öffnen"
+                                    Content="Open folder"
                                     Command="{Binding FolderCommand}"
                                     VerticalAlignment="Top"
                                     MinWidth="0"
@@ -60,7 +60,7 @@
                     </StackPanel>
                 </Border>
 
-                <TextBlock Text="EINGEBAUT" Style="{StaticResource Dim}" Margin="0,10,0,8"
+                <TextBlock Text="INSTALLED" Style="{StaticResource Dim}" Margin="0,10,0,8"
                            Visibility="{Binding Mods.Count, Converter={StaticResource HasContent}}" />
 
                 <ItemsControl ItemsSource="{Binding Mods}">
@@ -97,11 +97,11 @@
         <Border Grid.Row="2" BorderBrush="{StaticResource Line}" BorderThickness="0,1,0,0" Padding="38,18">
             <Grid>
                 <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
-                    <Button Content="Mods verwalten" Command="{Binding WizardCommand}" Margin="0,0,10,0" />
-                    <Button Content="Prüfen" Command="{Binding VerifyCommand}" MinWidth="0" />
+                    <Button Content="Manage mods" Command="{Binding WizardCommand}" Margin="0,0,10,0" />
+                    <Button Content="Check" Command="{Binding VerifyCommand}" MinWidth="0" />
                 </StackPanel>
 
-                <Button Content="GTA IV starten"
+                <Button Content="Play GTA IV"
                         Command="{Binding PlayCommand}"
                         Style="{StaticResource Primary}"
                         HorizontalAlignment="Right"

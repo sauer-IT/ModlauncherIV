@@ -20,10 +20,10 @@ namespace mliv
         std::wstring exePath;
     };
 
-    /// Liest die Version der laufenden EXE aus ihrer Versionsressource.
+    /// Reads the running EXE's version from its version resource.
     GameInfo DetectGame();
 
-    /// Versionen, auf denen dieser Trainer laufen darf.
+    /// The versions this trainer is allowed to run on.
     bool IsSupported(GameVersion version);
 
     const char* Describe(GameVersion version);

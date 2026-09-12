@@ -35,9 +35,9 @@ public sealed class RunRow(string name) : Observable
     public string Mark => State switch
     {
         RunState.Running => "...",
-        RunState.Done => "fertig",
-        RunState.Failed => "fehlgeschlagen",
-        _ => "wartet",
+        RunState.Done => "done",
+        RunState.Failed => "failed",
+        _ => "waiting",
     };
 
     public string Detail
@@ -53,15 +53,15 @@ public sealed class RunStep(Session session) : WizardStep(session)
     private bool _running;
     private bool _failed;
 
-    public override string Title => "Einbauen";
+    public override string Title => "Installing";
 
     public override string Lead =>
-        "Vor jedem Rezept wird eine Kopie der betroffenen Dateien angelegt. "
-        + "Geht etwas schief, wird der vorherige Zustand automatisch wiederhergestellt.";
+        "Before every recipe a copy of the affected files is taken. If anything "
+        + "goes wrong, the previous state is restored automatically.";
 
-    public override string NextLabel => "Abschließen";
+    public override string NextLabel => "Finish";
 
-    /// <summary>Während geschrieben wird, gibt es kein Zurück.</summary>
+    /// <summary>While writing there is no going back.</summary>
     public override bool CanGoBack => !_running && !_finished;
 
     public override bool CanGoNext => _finished;
@@ -115,9 +115,9 @@ public sealed class RunStep(Session session) : WizardStep(session)
             Rows.Add(row);
         }
 
-        // Die Version wandert mit: nach einem Downgrade steht das Spiel auf einer
-        // anderen, und der Pre-Flight des nächsten Rezepts muss die neue prüfen,
-        // nicht die, mit der wir angefangen haben.
+        // The version travels along: after a downgrade the game sits on a
+        // different one, and the next recipe's pre-flight has to check the new
+        // one, not the one we started with.
         var version = install.Version.Raw;
 
         foreach (var step in journey.Remaining)
@@ -135,7 +135,7 @@ public sealed class RunStep(Session session) : WizardStep(session)
             if (outcome.Success)
             {
                 row.State = RunState.Done;
-                row.Detail = $"Sicherung {outcome.SnapshotId}";
+                row.Detail = $"snapshot {outcome.SnapshotId}";
 
                 Session.Applied.Add(step.Recipe.Name);
 
@@ -156,16 +156,16 @@ public sealed class RunStep(Session session) : WizardStep(session)
             }
 
             Log.Add(outcome.RolledBack
-                ? "Der vorherige Zustand wurde wiederhergestellt."
-                : "Es wurde nichts verändert.");
+                ? "The previous state was restored."
+                : "Nothing was changed.");
 
-            // Nach einem Fehlschlag nicht weitermachen: die folgenden Rezepte
-            // bauen auf dem auf, was gerade nicht zustande kam.
+            // Do not carry on after a failure: the recipes that follow build on
+            // what just did not happen.
             _failed = true;
 
             foreach (var pending in Rows.Where(r => r.State == RunState.Waiting))
             {
-                pending.Detail = "übersprungen";
+                pending.Detail = "skipped";
             }
 
             return;

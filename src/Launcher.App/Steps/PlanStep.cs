@@ -3,7 +3,7 @@ using ModlauncherIV.Core.Planning;
 
 namespace ModlauncherIV.App;
 
-/// <summary>Ein Schritt des Wegs, wie er in der Liste steht.</summary>
+/// <summary>One step of the path, as it appears in the list.</summary>
 public sealed class PlanRow(int number, JourneyStep step)
 {
     public string Number => $"{number}.";
@@ -16,23 +16,23 @@ public sealed class PlanRow(int number, JourneyStep step)
 
     public string State => step switch
     {
-        { State: JourneyStepState.AlreadyInstalled } => "bereits vorhanden",
-        { State: JourneyStepState.NeedsUpdate } => $"Aktualisierung auf {step.Recipe.Version}",
-        { Reason: JourneyReason.VersionTransition } => "Versionswechsel",
-        { Reason: JourneyReason.Dependency } => "wird vorausgesetzt",
-        _ => "von dir gewählt",
+        { State: JourneyStepState.AlreadyInstalled } => "already there",
+        { State: JourneyStepState.NeedsUpdate } => $"update to {step.Recipe.Version}",
+        { Reason: JourneyReason.VersionTransition } => "version change",
+        { Reason: JourneyReason.Dependency } => "required by another",
+        _ => "picked by you",
     };
 }
 
 public sealed class PlanStep(Session session) : WizardStep(session)
 {
-    public override string Title => "Der Plan";
+    public override string Title => "The plan";
 
     public override string Lead =>
-        "Das passiert, in dieser Reihenfolge. Bis zum nächsten Schritt wurde am "
-        + "Spiel nichts verändert.";
+        "This is what happens, in this order. Up to the next step nothing in the "
+        + "game has been changed.";
 
-    public override string NextLabel => "Dateien beschaffen";
+    public override string NextLabel => "Get the files";
 
     public ObservableCollection<PlanRow> Rows { get; } = [];
 
@@ -73,10 +73,10 @@ public sealed class PlanStep(Session session) : WizardStep(session)
         var open = journey.Remaining.Count;
         Summary = open switch
         {
-            0 when journey.Steps.Count > 0 => "Alles davon ist schon eingebaut. Es gibt nichts zu tun.",
-            0 => "Es gibt nichts zu tun.",
-            1 => "Ein Schritt ist offen.",
-            _ => $"{open} Schritte sind offen.",
+            0 when journey.Steps.Count > 0 => "All of it is already installed. There is nothing to do.",
+            0 => "There is nothing to do.",
+            1 => "One step is open.",
+            _ => $"{open} steps are open.",
         };
 
         Raise(nameof(Summary));

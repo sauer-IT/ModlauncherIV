@@ -17,7 +17,7 @@ public partial class InstallView : UserControl
 
         var dialog = new OpenFolderDialog
         {
-            Title = "Ordner mit GTAIV.exe auswählen",
+            Title = "Pick the folder containing GTAIV.exe",
             Multiselect = false,
         };
 

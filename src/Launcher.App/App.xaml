@@ -14,10 +14,10 @@
             <local:HasContentConverter x:Key="HasContent" />
 
             <!--
-                Die Zuordnung Schritt -> Ansicht. Der Rahmen kennt nur WizardStep;
-                welches Bild dazu gehoert, entscheidet WPF anhand des Typs. So
-                muss der Rahmen beim Hinzufuegen eines Schritts nicht angefasst
-                werden.
+                The mapping step -> view. The shell only knows WizardStep; which
+                view belongs to it is decided by WPF from the type. That way the
+                shell does not have to be touched when a step is added.
+
             -->
             <DataTemplate DataType="{x:Type local:HomeViewModel}">
                 <local:HomeView />

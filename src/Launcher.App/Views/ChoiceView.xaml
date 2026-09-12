@@ -4,7 +4,7 @@
 
     <StackPanel Margin="0,4,0,20">
 
-        <TextBlock Text="SPIELVERSION" Style="{StaticResource Dim}" Margin="0,0,0,8" />
+        <TextBlock Text="GAME VERSION" Style="{StaticResource Dim}" Margin="0,0,0,8" />
 
         <ListBox ItemsSource="{Binding Versions}" SelectedItem="{Binding Target}">
             <ListBox.ItemContainerStyle>
@@ -48,7 +48,7 @@
 
         <TextBlock Text="MODS" Style="{StaticResource Dim}" Margin="0,18,0,8" />
 
-        <TextBlock Text="Der Katalog ist leer. Ohne gültige Signatur lädt der Assistent keine Rezepte — siehe die Meldung im vorigen Schritt."
+        <TextBlock Text="The catalog is empty. Without a valid signature the wizard loads no recipes - see the message in the previous step."
                    Style="{StaticResource Dim}"
                    Foreground="{StaticResource Bad}"
                    Visibility="{Binding Recipes.Count, Converter={StaticResource Hide}}" />

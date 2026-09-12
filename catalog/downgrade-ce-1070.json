@@ -1,9 +1,9 @@
 {
   "id": "downgrade-ce-1070",
-  "name": "Downgrade der Complete Edition auf 1.0.7.0",
+  "name": "Downgrade the Complete Edition to 1.0.7.0",
   "version": "1.0.0",
   "game": "GtaIV",
-  "description": "ENTWURF, NOCH NIE AUSGEFUEHRT. Ersetzt die Spieldateien der Complete Edition durch den Stand 1.0.7.0. Gemessen gegen eine 1.2.0.59-Installation: 58 Dateien werden ersetzt, 88 kommen hinzu, 40 sind bereits groessengleich. Radiosongs, die Rockstar aus der Complete Edition entfernt hat, kommen NICHT zurueck. Was liegen bleibt, sind ausschliesslich Rockstar-Launcher-Artefakte (MTLX.dll, index.bin, metadata.dat, title.rgl, uninstall.exe) - keine Spieldaten. Das 1.0.7.0-Spiel liest sie nicht, und gestartet wird ohnehin direkt ueber GTAIV.exe.",
+  "description": "Replaces the Complete Edition game files with the 1.0.7.0 build. Measured against a 1.2.0.59 installation: 58 files get replaced, 88 are added, 40 already match in size. Radio songs Rockstar removed from the Complete Edition do NOT come back. What stays behind is exclusively Rockstar Launcher leftovers (MTLX.dll, index.bin, metadata.dat, title.rgl, uninstall.exe) - no game data. The 1.0.7.0 game does not read them, and it is started directly via GTAIV.exe anyway.",
 
   "appliesToVersions": [ "1.2.0.59", "1.2.0.43", "1.2.0.32", "1.2.0.30" ],
   "producesVersion": "1.0.7.0",
@@ -17,7 +17,7 @@
       "urls": [
         "https://github.com/gillian-guide/GTAIVFullDowngradeAssets/releases/download/Base/1070FullFiles.zip"
       ],
-      "note": "Spieldateien 1.0.7.0, 232 Eintraege. Gehostet als GitHub-Release des Gillian-Guide-Projekts. Die Pakete des ClonkAndre-Downgraders lagen in einer Dropbox und sind dort nicht mehr abrufbar. Gegenprobe: die enthaltene GTAIV.exe (SHA-256 ab21c0d90d2ca1c697785aca9dcf44635e1f8d48aa0df1d737e9190bddf0cb4c, 15505792 Bytes) ist byteidentisch mit der aus dem unabhaengig bezogenen Retail-1070.zip."
+      "note": "Game files for 1.0.7.0, 232 entries. Hosted as a GitHub release of the Gillian guide project. The packages of the ClonkAndre downgrader lived in a Dropbox and are no longer retrievable there. Cross-check: the GTAIV.exe inside (SHA-256 ab21c0d90d2ca1c697785aca9dcf44635e1f8d48aa0df1d737e9190bddf0cb4c, 15505792 bytes) is byte-identical to the one from an independently obtained Retail-1070.zip."
     }
   ],
 

@@ -5,12 +5,12 @@ using ModlauncherIV.Core.Detection;
 namespace ModlauncherIV.App;
 
 /// <summary>
-/// Die Erkennung, die beim Start einmal läuft.
+/// The detection that runs once at startup.
 ///
-/// Sie liegt hier und nicht im ersten Assistentenschritt, weil inzwischen zwei
-/// Seiten von ihr abhängen: die Startseite muss wissen, ob überhaupt schon etwas
-/// eingerichtet ist, bevor sie sich zeigt. Zweimal zu suchen wäre nicht nur
-/// langsam, sondern könnte auch zwei Ergebnisse liefern.
+/// It lives here and not in the first wizard step because two pages depend on
+/// it now: the home page has to know whether anything is set up at all before
+/// it shows itself. Searching twice would not only be slow, it could also
+/// produce two different answers.
 /// </summary>
 public static class Detection
 {
@@ -24,8 +24,8 @@ public static class Detection
         session.Environment = SystemEnvironmentProbe.Probe();
         session.Catalog = RecipeCatalog.LoadFrom(AppPaths.CatalogDirectory, CatalogTrust.RequireSignature);
 
-        // Nur eine gefunden? Dann ist sie gemeint. Bei mehreren entscheidet der
-        // Nutzer, und bis dahin bleibt nichts ausgewählt.
+        // Only one found? Then that is the one. With several the user decides,
+        // and until then nothing is selected.
         session.Install = found.Count == 1 ? found[0] : null;
     });
 }

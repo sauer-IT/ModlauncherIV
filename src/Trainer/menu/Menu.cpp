@@ -7,7 +7,7 @@ namespace mliv
         switch (kind)
         {
             case ItemKind::Toggle:
-                return toggle != nullptr && *toggle ? "AN" : "AUS";
+                return toggle != nullptr && *toggle ? "ON" : "OFF";
 
             case ItemKind::Choice:
                 if (choiceIndex != nullptr &&
@@ -31,9 +31,9 @@ namespace mliv
     {
         items_.push_back(std::move(item));
 
-        // Der erste anwaehlbare Eintrag wird ausgewaehlt. Startet ein Menue mit
-        // einer Ueberschrift, stuende die Auswahl sonst auf etwas, das man gar
-        // nicht anwaehlen kann.
+        // The first selectable entry gets selected. If a menu starts with a
+        // heading, the selection would otherwise sit on something that cannot
+        // be selected at all.
         if (items_[static_cast<size_t>(selected_)].selectable() == false)
         {
             skipLabels(+1);
@@ -75,9 +75,9 @@ namespace mliv
         skipLabels(+1);
     }
 
-    /// Sucht in der angegebenen Richtung den naechsten anwaehlbaren Eintrag.
-    /// Die Begrenzung auf die Listenlaenge ist wichtig: besteht ein Menue nur
-    /// aus Labels, drehte sich das sonst endlos.
+    /// Looks for the next selectable entry in the given direction.
+    /// Bounding it by the list length matters: a menu consisting only of labels
+    /// would otherwise spin forever.
     void Menu::skipLabels(const int direction)
     {
         const int count = static_cast<int>(items_.size());
@@ -181,8 +181,8 @@ namespace mliv
         }
     }
 
-    /// Eine Ebene zurueck. Auf der Wurzel schliesst es das Menue - sonst sitzt
-    /// man dort fest und muss die Menuetaste suchen.
+    /// One level back. At the root it closes the menu - otherwise you are stuck
+    /// there and have to hunt for the menu key.
     void MenuController::back()
     {
         if (stack_.size() > 1)
@@ -233,9 +233,9 @@ namespace mliv
         Menu& menu = active();
         const auto& items = menu.items();
 
-        // Die Anzahl geht voraus, weil ein Renderer den Hintergrund passend
-        // dimensionieren muss - und zwar bevor der Text darauf landet. Spaeter
-        // gezeichnete Flaechen laegen darueber.
+        // The count comes first because a renderer has to size the background to
+        // match - and it has to do so before the text lands on it. Surfaces drawn
+        // later would sit on top.
         renderer.beginFrame(static_cast<int>(items.size()));
         renderer.drawTitle(menu.title());
 

@@ -5,9 +5,9 @@ using System.Windows.Input;
 namespace ModlauncherIV.App;
 
 /// <summary>
-/// Das Nötigste für Datenbindung. Bewusst keine MVVM-Bibliothek: der Launcher
-/// schreibt in fremde Spielverzeichnisse, jede zusätzliche Abhängigkeit ist eine
-/// weitere Stelle, der man dabei vertrauen müsste.
+/// The bare minimum for data binding. Deliberately no MVVM library: the launcher
+/// writes into other people's game directories, and every extra dependency is one
+/// more thing you would have to trust while doing that.
 /// </summary>
 public abstract class Observable : INotifyPropertyChanged
 {
@@ -38,23 +38,23 @@ public sealed class RelayCommand(Action execute, Func<bool>? canExecute = null) 
     public void Execute(object? parameter) => execute();
 
     /// <summary>
-    /// Meldet, dass sich die Ausführbarkeit geändert hat.
+    /// Signals that whether this can run may have changed.
     ///
-    /// WPF fragt von sich aus nur bei Eingabeereignissen nach. Ein Schritt, der
-    /// im Hintergrund fertig wird, löst keines aus — der Weiter-Knopf bliebe grau,
-    /// bis der Nutzer irgendwohin klickt.
+    /// WPF only asks again on input events by itself. A step finishing in the
+    /// background raises none of those — the Next button would stay grey until
+    /// the user clicks somewhere.
     /// </summary>
     public void RaiseCanExecuteChanged() => CanExecuteChanged?.Invoke(this, EventArgs.Empty);
 }
 
 /// <summary>
-/// Ein Kommando, das auf eine asynchrone Arbeit wartet.
+/// A command that awaits asynchronous work.
 ///
-/// Der Grund, warum es das statt eines <c>async void</c>-Lambdas gibt: eine
-/// Ausnahme in <c>async void</c> landet nicht beim Aufrufer, sondern auf dem
-/// Thread-Pool und beendet den Prozess. Bei einem Programm, das gerade
-/// hunderte Dateien im Spielverzeichnis austauscht, ist ein stiller Absturz
-/// mitten in der Arbeit das Schlimmste, was passieren kann.
+/// The reason this exists instead of an <c>async void</c> lambda: an exception
+/// inside <c>async void</c> does not reach the caller but lands on the thread
+/// pool and kills the process. For a program that is in the middle of swapping
+/// hundreds of files in the game directory, a silent crash mid-work is the
+/// worst thing that can happen.
 /// </summary>
 public sealed class AsyncRelayCommand(Func<Task> execute, Func<bool>? canExecute = null) : ICommand
 {
@@ -62,7 +62,7 @@ public sealed class AsyncRelayCommand(Func<Task> execute, Func<bool>? canExecute
 
     public event EventHandler? CanExecuteChanged;
 
-    /// <summary>Wird gemeldet, wenn die Arbeit mit einer Ausnahme endet.</summary>
+    /// <summary>Raised when the work ends in an exception.</summary>
     public event EventHandler<Exception>? Faulted;
 
     public bool CanExecute(object? parameter) => !_running && (canExecute?.Invoke() ?? true);
@@ -83,8 +83,8 @@ public sealed class AsyncRelayCommand(Func<Task> execute, Func<bool>? canExecute
         }
         catch (Exception e)
         {
-            // Hier ist die Ausnahme noch auf dem UI-Thread und lässt sich zeigen.
-            // Eine Zeile tiefer wäre sie es nicht mehr.
+            // Here the exception is still on the UI thread and can be shown.
+            // One line further down it would not be.
             Faulted?.Invoke(this, e);
         }
         finally

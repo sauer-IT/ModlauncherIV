@@ -1,9 +1,9 @@
-// Prueft das Lesen der Konfiguration ohne Spiel.
+// Checks reading the configuration without the game.
 //
-// Die Konfiguration haengt bewusst an keinem Plattformheader - deshalb laesst
-// sie sich hier vollstaendig durchspielen. Das lohnt besonders, weil die Fehler
-// hier stumm sind: eine falsch geschriebene Taste aeussert sich im Spiel als
-// "die Taste tut nichts", und das sucht man dann im Spiel statt in der Datei.
+// The configuration deliberately depends on no platform header - so it can be
+// played through completely here. That pays off especially because the bugs in
+// it are silent: a misspelled key shows up in the game as "the key does
+// nothing", and then people go looking in the game instead of in the file.
 
 #include <cstdio>
 #include <string>
@@ -59,143 +59,142 @@ namespace
 
 int main()
 {
-    std::printf("\n== Tastennamen ==\n");
+    std::printf("\n== Key names ==\n");
 
-    Check(mliv::KeyCodeFromName("F7") == 0x76, "F7 wird erkannt");
-    Check(mliv::KeyCodeFromName("f7") == 0x76, "Kleinschreibung wird erkannt");
-    Check(mliv::KeyCodeFromName("  F7  ") == 0x76, "Leerzeichen stoeren nicht");
-    Check(mliv::KeyCodeFromName("NUM8") == 0x68, "NUM8 wird erkannt");
-    Check(mliv::KeyCodeFromName("NUMPAD8") == 0x68, "der englische Zweitname auch");
-    Check(mliv::KeyCodeFromName("HOCH") == 0x26, "HOCH wird erkannt");
-    Check(mliv::KeyCodeFromName("UP") == 0x26, "UP ergibt dieselbe Taste");
-    Check(mliv::KeyCodeFromName("K") == 'K', "einzelne Buchstaben sind ihr eigener Code");
-    Check(mliv::KeyCodeFromName("k") == 'K', "auch klein geschrieben");
-    Check(mliv::KeyCodeFromName("5") == '5', "einzelne Ziffern ebenso");
+    Check(mliv::KeyCodeFromName("F7") == 0x76, "F7 is recognised");
+    Check(mliv::KeyCodeFromName("f7") == 0x76, "lower case is recognised");
+    Check(mliv::KeyCodeFromName("  F7  ") == 0x76, "surrounding spaces do not matter");
+    Check(mliv::KeyCodeFromName("NUM8") == 0x68, "NUM8 is recognised");
+    Check(mliv::KeyCodeFromName("NUMPAD8") == 0x68, "the NUMPAD spelling works too");
+    Check(mliv::KeyCodeFromName("UP") == 0x26, "UP is recognised");
+    Check(mliv::KeyCodeFromName("K") == 'K', "single letters are their own code");
+    Check(mliv::KeyCodeFromName("k") == 'K', "in lower case as well");
+    Check(mliv::KeyCodeFromName("5") == '5', "single digits likewise");
 
-    // Der wichtigste Fall: was nicht erkannt wird, muss als 0 zurueckkommen,
-    // damit der Aufrufer seine Vorgabe behaelt statt eine Zufallstaste zu binden.
-    Check(mliv::KeyCodeFromName("NUM 8") == 0, "NUM 8 mit Leerzeichen wird nicht erkannt");
-    Check(mliv::KeyCodeFromName("Wurstbrot") == 0, "Unsinn wird nicht erkannt");
-    Check(mliv::KeyCodeFromName("") == 0, "leerer Name wird nicht erkannt");
+    // The case that matters most: whatever is not recognised has to come back as
+    // 0, so the caller keeps its default instead of binding a random key.
+    Check(mliv::KeyCodeFromName("NUM 8") == 0, "NUM 8 with a space is not recognised");
+    Check(mliv::KeyCodeFromName("Sandwich") == 0, "nonsense is not recognised");
+    Check(mliv::KeyCodeFromName("") == 0, "an empty name is not recognised");
 
-    std::printf("\n== Lesen ==\n");
+    std::printf("\n== Reading ==\n");
     {
         mliv::Config config;
         config.parse(
-            "# ein Kommentar\n"
-            "; noch einer\n"
+            "# a comment\n"
+            "; another one\n"
             "\n"
-            "[Tasten]\n"
-            "Menue   = F8\n"
-            "Hoch    = NUM8, HOCH\n"
+            "[Keys]\n"
+            "Menu = F8\n"
+            "Up   = NUM8, UP\n"
             "\n"
-            "[Menue]\n"
-            "Links   = 0.05\n"
+            "[Menu]\n"
+            "Left = 0.05\n"
             "\n"
-            "[Protokoll]\n"
-            "Aktiv = nein\n");
+            "[Log]\n"
+            "Enabled = no\n");
 
-        Check(Has(config.keys("Menue"), 0x77), "Menuetaste kommt aus der Datei");
-        Check(config.keys("Hoch").size() == 2, "zwei Tasten fuer eine Aktion");
-        Check(Has(config.keys("Hoch"), 0x68) && Has(config.keys("Hoch"), 0x26),
-              "beide sind die richtigen");
-        Check(config.keys("Runter").empty(), "was nicht dasteht, bleibt leer");
+        Check(Has(config.keys("Menu"), 0x77), "the menu key comes from the file");
+        Check(config.keys("Up").size() == 2, "two keys for one action");
+        Check(Has(config.keys("Up"), 0x68) && Has(config.keys("Up"), 0x26),
+              "and both are the right ones");
+        Check(config.keys("Down").empty(), "what is not in the file stays empty");
 
-        Check(config.number("Menue.Links", 99.0f) > 0.049f &&
-              config.number("Menue.Links", 99.0f) < 0.051f, "Zahl wird gelesen");
-        Check(config.number("Menue.Oben", 0.12f) > 0.119f, "fehlende Zahl faellt auf die Vorgabe");
+        Check(config.number("Menu.Left", 99.0f) > 0.049f &&
+              config.number("Menu.Left", 99.0f) < 0.051f, "a number is read");
+        Check(config.number("Menu.Top", 0.12f) > 0.119f, "a missing number falls back to the default");
 
-        Check(config.flag("Protokoll.Aktiv", true) == false, "nein wird als falsch gelesen");
-        Check(config.flag("Protokoll.Gibtsnicht", true), "fehlender Schalter faellt auf die Vorgabe");
+        Check(config.flag("Log.Enabled", true) == false, "no is read as false");
+        Check(config.flag("Log.Missing", true), "a missing switch falls back to the default");
 
-        Check(config.problems().empty(), "an einer sauberen Datei gibt es nichts zu melden");
+        Check(config.problems().empty(), "a clean file has nothing to report");
     }
 
-    std::printf("\n== Gross- und Kleinschreibung ==\n");
+    std::printf("\n== Upper and lower case ==\n");
     {
         mliv::Config config;
-        config.parse("[TASTEN]\nMENUE = F9\n");
+        config.parse("[KEYS]\nMENU = F9\n");
 
-        Check(Has(config.keys("menue"), 0x78), "Abschnitt und Name sind schreibungsunabhaengig");
+        Check(Has(config.keys("menu"), 0x78), "section and name are case-insensitive");
     }
 
-    std::printf("\n== Was schiefgehen kann ==\n");
+    std::printf("\n== What can go wrong ==\n");
     {
         mliv::Config config;
         config.parse(
-            "[Tasten]\n"
-            "Menue = Wurstbrot\n"
-            "Hoch = NUM 8\n"
-            "Dies ist keine Zuweisung\n"
-            "= ohne Namen\n"
-            "[Menue]\n"
-            "Links = 0,5\n"
-            "Breite = weit\n"
-            "[Protokoll]\n"
-            "Aktiv = vielleicht\n");
+            "[Keys]\n"
+            "Menu = Sandwich\n"
+            "Up = NUM 8\n"
+            "This is not an assignment\n"
+            "= without a name\n"
+            "[Menu]\n"
+            "Left = 0,5\n"
+            "Width = wide\n"
+            "[Log]\n"
+            "Enabled = maybe\n");
 
-        Check(config.keys("Menue").empty(), "unbekannte Taste wird nicht gebunden");
-        Check(config.keys("Hoch").empty(), "die mit dem Leerzeichen auch nicht");
+        Check(config.keys("Menu").empty(), "an unknown key is not bound");
+        Check(config.keys("Up").empty(), "nor is the one with the space");
 
-        // Beide Meldungen liegen vor, ohne dass jemand die betroffene Aktion
-        // abgefragt haette. Wuerde erst beim Abfragen geprueft, bliebe der
-        // Tippfehler in einer Aktion, nach der niemand fragt, fuer immer stumm.
-        Check(Mentions(config.problems(), "Wurstbrot"), "und wird gemeldet");
-        Check(Mentions(config.problems(), "NUM 8"), "auch die mit dem Leerzeichen");
-        Check(Mentions(config.problems(), "Gleichheitszeichen"), "Zeile ohne = wird gemeldet");
-        Check(Mentions(config.problems(), "leerer Name"), "Zuweisung ohne Namen wird gemeldet");
+        // Both messages are there without anybody having queried the affected
+        // action. Checked only on query, a typo in an action nobody asks about
+        // would stay silent forever.
+        Check(Mentions(config.problems(), "Sandwich"), "and it gets reported");
+        Check(Mentions(config.problems(), "NUM 8"), "including the one with the space");
+        Check(Mentions(config.problems(), "equals sign"), "a line without = is reported");
+        Check(Mentions(config.problems(), "empty name"), "an assignment without a name is reported");
 
-        // Das Komma als Dezimaltrenner ist der wahrscheinlichste Tippfehler auf
-        // einem deutschen System. Ohne Pruefung ergaebe "0,5" stillschweigend 0,
-        // und das Menue klebte am linken Rand.
-        Check(config.number("Menue.Links", 0.025f) > 0.024f &&
-              config.number("Menue.Links", 0.025f) < 0.026f, "0,5 mit Komma wird nicht als 0 gelesen");
-        Check(Mentions(config.problems(), "Zahl mit Punkt"), "und der Grund wird genannt");
+        // The comma as a decimal separator is the most likely typo on a European
+        // system. Without the check "0,5" would silently come out as 0, and the
+        // menu would stick to the left edge.
+        Check(config.number("Menu.Left", 0.025f) > 0.024f &&
+              config.number("Menu.Left", 0.025f) < 0.026f, "0,5 with a comma is not read as 0");
+        Check(Mentions(config.problems(), "number with a dot"), "and the reason is given");
 
-        Check(config.number("Menue.Breite", 0.235f) > 0.234f, "Text statt Zahl faellt auf die Vorgabe");
-        Check(config.flag("Protokoll.Aktiv", true), "unklarer Schalter faellt auf die Vorgabe");
-        Check(Mentions(config.problems(), "ja oder nein"), "und sagt, was erwartet wird");
+        Check(config.number("Menu.Width", 0.235f) > 0.234f, "text instead of a number falls back");
+        Check(config.flag("Log.Enabled", true), "an unclear switch falls back to the default");
+        Check(Mentions(config.problems(), "yes or no"), "and says what was expected");
     }
 
-    std::printf("\n== Doppelte Zeilen ==\n");
+    std::printf("\n== Duplicate lines ==\n");
     {
         mliv::Config config;
-        config.parse("[Tasten]\nMenue = F7\nMenue = F9\n[Menue]\nLinks = 0.1\nLinks = 0.2\n");
+        config.parse("[Keys]\nMenu = F7\nMenu = F9\n[Menu]\nLeft = 0.1\nLeft = 0.2\n");
 
-        Check(Has(config.keys("Menue"), 0x78) && config.keys("Menue").size() == 1,
-              "bei Tasten gewinnt die untere Zeile");
-        Check(config.number("Menue.Links", 0.0f) > 0.19f, "bei Zahlen ebenso");
+        Check(Has(config.keys("Menu"), 0x78) && config.keys("Menu").size() == 1,
+              "for keys the lower line wins");
+        Check(config.number("Menu.Left", 0.0f) > 0.19f, "for numbers likewise");
     }
 
-    std::printf("\n== Die mitgelieferte Vorlage ==\n");
+    std::printf("\n== The shipped template ==\n");
     {
-        // Die Vorlage ist das, was jeder Nutzer als Erstes sieht. Waere darin ein
-        // Tippfehler, faende ihn niemand - er sieht ja aus wie Absicht.
+        // The template is what every user sees first. A typo in it would go
+        // unnoticed by everyone - it looks deliberate.
         mliv::Config config;
         config.parse(mliv::Config::DefaultText());
 
-        Check(config.problems().empty(), "die Vorlage liest sich ohne Beanstandung");
-        Check(Has(config.keys("Menue"), 0x76), "und bindet F7 auf das Menue");
-        Check(config.keys("Hoch").size() == 2, "Hoch hat Zehnerblock und Pfeiltaste");
-        Check(config.keys("Runter").size() == 2, "Runter auch");
-        Check(config.keys("Links").size() == 2, "Links auch");
-        Check(config.keys("Rechts").size() == 2, "Rechts auch");
-        Check(config.keys("Waehlen").size() == 2, "Waehlen auch");
-        Check(config.keys("Zurueck").size() == 2, "Zurueck auch");
+        Check(config.problems().empty(), "the template reads without complaint");
+        Check(Has(config.keys("Menu"), 0x76), "and binds F7 to the menu");
+        Check(config.keys("Up").size() == 2, "Up has a numpad key and an arrow key");
+        Check(config.keys("Down").size() == 2, "Down too");
+        Check(config.keys("Left").size() == 2, "Left too");
+        Check(config.keys("Right").size() == 2, "Right too");
+        Check(config.keys("Select").size() == 2, "Select too");
+        Check(config.keys("Back").size() == 2, "Back too");
 
-        // Die Flugtasten haben bewusst nur je eine Belegung: sie werden
-        // gehalten, nicht getippt, und zwei gleichzeitig gehaltene Tasten fuer
-        // dieselbe Richtung ergaeben doppelte Geschwindigkeit.
-        Check(config.keys("FlugVor").size() == 1 && Has(config.keys("FlugVor"), 'W'),
-              "FlugVor liegt auf W");
-        Check(Has(config.keys("FlugRunter"), 0x11), "FlugRunter liegt auf Strg");
-        Check(Has(config.keys("FlugHoch"), 0x20), "FlugHoch liegt auf der Leertaste");
+        // The flight keys deliberately have only one binding each: they are held
+        // rather than tapped, and two keys held at once for the same direction
+        // would produce double the speed.
+        Check(config.keys("FlyForward").size() == 1 && Has(config.keys("FlyForward"), 'W'),
+              "FlyForward is on W");
+        Check(Has(config.keys("FlyDown"), 0x11), "FlyDown is on ctrl");
+        Check(Has(config.keys("FlyUp"), 0x20), "FlyUp is on the space bar");
 
-        Check(config.flag("Protokoll.Aktiv", false), "das Protokoll ist voreingestellt an");
+        Check(config.flag("Log.Enabled", false), "the log is on by default");
     }
 
     std::printf("\n%s\n", std::string(46, '=').c_str());
-    std::printf(" %d bestanden, %d fehlgeschlagen\n", g_passed, g_failed);
+    std::printf(" %d passed, %d failed\n", g_passed, g_failed);
     std::printf("%s\n\n", std::string(46, '=').c_str());
 
     return g_failed == 0 ? 0 : 1;

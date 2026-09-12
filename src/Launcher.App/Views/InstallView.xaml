@@ -15,7 +15,7 @@
             </ItemsControl.ItemTemplate>
         </ItemsControl>
 
-        <TextBlock Text="Es wurde keine Installation gefunden. Gib den Ordner an, in dem GTAIV.exe liegt."
+        <TextBlock Text="No installation was found. Point it at the folder holding GTAIV.exe."
                    Style="{StaticResource Dim}"
                    Margin="0,0,0,10"
                    Visibility="{Binding NothingFound, Converter={StaticResource Show}}" />
@@ -80,7 +80,7 @@
                    Margin="0,4,0,0"
                    Visibility="{Binding Error, Converter={StaticResource HasContent}}" />
 
-        <Button Content="Ordner von Hand angeben ..."
+        <Button Content="Pick the folder by hand ..."
                 Click="OnBrowse"
                 HorizontalAlignment="Left"
                 MinWidth="0"

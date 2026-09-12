@@ -27,7 +27,7 @@
             </ItemsControl.ItemTemplate>
         </ItemsControl>
 
-        <Button Content="Steam am Zurückpatchen hindern"
+        <Button Content="Stop Steam from patching it back"
                 Click="OnLock"
                 HorizontalAlignment="Left"
                 MinWidth="0"
@@ -39,7 +39,7 @@
                    Margin="0,8,0,0"
                    Visibility="{Binding LockResult, Converter={StaticResource HasContent}}" />
 
-        <Button Content="GTA IV starten"
+        <Button Content="Play GTA IV"
                 Click="OnPlay"
                 Style="{StaticResource Primary}"
                 HorizontalAlignment="Left"
@@ -47,7 +47,7 @@
                 Padding="26,11"
                 IsEnabled="{Binding CanPlay}" />
 
-        <TextBlock Text="Im Spiel öffnet F7 das Trainer-Menü, sofern du es eingebaut hast."
+        <TextBlock Text="In the game F7 opens the trainer menu, if you installed it."
                    Style="{StaticResource Dim}"
                    Margin="0,10,0,0" />
 

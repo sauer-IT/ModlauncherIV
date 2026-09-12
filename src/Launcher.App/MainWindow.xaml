@@ -7,8 +7,8 @@
         WindowStartupLocation="CenterScreen"
         Background="{StaticResource Back}">
 
-    <!-- Die Huelle zeigt entweder die Startseite oder den Assistenten. Welche
-         Ansicht zu welchem Modell gehoert, entscheidet WPF ueber den Typ. -->
+    <!-- The shell shows either the home page or the wizard. Which view belongs
+         to which model is decided by WPF via the type. -->
     <ContentControl Content="{Binding Current}" />
 
 </Window>

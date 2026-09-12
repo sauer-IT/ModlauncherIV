@@ -4,16 +4,16 @@ using System.IO;
 namespace ModlauncherIV.App;
 
 /// <summary>
-/// Richtet das Programm auf dem Rechner ein.
+/// Sets the program up on the machine.
 ///
-/// Eine heruntergeladene EXE liegt im Downloads-Ordner. Dort findet sie
-/// niemand wieder, und wer Downloads aufräumt, löscht sie versehentlich. Also
-/// kann sich das Programm an einen festen Platz kopieren und Verknüpfungen
-/// anlegen — Desktop und Startmenü.
+/// A downloaded EXE sits in the downloads folder. Nobody finds it again there,
+/// and anyone tidying up their downloads deletes it by accident. So the program
+/// can copy itself to a fixed place and create shortcuts — desktop and start
+/// menu.
 ///
-/// Unter %LOCALAPPDATA%\Programs und nicht unter Program Files: dort darf der
-/// Nutzer ohne Adminrechte schreiben, das Programm überlebt eine
-/// Windows-Reparatur, und ein späteres Aktualisieren braucht keine Rückfrage.
+/// Under %LOCALAPPDATA%\Programs and not under Program Files: there the user
+/// may write without admin rights, the program survives a Windows repair, and a
+/// later update needs no prompt.
 /// </summary>
 public static class SelfInstall
 {
@@ -36,20 +36,20 @@ public static class SelfInstall
         Environment.GetFolderPath(Environment.SpecialFolder.Programs),
         ProgramName + ".lnk");
 
-    /// <summary>Der Pfad der gerade laufenden EXE.</summary>
+    /// <summary>The path of the currently running EXE.</summary>
     public static string CurrentPath => Environment.ProcessPath ?? string.Empty;
 
     /// <summary>
-    /// True, wenn das Programm schon an seinem festen Platz liegt und auf dem
-    /// Desktop auffindbar ist. Nur dann gibt es nichts mehr anzubieten.
+    /// True when the program already sits in its fixed place and can be found on
+    /// the desktop. Only then is there nothing left to offer.
     /// </summary>
     public static bool IsSetUp =>
         string.Equals(CurrentPath, TargetPath, StringComparison.OrdinalIgnoreCase) &&
         File.Exists(DesktopShortcut);
 
     /// <summary>
-    /// Kopiert sich an den festen Platz und legt die Verknüpfungen an.
-    /// Gibt zurück, was passiert ist — oder warum nicht.
+    /// Copies itself to the fixed place and creates the shortcuts. Returns what
+    /// happened — or why it did not.
     /// </summary>
     public static string Run(out bool relaunchNeeded)
     {
@@ -58,7 +58,7 @@ public static class SelfInstall
         var source = CurrentPath;
         if (string.IsNullOrEmpty(source) || !File.Exists(source))
         {
-            return "Der eigene Programmpfad liess sich nicht bestimmen.";
+            return "The program could not determine its own path.";
         }
 
         var messages = new List<string>();
@@ -71,47 +71,46 @@ public static class SelfInstall
             {
                 Directory.CreateDirectory(TargetDirectory);
 
-                // Sich selbst zu lesen ist erlaubt, auch im Betrieb. Ueber eine
-                // bereits laufende Kopie zu schreiben dagegen nicht - deshalb
-                // wird ein laufendes Ziel nicht angefasst, sondern gemeldet.
+                // Reading itself is allowed, even while running. Writing over an
+                // already running copy is not - so a running target is left
+                // alone and reported instead.
                 File.Copy(source, TargetPath, overwrite: true);
 
-                messages.Add($"Kopiert nach {TargetDirectory}");
+                messages.Add($"Copied to {TargetDirectory}");
                 relaunchNeeded = true;
             }
 
             CreateShortcut(DesktopShortcut, TargetPath);
-            messages.Add("Verknuepfung auf dem Desktop angelegt");
+            messages.Add("Shortcut created on the desktop");
 
             CreateShortcut(StartMenuShortcut, TargetPath);
-            messages.Add("Im Startmenue eingetragen");
+            messages.Add("Added to the start menu");
         }
         catch (IOException e)
         {
-            return $"Fehlgeschlagen: {e.Message}";
+            return $"Failed: {e.Message}";
         }
         catch (UnauthorizedAccessException e)
         {
-            return $"Keine Berechtigung: {e.Message}";
+            return $"No permission: {e.Message}";
         }
 
         return string.Join(". ", messages) + ".";
     }
 
     /// <summary>
-    /// Legt eine .lnk an.
+    /// Creates a .lnk.
     ///
-    /// Ueber den Windows Script Host per COM, weil .NET selbst keine
-    /// Verknuepfungen schreiben kann und das Format binaer und undokumentiert
-    /// genug ist, um es nicht von Hand nachzubauen. Kein zusaetzliches Paket:
-    /// WScript.Shell ist auf jedem Windows vorhanden.
+    /// Through the Windows Script Host via COM, because .NET cannot write
+    /// shortcuts itself and the format is binary and undocumented enough not to
+    /// rebuild by hand. No extra package: WScript.Shell is on every Windows.
     /// </summary>
     private static void CreateShortcut(string linkPath, string target)
     {
         var type = Type.GetTypeFromProgID("WScript.Shell");
         if (type is null)
         {
-            throw new IOException("WScript.Shell ist auf diesem System nicht verfuegbar.");
+            throw new IOException("WScript.Shell is not available on this system.");
         }
 
         object? shell = null;
@@ -122,7 +121,7 @@ public static class SelfInstall
             shell = Activator.CreateInstance(type);
             if (shell is null)
             {
-                throw new IOException("WScript.Shell liess sich nicht starten.");
+                throw new IOException("WScript.Shell could not be started.");
             }
 
             link = type.InvokeMember("CreateShortcut", System.Reflection.BindingFlags.InvokeMethod,
@@ -130,7 +129,7 @@ public static class SelfInstall
 
             if (link is null)
             {
-                throw new IOException("Die Verknuepfung liess sich nicht anlegen.");
+                throw new IOException("The shortcut could not be created.");
             }
 
             var linkType = link.GetType();
@@ -141,7 +140,7 @@ public static class SelfInstall
 
             Set("TargetPath", target);
             Set("WorkingDirectory", Path.GetDirectoryName(target) ?? string.Empty);
-            Set("Description", "Downgrader und Mod-Installer fuer GTA IV");
+            Set("Description", "Downgrader and mod installer for GTA IV");
 
             linkType.InvokeMember("Save", System.Reflection.BindingFlags.InvokeMethod, null, link, null);
         }
@@ -152,7 +151,7 @@ public static class SelfInstall
         }
     }
 
-    /// <summary>Startet die eingerichtete Fassung und beendet diese hier.</summary>
+    /// <summary>Starts the installed copy and ends this one.</summary>
     public static void RelaunchFromTarget()
     {
         if (!File.Exists(TargetPath))

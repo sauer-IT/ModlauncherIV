@@ -6,8 +6,8 @@ using ModlauncherIV.Core.Execution;
 namespace ModlauncherIV.Cli;
 
 /// <summary>
-/// Nimmt Rezepte zurueck. Mit <c>--all</c> in umgekehrter Installations-
-/// reihenfolge, damit sich Abhaengigkeiten von selbst aufloesen.
+/// Takes recipes back out. With <c>--all</c> in reverse installation order, so
+/// that dependencies resolve themselves.
 /// </summary>
 internal static class RemoveCommand
 {
@@ -37,7 +37,7 @@ internal static class RemoveCommand
         {
             Console.Error.WriteLine("The recipe id is missing. To take everything back: mliv remove --all");
             Console.Error.WriteLine();
-            Console.Error.WriteLine("Installiert ist derzeit:");
+            Console.Error.WriteLine("Currently installed:");
             foreach (var id in targets)
             {
                 Console.Error.WriteLine($"  {id}");
@@ -47,7 +47,7 @@ internal static class RemoveCommand
         }
 
         Console.WriteLine($"  Installation   {install.Path}");
-        Console.WriteLine($"  Zurueckzubauen {targets.Count} Rezept(e), neueste zuerst:");
+        Console.WriteLine($"  To remove      {targets.Count} recipe(s), newest first:");
         foreach (var id in targets)
         {
             Console.WriteLine($"      {id}");
@@ -70,7 +70,7 @@ internal static class RemoveCommand
             var plan = uninstaller.Plan(id, context, catalog.Recipes);
             if (plan is null)
             {
-                Console.Error.WriteLine($"      Nicht installiert: {id}");
+                Console.Error.WriteLine($"      Not installed: {id}");
                 failed = true;
                 continue;
             }
@@ -87,7 +87,7 @@ internal static class RemoveCommand
 
             if (!plan.CanRun)
             {
-                Console.Error.WriteLine($"      Uebersprungen.");
+                Console.Error.WriteLine($"      Skipped.");
                 failed = true;
                 continue;
             }
@@ -110,15 +110,15 @@ internal static class RemoveCommand
         }
 
         Console.WriteLine();
-        Console.WriteLine("  Zum Nachsehen: mliv detect  und  mliv status");
+        Console.WriteLine("  To check: mliv detect  and  mliv status");
 
         return failed ? ExitCode.Failed : ExitCode.Ok;
     }
 
     private static bool Confirm(int count)
     {
-        Console.Write($"  {count} Rezept(e) zurueckbauen? [j/N] ");
+        Console.Write($"  Remove {count} recipe(s)? [y/N] ");
         var answer = Console.ReadLine();
-        return answer is not null && answer.Trim().StartsWith('j');
+        return answer is not null && answer.Trim().StartsWith('y');
     }
 }

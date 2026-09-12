@@ -7,10 +7,10 @@ public enum OwnedFileState
 {
     Unchanged,
 
-    /// <summary>Existiert noch, hat aber einen anderen Inhalt als beim Einbau.</summary>
+    /// <summary>Still there, but with different content than at install time.</summary>
     Modified,
 
-    /// <summary>Ist verschwunden.</summary>
+    /// <summary>Gone.</summary>
     Missing,
 
     /// <summary>No checksum was recorded at install time.</summary>
@@ -72,8 +72,8 @@ public static class InstallVerifier
             }
         }
 
-        // Die zuletzt festgehaltene Version ist die, die wir erwarten. Weicht die
-        // tatsaechliche ab, hat jemand anders am Spiel gearbeitet als wir.
+        // The version recorded last is the one we expect. If the actual one differs,
+        // somebody other than us has been working on the game.
         var expected = ledger.Entries
             .Where(e => e.GameVersionAfter is not null)
             .OrderByDescending(e => e.InstalledAt)
@@ -130,16 +130,16 @@ public static class InstallVerifier
         {
             notes.Add(new Note(
                 NoteLevel.Blocker,
-                $"Die Spielversion ist {result.CurrentVersion}, erwartet war {result.ExpectedVersion}.",
+                $"The game version is {result.CurrentVersion}, {result.ExpectedVersion} was expected.",
                 "The platform reset the game. That undoes the downgrade, "
-                + "und darauf aufbauende Mods laufen nicht mehr."));
+                + "and mods building on it no longer run."));
         }
 
         if (result.MissingCount > 0)
         {
             notes.Add(new Note(
                 NoteLevel.Warning,
-                $"{result.MissingCount} eingebaute Datei(en) fehlen.",
+                $"{result.MissingCount} installed file(s) are missing.",
                 "Either the platform removed them, or they were deleted by hand."));
         }
 

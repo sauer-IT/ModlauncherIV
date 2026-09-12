@@ -1,55 +1,55 @@
 namespace ModlauncherIV.App;
 
 /// <summary>
-/// Ein Hinweis auf der Startseite.
+/// One note on the welcome page.
 ///
-/// Eine eigene Klasse und kein Tupel: WPF bindet an Eigenschaften, und die
-/// Bestandteile eines ValueTuple sind Felder. Eine Bindung darauf schlaegt nicht
-/// fehl, sie bleibt einfach leer - der unangenehmste Fehler, den es in XAML gibt.
+/// Its own class rather than a tuple: WPF binds to properties, and the parts of
+/// a ValueTuple are fields. A binding to those does not fail, it simply stays
+/// empty — the nastiest kind of bug XAML has to offer.
 /// </summary>
 public sealed record Point(string Head, string Text);
 
 public sealed class WelcomeStep(Session session) : WizardStep(session)
 {
-    public override string Title => "Willkommen";
+    public override string Title => "Welcome";
 
     public override string Lead =>
-        "Dieser Assistent bringt GTA IV auf eine Version, die sich modden lässt, "
-        + "und baut anschließend ein, was du auswählst.";
+        "This wizard brings GTA IV to a version that can be modded, and then "
+        + "installs whatever you pick.";
 
-    public override string NextLabel => "Los geht's";
+    public override string NextLabel => "Let's go";
 
     public override bool CanGoBack => false;
 
-    /// <summary>Das Angebot, sich auf den Desktop zu legen.</summary>
+    /// <summary>The offer to put itself on the desktop.</summary>
     public SetupBanner Setup { get; } = new();
 
     /// <summary>
-    /// Was der Nutzer wissen muss, bevor irgendetwas passiert.
+    /// What the user needs to know before anything happens.
     ///
-    /// Diese Punkte stehen am Anfang und nicht im Kleingedruckten, weil jeder
-    /// einzelne davon nachher zu einem "der Launcher hat mein Spiel zerstört"
-    /// führen kann — und weil sie sich hinterher nicht mehr erklären lassen.
+    /// These points sit at the beginning and not in the small print, because
+    /// every single one of them can otherwise turn into "the launcher wrecked my
+    /// game" — and because afterwards they can no longer be explained.
     /// </summary>
     public IReadOnlyList<Point> Points =>
     [
-        new("Dein Spielstand bleibt",
-         "Verändert wird nur die Installation, nicht der Ordner mit den Spielständen "
-         + "unter Dokumente. Trotzdem gilt: eine Sicherung hat noch nie geschadet."),
+        new("Your save games stay",
+         "Only the installation is changed, not the save game folder under "
+         + "Documents. Still: a backup has never hurt anyone."),
 
-        new("Alles ist umkehrbar",
-         "Vor jeder Änderung wird eine Kopie der betroffenen Dateien angelegt. "
-         + "Schlägt etwas fehl, wird der vorherige Zustand automatisch "
-         + "wiederhergestellt. Einzeln zurückbauen geht später jederzeit."),
+        new("Everything is reversible",
+         "Before every change, a copy of the affected files is taken. If anything "
+         + "fails, the previous state is restored automatically. Removing things "
+         + "one at a time is possible at any point later."),
 
-        new("Nicht mehr über den Launcher starten",
-         "Rockstar Games Launcher, Steam und Epic prüfen beim Start, ob die Dateien "
-         + "noch die erwarteten sind — und spielen die neue Version zurück. Nach dem "
-         + "Downgrade startest du das Spiel über diesen Assistenten."),
+        new("Stop starting it through the launcher",
+         "Rockstar Games Launcher, Steam and Epic check on start whether the files "
+         + "are the expected ones — and put the new version back. After the "
+         + "downgrade you start the game through this wizard."),
 
-        new("Es werden Dateien aus dem Netz geladen",
-         "Der Assistent lädt nur von den Adressen, die im Katalog stehen, und prüft "
-         + "jede Datei anhand ihrer SHA-256-Prüfsumme. Stimmt die nicht, wird die "
-         + "Datei verworfen und nichts installiert."),
+        new("Files will be downloaded",
+         "The wizard only downloads from the addresses listed in the catalog, and "
+         + "checks every file against its SHA-256 checksum. If that does not "
+         + "match, the file is discarded and nothing is installed."),
     ];
 }

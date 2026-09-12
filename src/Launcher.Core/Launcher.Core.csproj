@@ -7,8 +7,8 @@
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
     <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
-    <!-- Bewusst KEINE UseWPF/UseWindowsForms: der Kern bleibt UI-frei,
-         damit die Pipeline gegen Fixtures testbar ist. -->
+    <!-- Deliberately NO UseWPF/UseWindowsForms: the core stays free of UI,
+         so that the pipeline is testable against fixtures. -->
   </PropertyGroup>
 
 </Project>

@@ -6,7 +6,7 @@ using ModlauncherIV.Core.Detection;
 
 namespace ModlauncherIV.App;
 
-/// <summary>Eine gefundene Installation, wie sie in der Liste steht.</summary>
+/// <summary>An installation that was found, as it appears in the list.</summary>
 public sealed class InstallChoice(GameInstall install)
 {
     public GameInstall Install { get; } = install;
@@ -18,25 +18,25 @@ public sealed class InstallChoice(GameInstall install)
         GamePlatform.Steam => "Steam",
         GamePlatform.RockstarLauncher => "Rockstar Games Launcher",
         GamePlatform.Epic => "Epic Games",
-        GamePlatform.Retail => "Datenträger",
-        _ => "unbekannte Herkunft",
+        GamePlatform.Retail => "Disc",
+        _ => "unknown origin",
     };
 
     public string Version => Install.Version.IsKnown
         ? $"{Install.Version.Raw} — {Install.Version.DisplayName}"
-        : $"{Install.Version.Raw} (nicht zugeordnet)";
+        : $"{Install.Version.Raw} (not recognised)";
 
     public string Extras => Install switch
     {
-        { HasTlad: true, HasTbogt: true } => "mit beiden Episoden",
-        { HasTlad: true } => "mit The Lost and Damned",
-        { HasTbogt: true } => "mit The Ballad of Gay Tony",
-        _ => "ohne Episoden",
+        { HasTlad: true, HasTbogt: true } => "with both episodes",
+        { HasTlad: true } => "with The Lost and Damned",
+        { HasTbogt: true } => "with The Ballad of Gay Tony",
+        _ => "without episodes",
     };
 
     public string Mods => Install.ModArtifacts.Count == 0
-        ? "unverändert"
-        : $"{Install.ModArtifacts.Count} Fremddatei(en) gefunden";
+        ? "unchanged"
+        : $"{Install.ModArtifacts.Count} foreign file(s) found";
 }
 
 public sealed class InstallStep(Session session) : WizardStep(session)
@@ -48,8 +48,8 @@ public sealed class InstallStep(Session session) : WizardStep(session)
     public override string Title => "Installation";
 
     public override string Lead =>
-        "Der Assistent sucht GTA IV in der Registry, bei Steam und Epic sowie an "
-        + "den üblichen Orten. Ist deine Installation nicht dabei, gib den Ordner an.";
+        "The wizard searches for GTA IV in the registry, in Steam and Epic, and in "
+        + "the usual places. If yours is not among them, point it at the folder.";
 
     public ObservableCollection<InstallChoice> Found { get; } = [];
 
@@ -89,8 +89,8 @@ public sealed class InstallStep(Session session) : WizardStep(session)
     }
 
     /// <summary>
-    /// Nimmt einen von Hand gewählten Ordner auf. Wird vom Fenster aufgerufen,
-    /// nachdem der Nutzer im Dateidialog bestätigt hat.
+    /// Takes in a manually chosen folder. Called from the window after the user
+    /// confirmed in the file dialog.
     /// </summary>
     public void AddManually(string path)
     {
@@ -98,7 +98,7 @@ public sealed class InstallStep(Session session) : WizardStep(session)
 
         if (!File.Exists(Path.Combine(path, InstallInspector.ExecutableName)))
         {
-            Error = $"In {path} liegt keine {InstallInspector.ExecutableName}.";
+            Error = $"There is no {InstallInspector.ExecutableName} in {path}.";
             return;
         }
 
@@ -109,7 +109,7 @@ public sealed class InstallStep(Session session) : WizardStep(session)
         }
 
         var locator = new InstallLocator();
-        var candidate = new InstallCandidate(path, locator.InferPlatform(path), "von Hand angegeben");
+        var candidate = new InstallCandidate(path, locator.InferPlatform(path), "given by hand");
         var choice = new InstallChoice(new InstallInspector().Inspect(candidate));
 
         Found.Add(choice);
@@ -124,9 +124,9 @@ public sealed class InstallStep(Session session) : WizardStep(session)
         Found.Clear();
         Warnings.Clear();
 
-        // Die Hülle hat beim Start schon gesucht. Hier noch einmal zu suchen
-        // wäre nicht nur langsam, sondern könnte auch ein anderes Ergebnis
-        // liefern als das, was die Startseite gerade angezeigt hat.
+        // The shell already searched at startup. Searching again here would not
+        // only be slow, it could also produce a different answer than the one the
+        // home page just displayed.
         if (Session.Found.Count == 0)
         {
             await Detection.FillAsync(Session).ConfigureAwait(true);
@@ -145,9 +145,9 @@ public sealed class InstallStep(Session session) : WizardStep(session)
             Warnings.Add(note.Message);
         }
 
-        // Ohne gültige Signatur lädt der Katalog nichts. Das hier zu verschweigen
-        // und den Nutzer zwei Seiten später vor einer leeren Auswahl stehen zu
-        // lassen, wäre die unfreundlichste Variante.
+        // Without a valid signature the catalog loads nothing. Staying quiet about
+        // that and leaving the user in front of an empty selection two pages later
+        // would be the unfriendliest option.
         foreach (var problem in catalog is null ? [] : catalog.Errors.Concat(catalog.Warnings))
         {
             Warnings.Add(problem);
@@ -155,7 +155,7 @@ public sealed class InstallStep(Session session) : WizardStep(session)
 
         _searched = true;
 
-        // Die Auswahl der Startseite übernehmen, falls es eine gibt.
+        // Take over the home page selection, if there is one.
         Selected = Found.FirstOrDefault(f => f.Install == Session.Install) ?? Found.FirstOrDefault();
         Raise(nameof(NothingFound));
         NotifyChanged();

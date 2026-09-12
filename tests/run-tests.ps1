@@ -362,7 +362,7 @@ Assert ($r.ExitCode -eq 0) "verify: an unchanged installation is fine"
 Assert ($r.Output -match "Everything unchanged") "verify: reports everything unchanged"
 
 # Change an installed file - exactly what a store update does.
-Set-Content -Path (Join-Path $game "xlive.dll") -Value "vom Store ueberschrieben" -NoNewline -Encoding utf8
+Set-Content -Path (Join-Path $game "xlive.dll") -Value "overwritten by the store" -NoNewline -Encoding utf8
 $r = Invoke-Mliv (@("verify") + $common)
 Assert ($r.ExitCode -eq 3) "verify: a changed file is detected"
 Assert ($r.Output -match "changed\s+xlive\.dll") "verify: names the affected file"
@@ -443,7 +443,7 @@ $r = Invoke-Mliv (@("journey", "test-j-base,test-j-streit", "--assume-version", 
 Assert ($r.ExitCode -eq 3) "journey: a conflict blocks"
 Assert ($r.Output -match "conflicts with") "journey: names the conflict"
 
-$r = Invoke-Mliv (@("journey", "gibt-es-nicht") + $jArgs)
+$r = Invoke-Mliv (@("journey", "does-not-exist") + $jArgs)
 Assert ($r.ExitCode -eq 3) "journey: an unknown recipe blocks"
 Assert ($r.Output -match "is not in the catalog") "journey: says the recipe does not exist"
 
@@ -594,15 +594,15 @@ $srvDir = Join-Path $work "server"
 New-Item -ItemType Directory -Path $srvDir -Force | Out-Null
 
 # Both files exactly the same length: otherwise the size check catches it first
-# die Pruefsummenablehnung waehrend des Downloads bliebe ungetestet.
-Set-Content (Join-Path $srvDir "good.bin") -Value "OK-Nutzdaten-fuer-den-Test" -NoNewline -Encoding ascii
-Set-Content (Join-Path $srvDir "bad.bin")  -Value "XX-Nutzdaten-fuer-den-Test" -NoNewline -Encoding ascii
+# and the checksum rejection during the download would stay untested.
+Set-Content (Join-Path $srvDir "good.bin") -Value "OK-payload-for-the-test" -NoNewline -Encoding ascii
+Set-Content (Join-Path $srvDir "bad.bin")  -Value "XX-payload-for-the-test" -NoNewline -Encoding ascii
 
 $goodHash = Get-Sha (Join-Path $srvDir "good.bin")
 $goodSize = Get-Size (Join-Path $srvDir "good.bin")
 
-# Drei Quellen: 404, dann falscher Inhalt, dann die richtige. Nur wenn der
-# Acquirer beide Fehlschlaege ueberlebt, kommt er zur dritten.
+# Three sources: 404, then wrong content, then the right one. Only if the
+# acquirer survives both failures does it get to the third.
 @"
 {
   "id": "test-mirror",
@@ -610,14 +610,14 @@ $goodSize = Get-Size (Join-Path $srvDir "good.bin")
   "version": "1.0.0",
   "game": "GtaIV",
   "sources": [
-    { "id": "nutzdaten", "fileName": "nutzdaten.bin", "sha256": "$goodHash", "sizeBytes": $goodSize,
+    { "id": "payload", "fileName": "payload.bin", "sha256": "$goodHash", "sizeBytes": $goodSize,
       "urls": [
-        "http://localhost:$port/gibtsnicht.bin",
+        "http://localhost:$port/notthere.bin",
         "http://localhost:$port/bad.bin",
         "http://localhost:$port/good.bin"
       ] }
   ],
-  "steps": [ { "type": "copyFile", "source": "nutzdaten.bin", "target": "nutzdaten.bin" } ]
+  "steps": [ { "type": "copyFile", "source": "payload.bin", "target": "payload.bin" } ]
 }
 "@ | Set-Content -Path (Join-Path $work "test-mirror.json") -Encoding utf8
 
@@ -655,7 +655,7 @@ $server = Start-Job -ScriptBlock {
     } finally { $listener.Stop() }
 } -ArgumentList $port, $srvDir
 
-# Auf Bereitschaft warten, statt blind loszulaufen.
+# Wait for readiness rather than charging in blind.
 $ready = $false
 foreach ($attempt in 1..20) {
     try {
@@ -671,7 +671,7 @@ foreach ($attempt in 1..20) {
 }
 
 if (-not $ready) {
-    Write-Host "  SKIP  lokaler HTTP-Server nicht startbar (Port $port belegt oder ACL) - Downloadtests uebersprungen" -ForegroundColor Yellow
+    Write-Host "  SKIP  local HTTP server would not start (port $port taken, or ACL) - download tests skipped" -ForegroundColor Yellow
 } else {
     $dlCache = Join-Path $work "dl-cache"
     New-Item -ItemType Directory -Path $dlCache -Force | Out-Null
@@ -680,13 +680,13 @@ if (-not $ready) {
 
     $r = Invoke-Mliv @("fetch", "test-mirror", "--catalog", $catalog, "--cache", $dlCache, "--allow-unsigned")
     Assert ($r.ExitCode -eq 0) "download: file acquired through the mirror chain"
-    Assert (Test-Path (Join-Path $dlCache "nutzdaten.bin")) "download: the file is in the working directory"
-    Assert ((Get-Sha (Join-Path $dlCache "nutzdaten.bin")) -eq $goodHash) "download: the content is the expected one"
-    Assert ($r.Output -match "gibtsnicht\.bin") "download: names the first mirror that failed"
+    Assert (Test-Path (Join-Path $dlCache "payload.bin")) "download: the file is in the working directory"
+    Assert ((Get-Sha (Join-Path $dlCache "payload.bin")) -eq $goodHash) "download: the content is the expected one"
+    Assert ($r.Output -match "notthere\.bin") "download: names the first mirror that failed"
     Assert ($r.Output -match "bad\.bin") "download: names the second mirror with wrong content"
-    Assert (-not (Test-Path (Join-Path $dlCache "nutzdaten.bin.part"))) "download: no .part leftovers"
+    Assert (-not (Test-Path (Join-Path $dlCache "payload.bin.part"))) "download: no .part leftovers"
 
-    # Zweiter Lauf: nichts mehr zu tun, kein erneuter Netzzugriff noetig.
+    # Second run: nothing left to do, no second trip to the network needed.
     $r = Invoke-Mliv @("fetch", "test-mirror", "--catalog", $catalog, "--cache", $dlCache, "--allow-unsigned")
     Assert ($r.ExitCode -eq 0) "download: the second run succeeds"
     Assert ($r.Output -match "already there") "download: the second run does not download again"
@@ -754,18 +754,18 @@ Copy-Item (Join-Path $work "test-needs-ok.json") (Join-Path $catalog "test-needs
 $r = Invoke-Mliv (@("apply", "test-needs-ok", "--yes") + $common)
 Assert ($r.ExitCode -eq 0) "removal: dependent recipe installed"
 
-# test-ok entfernen, waehrend test-needs-ok daran haengt -> muss abgelehnt werden.
+# Remove test-ok while test-needs-ok depends on it -> has to be refused.
 $r = Invoke-Mliv (@("remove", "test-ok", "--yes") + $common)
 Assert ($r.ExitCode -eq 5) "removal: a depended-on recipe is not removed"
 Assert ($r.Output -match "requires test-ok") "removal: names the dependent recipe"
 Assert (Test-Path (Join-Path $game "xlive.dll")) "removal: nothing was touched"
 
-# Ohne Argument und ohne --all: Hinweis statt Raten.
+# Without an argument and without --all: a hint instead of guessing.
 $r = Invoke-Mliv (@("remove") + $common)
 Assert ($r.ExitCode -eq 2) "removal: without an argument it does not guess"
 Assert ($r.Output -match "remove --all") "removal: names the way to remove everything"
 
-# Alles zurueck, neueste zuerst - damit loest sich die Abhaengigkeit von selbst.
+# Everything back out, newest first - that way the dependency resolves itself.
 $r = Invoke-Mliv (@("remove", "--all", "--yes") + $common)
 Assert ($r.ExitCode -eq 0) "removal: --all runs through"
 Assert (-not (Test-Path (Join-Path $game "xlive.dll"))) "removal: the newly created file is gone again"

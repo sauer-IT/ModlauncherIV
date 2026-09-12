@@ -1,106 +1,114 @@
 # Modlauncher IV
 
-Ein geführter Downgrader und Mod-Installer für GTA IV — und ein selbstgebauter
-Trainer, den er am Ende ausliefert.
+A guided downgrader and mod installer for GTA IV - and a self-built trainer that
+it ships at the end.
 
-**Stand: M5 abgeschlossen, Trainer bis T2c** — der Assistent führt vom
-unveränderten Spiel bis zum laufenden Trainer durch, ohne dass man eine
-Befehlszeile anfassen muss.
+**State: M5 complete, trainer at T6, clickable release** - the program takes you
+from an untouched game to a running trainer without ever touching a command
+line, and it installs itself to the desktop on request.
 
-Der vollständige Weg ist an einer echten Installation gelaufen: Complete Edition
-1.2.0.59 über den Rockstar Games Launcher, heruntergestuft auf 1.0.7.0, dazu
-ASI-Loader, GFWL-Stub, Visual-C++-2005-Laufzeit und der selbstgebaute Trainer —
-197 Dateien unter Verwaltung, alle per Gegenprobe unverändert.
+The complete path has been run against a real installation: Complete Edition
+1.2.0.59 through the Rockstar Games Launcher, downgraded to 1.0.7.0, plus ASI
+loader, GFWL stub, Visual C++ 2005 runtime and the self-built trainer - 197 files
+under management, all verified unchanged by a counter-check.
 
-Einziges, was das Spiel verändert, ist der Schritt „Einbauen" im Assistenten
-beziehungsweise `apply` in der CLI — beides nach Rückfrage und mit vorherigem
-Snapshot.
+The only thing that changes the game is the "Install" step in the wizard, or
+`apply` in the CLI - both only after a prompt and with a snapshot taken first.
 
-## Aufbau
+## Layout
 
-| Projekt | Zweck |
+| Project | Purpose |
 |---|---|
-| `src/Launcher.Core` | Domäne, Pipeline und Wegplanung. Keine UI-Abhängigkeit, damit gegen Fixtures testbar. |
-| `src/Launcher.Cli` | Headless-Frontend (`mliv`). Dry-Runs, Diagnose, CI. |
-| `src/Launcher.App` | Der Assistent (WPF). Das Programm, das man startet. |
-| `src/Trainer` | C++ ASI-Plugin, x86, IV-SDK. Spieler, Waffen, Fahrzeuge, Welt (T2c). |
-| `catalog/` | Die deklarativen Rezepte. Sechs Stück, fünf davon erprobt. |
-| `tests/` | Fixtures und Testskript. |
+| `src/Launcher.Core` | Domain, pipeline and journey planning. No UI dependency, so it is testable against fixtures. |
+| `src/Launcher.Cli` | Headless front end (`mliv`). Dry runs, diagnostics, CI. |
+| `src/Launcher.App` | The program you start (WPF): home page and wizard. |
+| `src/Trainer` | C++ ASI plugin, x86, IV-SDK. Player, weapons, vehicles, world, movement, peds, time and physics. |
+| `catalog/` | The declarative recipes. Six of them, five proven. |
+| `tests/` | Fixtures and the test script. |
 
-Die **Wegplanung** (`Core/Planning`) ist der Unterschied zwischen der CLI und
-dem Assistenten. Die CLI führt ein Rezept aus, das man ihr nennt. Der Planer
-leitet aus „ich will den Trainer" selbst ab, dass davor ein Downgrade, ein
-ASI-Loader und eine Laufzeit stehen — und überspringt, was schon installiert ist.
+**Journey planning** (`Core/Planning`) is the difference between the CLI and the
+wizard. The CLI runs a recipe you name. The planner derives from "I want the
+trainer" that a downgrade, an ASI loader and a runtime come first - and skips
+whatever is already installed.
 
-Der Punkt, an dem es sich entscheidet: Rezepte werden gegen die Version geprüft,
-die das Spiel **nach** dem Versionswechsel hat, nicht gegen die aktuelle. Sonst
-wäre jedes 1.0.7.0-Rezept für jeden Nutzer auf der Complete Edition „ungeeignet"
-— obwohl es genau das ist, was er am Ende haben will. Ein Rezept ist dort nicht
-unpassend, sondern noch nicht an der Reihe.
+The point where it is decided: recipes are checked against the version the game
+will have **after** the version change, not against the current one. Otherwise
+every 1.0.7.0 recipe would be "unsuitable" for every user on the Complete
+Edition - even though it is exactly what they want in the end. A recipe there is
+not inapplicable, it is merely not its turn yet.
 
-Der Versionswechsel steht deshalb immer vorn: ein Downgrade tauscht hunderte
-Dateien, alles vorher Eingebaute wäre danach überschrieben oder halb
-überschrieben.
+That is why the version change always comes first: a downgrade swaps hundreds of
+files, and anything installed beforehand would afterwards be overwritten, or
+half overwritten.
 
-Die Logik liegt in Core und nicht im Fenster, weil sich ein Fenster nicht gegen
-Fixtures testen lässt — und weil genau hier die Fehler liegen, die ein Nutzer als
-„der Launcher hat mir das Spiel zerlegt" erlebt. Zu erreichen ist sie ohne
-Oberfläche über `mliv journey`.
+The logic lives in Core and not in the window, because a window cannot be tested
+against fixtures - and because this is exactly where the errors live that a user
+experiences as "the launcher wrecked my game". It is reachable without a UI
+through `mliv journey`.
 
-## Voraussetzungen
+## Prerequisites
 
-- **.NET 10 SDK** — für Launcher.Core und Launcher.Cli
-- **Visual Studio Build Tools mit C++ (x86)** — für den Trainer. SDK und
-  D3DX-Header holt `build-trainer.ps1` selbst und prüft sie per SHA-256.
+- **.NET 10 SDK** - for Launcher.Core and Launcher.Cli
+- **Visual Studio Build Tools with C++ (x86)** - for the trainer. `build-trainer.ps1`
+  fetches the SDK and the D3DX headers itself and checks them by SHA-256.
 
-## Bauen und ausführen
-
-```
-dotnet publish src\Launcher.App -c Release -o artifacts\app
-.\artifacts\app\ModlauncherIV.exe      der Assistent
-
-.\scripts\run.ps1 detect               die CLI aufrufen
-.\scripts\play.ps1                     GTA IV starten, am Rockstar-Launcher vorbei
-.\scripts\pack-trainer.ps1             Trainer bauen und im Katalog installierbar machen
-.\scripts\build-trainer.ps1 -Deploy    Trainer bauen und von Hand ins Spiel legen
-```
-
-Der Assistent verlangt **Administratorrechte**, und zwar von vornherein. GTA IV
-liegt bei Steam wie bei Rockstar unter `C:\Program Files`; dorthin schreiben
-heißt erhöhte Rechte, und das gilt auch für den Snapshot, ohne den es keinen
-Rückbau gibt. Sich erst beim Schreiben neu zu starten hieße: Assistent von vorn,
-Auswahl weg, und im schlimmsten Fall eine Erhöhung mitten in einer Transaktion.
-
-Er nimmt Katalog und Lieferumfang aus seinem **eigenen Ordner**, nicht aus dem
-Arbeitsverzeichnis — ein über eine Verknüpfung gestartetes Programm hat ein
-beliebiges, und fände dann seine eigenen Rezepte nicht.
-
-**Der Trainer startet nicht separat.** Er liegt als
-`plugins\ModlauncherIV-Trainer.asi` im Spielverzeichnis und wird vom ASI-Loader
-beim Spielstart mitgeladen. Im Spiel öffnet `F7` das Menü.
-
-Befehle:
+## Building and running
 
 ```
-detect                 Installationen suchen, Diagnosebericht ausgeben
-catalog                verfügbare Rezepte auflisten
-plan   <rezept-id>     zeigen, was ein Rezept tun würde — ändert nichts
-fetch  <rezept-id>     benötigte Dateien laden und per SHA-256 prüfen
-apply  <rezept-id>     Rezept ausführen, nach Rückfrage und mit Snapshot
-remove <rezept-id>     Rezept zurückbauen. --all für alles, neueste zuerst
-status                 was der Launcher an dieser Installation verändert hat
-route  [version]       welcher Weg zu einer anderen Spielversion führt
-journey <id,id,...>    voller Weg zum Wunschzustand, mit Abhängigkeiten
-guard                  ob die Plattform das Spiel zurückpatchen kann
-verify                 ob noch alles so liegt, wie der Launcher es einbaute
+.\scripts\package.ps1                  the shippable release: one single EXE
+.\artifacts\release\ModlauncherIV.exe  the program
 
-catalog-key            Signierschlüsselpaar erzeugen
-catalog-sign           Katalog indizieren und signieren
+.\scripts\run.ps1 detect               call the CLI
+.\scripts\play.ps1                     start GTA IV, past the Rockstar launcher
+.\scripts\pack-trainer.ps1             build the trainer and make it installable
+.\scripts\build-trainer.ps1 -Deploy    build the trainer and drop it in by hand
+.\scripts\make-icon.ps1                regenerate the application icon
 ```
 
-Rückgabewerte: `0` erfolgreich · `1` nichts gefunden · `2` falscher Aufruf ·
-`3` Blocker gefunden, nichts ausgeführt · `4` Ausgabe nicht schreibbar ·
-`5` Ausführung fehlgeschlagen.
+`package.ps1` produces **one self-contained file** of around 62 MB: the .NET
+runtime, the catalog and the shipped trainer all sit inside. That costs disk
+space but spares the user exactly what such tools usually fail on - an error
+message about a missing runtime instead of a program. On the first start the
+program offers to copy itself to `%LOCALAPPDATA%\Programs\ModlauncherIV` and to
+put a shortcut on the desktop and into the start menu.
+
+The program requires **administrator rights**, and from the outset. On Steam as
+on Rockstar, GTA IV sits under `C:\Program Files`; writing there means elevated
+rights, and that holds for the snapshot too, without which there is no rollback.
+Relaunching only once something has to be written would mean: the wizard from the
+top, the selection gone, and in the worst case an elevation in the middle of a
+transaction.
+
+It takes the catalog and the shipped payload from **its own folder**, not from
+the working directory - a program started through a shortcut has an arbitrary
+one and would then not find its own recipes.
+
+**The trainer does not start separately.** It sits in the game directory as
+`plugins\ModlauncherIV-Trainer.asi` and is loaded along by the ASI loader when
+the game starts. In game, `F7` opens the menu.
+
+Commands:
+
+```
+detect                 look for installations, print a diagnostic report
+catalog                list the available recipes
+plan   <recipe-id>     show what a recipe would do - changes nothing
+fetch  <recipe-id>     download the needed files and check them by SHA-256
+apply  <recipe-id>     run a recipe, after a prompt and with a snapshot
+remove <recipe-id>     take a recipe back out. --all for everything, newest first
+status                 what the launcher changed about this installation
+route  [version]       which way leads to another game version
+journey <id,id,...>    the full path to the desired state, with dependencies
+guard                  whether the platform can patch the game back
+verify                 whether everything still sits the way the launcher left it
+
+catalog-key            generate a signing key pair
+catalog-sign           index and sign the catalog
+```
+
+Exit codes: `0` success - `1` nothing found - `2` wrong invocation -
+`3` blockers found, nothing executed - `4` output not writable -
+`5` execution failed.
 
 ## Tests
 
@@ -108,336 +116,363 @@ Rückgabewerte: `0` erfolgreich · `1` nichts gefunden · `2` falscher Aufruf ·
 .\tests\run-tests.ps1
 ```
 
-131 Tests gegen gefälschte Spielverzeichnisse. Keine echte Installation wird
-angefasst. Läuft GTA IV gerade, bricht das Skript vorn ab — sonst blockiert jeder
-Pre-Flight zu Recht, und vier Tests schlagen fehl, ohne dass am Code etwas falsch
-wäre. Abgedeckt sind unter anderem:
+137 tests against fake game directories. No real installation is touched. If GTA
+IV happens to be running, the script aborts up front - otherwise every pre-flight
+rightly blocks and four tests fail without anything being wrong with the code.
+Among the things covered:
 
-- Prüfsummenschutz und Pfadausbruch aus dem Spielverzeichnis
-- dass der Dry-Run wirklich nichts verändert
-- Rollback nach einem Fehlschlag mitten im Rezept
-- Download über eine Mirror-Kette gegen einen lokalen HTTP-Server: erste Quelle
-  404, zweite liefert falschen Inhalt, dritte ist korrekt
-- Versionsgraph: Wegsuche über mehrere Downgrade-Kanten hinweg
-- Wegplanung: dass ein Rezept für 1.0.7.0 auf einer Complete Edition angenommen
-  wird, sobald das Downgrade im selben Weg davor steht — und abgelehnt, wenn
-  nicht. Dazu Ringabhängigkeiten, Konflikte und unbekannte Ausgangsversionen
-- Lieferumfang: dass eine mitgelieferte Datei mit falscher Prüfsumme abgelehnt
-  wird und nicht einmal ins Arbeitsverzeichnis gelangt
-- Update-Sperre: offene Steam-Installation erkennen, Schalter setzen, Sicherung anlegen
-- Gegenprobe: veränderte und gelöschte Dateien werden dem Rezept zugeordnet
-- Rückbau: neu angelegte Dateien verschwinden, überschriebene bekommen ihren
-  alten Inhalt zurück, gebundene Rezepte werden nicht entfernt
-- Katalogsignatur: unsigniert wird abgelehnt, nachträglich veränderte
-  Rezeptdatei fällt auf, gefälschte Signatur wird erkannt
+- checksum protection and path escape out of the game directory
+- that the dry run really changes nothing
+- rollback after a failure in the middle of a recipe
+- download over a mirror chain against a local HTTP server: the first source
+  404s, the second delivers wrong content, the third is correct
+- version graph: pathfinding across several downgrade edges
+- journey planning: that a recipe for 1.0.7.0 is accepted on a Complete Edition
+  as soon as the downgrade sits ahead of it in the same journey - and rejected
+  when it does not. Plus circular dependencies, conflicts and unknown starting
+  versions
+- shipped payload: that a shipped file with a wrong checksum is rejected and does
+  not even make it into the working directory
+- update lock: detect an open Steam installation, set the switch, keep a backup
+- counter-check: changed and deleted files are attributed to their recipe
+- removal: newly created files disappear, overwritten ones get their old content
+  back, recipes that are depended on are not removed
+- catalog signature: unsigned is rejected, a recipe file changed afterwards is
+  noticed, a forged signature is detected
 
-**Das Skript ist bewusst reines ASCII.** PowerShell 5.1 liest `.ps1` ohne BOM als
-CP1252; ein UTF-8-Geviertstrich wird dabei unter anderem zu `”`, und das gilt
-als String-Begrenzer. Der Parser verrutscht dann still ab dieser Stelle.
+**The script is deliberately pure ASCII.** PowerShell 5.1 reads a `.ps1` without
+a BOM as CP1252; a UTF-8 em dash becomes, among other things, `”`, and that
+counts as a string delimiter. The parser then silently slips out of alignment
+from that point on.
 
-## Der Katalog — Stand und Vorbehalte
+## The catalog - state and caveats
 
-Sechs Rezepte mit **echten, selbst gebildeten SHA-256-Prüfsummen**. Fünf davon
-sind **an einer echten Installation gelaufen** — Complete Edition 1.2.0.59 über
-den Rockstar Games Launcher, heruntergestuft auf 1.0.7.0. Das Spiel startet.
+Six recipes with **real, self-computed SHA-256 checksums**. Five of them have
+**run against a real installation** - Complete Edition 1.2.0.59 through the
+Rockstar Games Launcher, downgraded to 1.0.7.0. The game starts.
 
-| Rezept | Quelle | Größe | Stand |
+| Recipe | Source | Size | State |
 |---|---|---|---|
-| `downgrade-ce-1070` | GitHub-Release des Gillian-Guide-Projekts | 111 MB | gelaufen |
-| `ultimate-asi-loader` | ThirteenAG, GitHub-Release | 928 KB | gelaufen |
-| `gfwl-stub` | FusionFix Legacy Addon, GitHub-Release | 4,0 MB | gelaufen |
-| `vc80-runtime` | vom Nutzer beigestellt | 7,1 MB | gelaufen |
-| `mliv-trainer` | mitgeliefert, selbst gebaut | 205 KB | gelaufen |
-| `scripthook-dotnet` | ClonkAndre, GitHub-Release | 647 KB | ungetestet |
+| `downgrade-ce-1070` | GitHub release of the Gillian guide project | 111 MB | run |
+| `ultimate-asi-loader` | ThirteenAG, GitHub release | 928 KB | run |
+| `gfwl-stub` | FusionFix Legacy Addon, GitHub release | 4.0 MB | run |
+| `vc80-runtime` | supplied by the user | 7.1 MB | run |
+| `mliv-trainer` | shipped, self-built | 205 KB | run |
+| `scripthook-dotnet` | ClonkAndre, GitHub release | 647 KB | untested |
 
-**Der Trainer wird mitgeliefert, nicht heruntergeladen.** Er ist die einzige
-Datei im Katalog, die dieses Projekt selbst herstellt; ihn irgendwo abzulegen,
-damit der eigene Launcher ihn wieder holt, wäre ein Umweg mit einer
-zusätzlichen Fehlerquelle. Er liegt in `bundled\` neben dem Programm und wird
-von dort übernommen.
+**The trainer is shipped, not downloaded.** It is the only file in the catalog
+this project produces itself; putting it somewhere so that our own launcher can
+fetch it again would be a detour with one more thing that can fail. It sits in
+`bundled\` next to the program and is taken from there.
 
-Geprüft wird er trotzdem gegen die Prüfsumme im Rezept. **Der Lieferumfang ist
-kein Vertrauensbonus:** der Ordner liegt neben einem Programm, in den jeder
-schreiben kann, der dort Rechte hat.
+It is still checked against the checksum in the recipe. **Being shipped is no
+bonus of trust:** the folder sits next to a program, and anyone with rights there
+can write into it.
 
-Sein Rezept wird **erzeugt, nicht gepflegt**. Prüfsumme und Größe ändern sich
-bei jedem Build — ein von Hand geschriebenes Rezept lehnte nach dem nächsten
-Build genau die Datei ab, die es installieren soll. `scripts\pack-trainer.ps1`
-baut, misst, schreibt das Rezept und signiert den Katalog neu. Ohne den letzten
-Schritt lädt der Launcher anschließend gar nichts mehr, und zwar zu Recht: eine
-Rezeptdatei, die nicht zum signierten Index passt, ist aus seiner Sicht nicht
-von einer manipulierten zu unterscheiden.
+Its recipe is **generated, not maintained**. Checksum and size change with every
+build - a recipe written by hand would, after the next build, reject exactly the
+file it is supposed to install. `scripts\pack-trainer.ps1` builds, measures,
+writes the recipe and signs the catalog again. Without that last step the
+launcher afterwards loads nothing at all, and rightly so: a recipe file that does
+not match the signed index is, from its point of view, indistinguishable from a
+tampered one.
 
-**Ohne `vc80-runtime` startet nichts.** 1.0.7.0 wurde gegen die
-Visual-C++-2005-Laufzeit gebaut; auf heutigen Systemen fehlt sie, und das
-Downgrade-Paket bringt sie nicht mit. Windows meldet dann nur „Die
-Side-by-Side-Konfiguration ist ungültig", was den eigentlichen Grund nicht
-verrät. Die Laufzeit wird neben die EXE gelegt statt systemweit installiert —
-das bleibt im Spielverzeichnis, ist umkehrbar, und es braucht keinen
-Rezeptschritt, der fremde Installer ausführen darf.
+The generated release number carries the checksum (`0.4.0+ab12cd34`). Without
+that, a freshly built trainer would carry the same number as the installed one,
+the planner would consider it done, and the user would see "file changed" without
+being offered anything that fixes it.
 
-**Warum nicht der übliche Downgrader.** Der verbreitete GTAIVDowngrader (v2.2,
-Januar 2025) holt seine Spielpakete aus einer Dropbox. Diese Links liefern
-inzwischen nur noch eine „File Deleted"-Seite — für `1040.zip`, `1070.zip` und
-`1080.zip` gleichermaßen, in beiden Zweigen seines Manifests. Der übliche Weg ist
-damit derzeit kaputt. Gillians Downgrader nutzt stattdessen GitHub-Releases, und
-von dort stammt unser Paket.
+**Without `vc80-runtime` nothing starts.** 1.0.7.0 was built against the Visual
+C++ 2005 runtime; on today's systems it is missing, and the downgrade package
+does not bring it along. Windows then only reports "the side-by-side
+configuration is invalid", which gives away nothing about the actual reason. The
+runtime is placed next to the EXE rather than installed system-wide - that stays
+inside the game directory, is reversible, and needs no recipe step allowed to run
+foreign installers.
 
-Nebenbei ein Beleg, dass die Größenprüfung aus M2 ihren Zweck erfüllt: die
-Dropbox-Antwort war 185 KB statt 85,7 MB und wäre abgewiesen worden, bevor
-irgendetwas das Spielverzeichnis erreicht.
+**Why not the usual downgrader.** The widespread GTAIVDowngrader (v2.2, January
+2025) pulls its game packages from a Dropbox. Those links now serve nothing but a
+"File Deleted" page - for `1040.zip`, `1070.zip` and `1080.zip` alike, in both
+branches of its manifest. The usual route is therefore broken for the time being.
+Gillian's downgrader uses GitHub releases instead, and that is where our package
+comes from.
 
-**Was der echte Lauf ergeben hat:**
+Incidentally, evidence that the size check from M2 serves its purpose: the
+Dropbox answer was 185 KB instead of 85.7 MB and would have been rejected before
+anything reached the game directory.
 
-- 187 Dateien ersetzt. Liegen bleiben nur Rockstar-Launcher-Artefakte
-  (`MTLX.dll`, `index.bin`, `metadata.dat`, `title.rgl`, `uninstall.exe`) und
-  keine Spieldaten — das 1.0.7.0-Spiel liest sie nicht. Ein Aufräumschritt ist
-  damit nicht nötig; `uninstall.exe` zu entfernen wäre sogar schädlich.
-- Die `GTAIV.exe` der Complete Edition (MD5 `1a47b45f…`) steht in **keiner** der
-  bekannten Hash-Listen für 1.2.0.59 — die Dateien stammen vom August 2026, die
-  Datenbasis der Community von Januar 2025. Gestört hat es nicht.
-- Die resultierende 1.0.7.0-`GTAIV.exe` (`ab21c0d9…cb4c`) ist byte-identisch mit
-  der aus einem unabhängig bezogenen `Retail-1070.zip`. Zwei Quellen, dieselbe
-  Prüfsumme.
+**What the real run produced:**
 
-**Nach dem Downgrade nicht über den Rockstar Games Launcher starten**, sondern
-direkt über `GTAIV.exe` — sonst bemerkt der Launcher die veränderte Installation.
+- 187 files replaced. What stays behind is only Rockstar launcher artefacts
+  (`MTLX.dll`, `index.bin`, `metadata.dat`, `title.rgl`, `uninstall.exe`) and no
+  game data - the 1.0.7.0 game does not read them. A cleanup step is therefore
+  unnecessary; removing `uninstall.exe` would even be harmful.
+- The Complete Edition's `GTAIV.exe` (MD5 `1a47b45f...`) appears in **none** of
+  the known hash lists for 1.2.0.59 - the files date from August 2026, the
+  community's data from January 2025. It did not get in the way.
+- The resulting 1.0.7.0 `GTAIV.exe` (`ab21c0d9...cb4c`) is byte-identical to the
+  one from an independently obtained `Retail-1070.zip`. Two sources, the same
+  checksum.
+
+**After the downgrade, do not start through the Rockstar Games Launcher**, start
+`GTAIV.exe` directly - otherwise the launcher notices the changed installation.
 
 ## Trainer
 
 ```
-.\scripts\pack-trainer.ps1             bauen und im Katalog installierbar machen
-.\scripts\build-trainer.ps1 -Deploy    bauen und von Hand ins Spiel legen
+.\scripts\pack-trainer.ps1             build and make installable in the catalog
+.\scripts\build-trainer.ps1 -Deploy    build and drop it into the game by hand
 ```
 
-Der übliche Weg ist der erste: danach steht der Trainer im Assistenten zur
-Auswahl und wird wie jede andere Mod installiert — mit Snapshot, Ledger und
-Rückbau. Der zweite Weg bleibt für die Entwicklung, wenn man nur schnell eine
-Änderung im Spiel sehen will.
+The usual route is the first: afterwards the trainer is offered in the wizard and
+installed like any other mod - with snapshot, ledger and rollback. The second
+route is for development, when you only want to see a change in game quickly.
 
-Gebaut wird `src/Trainer` zu `ModlauncherIV-Trainer.asi`. Zwei Randbedingungen
-sind keine Bequemlichkeit, sondern Voraussetzung:
+`src/Trainer` is built into `ModlauncherIV-Trainer.asi`. Two constraints are not
+convenience but a prerequisite:
 
-- **x86.** GTA IV ist 32-bit. Eine x64-DLL wird vom ASI-Loader kommentarlos
-  ignoriert — der Fehler äußert sich als „nichts passiert".
-- **Statische C-Laufzeit (`/MT`).** Ein Trainer, der eine Redistributable
-  voraussetzt, wäre ausgerechnet hier fehl am Platz: an genau einer fehlenden
-  Visual-C++-Laufzeit ist das Spiel nach dem Downgrade zuerst gescheitert.
+- **x86.** GTA IV is 32-bit. An x64 DLL is ignored by the ASI loader without
+  comment - the bug presents as "nothing happens".
+- **Static C runtime (`/MT`).** A trainer that requires a redistributable would be
+  out of place here of all things: a missing Visual C++ runtime is exactly what
+  the game first failed on after the downgrade.
 
-**Das Menü läuft im Spiel** — F7 öffnet, Numblock oder Pfeiltasten
-bedienen, Schalter und Auswahl reagieren, Aktionen laufen bis ins Logfile durch.
+**The menu runs in game** - F7 opens it, the numpad or the arrow keys operate it,
+toggles and choices react, actions run all the way through into the log file.
 
-| Taste | Wirkung |
+| Key | Effect |
 |---|---|
-| `F7` | Menü öffnen und schließen |
-| `Num 8` / `↑` · `Num 2` / `↓` | Auswahl bewegen |
-| `Num 4` / `←` · `Num 6` / `→` | Wert ändern |
-| `Num 5` / `Enter` | Auswählen |
-| `Num 0` / `Rücktaste` | Zurück |
+| `F7` | open and close the menu |
+| `Num 8` / `↑` · `Num 2` / `↓` | move the selection |
+| `Num 4` / `←` · `Num 6` / `→` | change a value |
+| `Num 5` / `Enter` | select |
+| `Num 0` / `Backspace` | back |
 
-Die **Menülogik kennt das Spiel nicht** — Struktur, Navigation und Zustand
-liegen in `menu/`, gezeichnet wird über `IMenuRenderer`, bewegt über abstrakte
-Eingaben. Dadurch lässt sich das Menü vollständig ohne Spiel durchspielen:
+Key bindings and the menu's position and scale live in
+`ModlauncherIV-Trainer.ini`, which is written next to the game on the first
+start. The file is plain INI with the sections `[Keys]`, `[Menu]` and `[Log]`,
+and pure ASCII: it lands next to the game and gets opened with whatever happens
+to be around.
+
+The **menu logic knows nothing about the game** - structure, navigation and state
+live in `menu/`, drawing goes through `IMenuRenderer`, movement through abstract
+inputs. That makes it possible to play the whole menu through without the game:
 
 ```
-.\scripts\build-trainer.ps1 -Test      22 Tests, ohne GTA IV
+.\scripts\build-trainer.ps1 -Test      69 tests, without GTA IV
 ```
 
-Ein Navigationsfehler fällt so in Millisekunden auf statt nach Spielstart,
-Ladebildschirm und Tastendruck.
+A navigation bug shows up in milliseconds that way, instead of after a game
+start, a loading screen and a key press.
 
-**Stand T2c.** Vier Gruppen:
+**State T6.** Roughly sixty options in eight groups:
 
-| Gruppe | Inhalt |
+| Group | Content |
 |---|---|
-| Spieler | Godmode, Leben, Panzerung, Fahndungslevel, Geld |
-| Waffen | unendlich Munition, alle Waffen, Munition auffüllen |
-| Fahrzeuge | zehn Modelle spawnen, reparieren, unkaputtbar |
-| Welt | Uhrzeit, Wetter, Verkehrsdichte, fünf Orte anspringen |
+| Player | godmode, health, armour, wanted level, money |
+| Weapons | infinite ammo, all weapons, refill ammo |
+| Vehicles | spawn ten models, repair, indestructible |
+| World | time of day, weather, traffic density, jump to five places |
+| Movement | noclip, superjump, run speed, teleport to the waypoint |
+| Vehicle tuning | top speed, grip, boost, flip back over, paint |
+| Peds and chaos | spawn companions, riot, panic, clear the area |
+| Time and physics | game speed, gravity, ragdoll |
 
-Drei Stellen davon sind nicht offensichtlich:
+Some of it is not obvious:
 
-- Gespawnte Modelle gehen über `CStreaming::ScriptRequestModel`, nicht über
-  `REQUEST_MODEL` — das ist im SDK auskommentiert. `CREATE_CAR` mit einem nicht
-  geladenen Modell erzeugt kein Fahrzeug, sondern **beendet das Spiel**; deshalb
-  wird vorher geprüft und im Zweifel nur geloggt.
-- Die **Verkehrsdichte wird jeden Frame neu gesetzt**. Das Spiel dreht die
-  Multiplikatoren jeden Frame auf `1.0` zurück, ein einmaliges Setzen wäre
-  wirkungslos. Die Stufe „normal" ist der Standardwert und fasst nichts an.
-- Wetter wechselt mit `FORCE_WEATHER_NOW` statt `FORCE_WEATHER`: letzteres
-  blendet über Minuten über und sieht aus dem Menü heraus schlicht kaputt aus.
+- Spawned models go through `CStreaming::ScriptRequestModel`, not through
+  `REQUEST_MODEL` - that one is commented out in the SDK. `CREATE_CAR` with a
+  model that is not loaded does not create a vehicle, it **ends the game**; so it
+  is checked beforehand and, in doubt, only logged.
+- **Traffic density is set anew every frame.** The game turns the multipliers back
+  to `1.0` every frame, so setting them once would have no effect. The "normal"
+  level is the default value and touches nothing.
+- Weather changes with `FORCE_WEATHER_NOW` rather than `FORCE_WEATHER`: the latter
+  cross-fades over minutes and, seen from a menu, simply looks broken.
+- **Noclip** is not a teleport. The ped keeps its physics handle; collision goes
+  off, gravity goes to zero, and the movement runs through `SET_CHAR_VELOCITY`
+  every frame. Velocity is in units per second, so the speed is the same
+  regardless of frame rate - the earlier version, which moved the ped by a fixed
+  distance per frame, flew at double speed on a 120 Hz display.
 
-Godmode wird aus demselben Grund **jeden Frame neu gesetzt**, nicht nur beim Umschalten — das Spiel
-nimmt Unverwundbarkeit bei Respawn, Zwischensequenzen und Missionswechseln
-zurück. Ein einmal gesetzter Schalter hörte still auf zu wirken, und man hält
-dann den Trainer für kaputt statt das Spiel für eigenwillig.
+Sticky player flags such as godmode are **set anew every frame**, not only when
+toggled - the game takes invulnerability back on respawn, in cut scenes and at
+mission changes, and the ped handle itself changes on death or a model change. A
+switch set once would silently stop working, and you would then take the trainer
+for broken instead of the game for wilful.
 
-**Alles läuft in `processScriptsEvent`** — Eingabe, Schalter und Zeichnen. Das
-war der Ausgang von zwei Fehlern, die erst im Spiel auffielen:
+**Everything runs in `processScriptsEvent`** - input, toggles and drawing. That
+was the outcome of two bugs that only showed up in game:
 
-- Spiel-Natives aus `drawingEvent` **beenden das Spiel im Ladebildschirm.** Nur
-  `processScriptsEvent` setzt vorher `CTheScripts::m_pCurrentThread`, den
-  Kontext den Natives brauchen; und `drawingEvent` läuft laut SDK auch im Menü
-  und beim Laden, wo es noch keine Skript-Maschine gibt.
-- Zeichnen aus `drawingEvent` landet **im Bildschirm des Handys**, sobald dessen
-  Renderziel gebunden ist. Die Skripte des Spiels zeichnen ihr HUD ebenfalls aus
-  dem Script-Tick — von dort landen `DRAW_RECT` und `DISPLAY_TEXT` in der
-  HUD-Phase, wo sie hingehören.
+- Game natives from `drawingEvent` **end the game on the loading screen.** Only
+  `processScriptsEvent` sets `CTheScripts::m_pCurrentThread` beforehand, the
+  context natives need; and per the SDK `drawingEvent` also runs in the menu and
+  while loading, where there is no script machine yet.
+- Drawing from `drawingEvent` ends up **on the screen of the phone** as soon as
+  its render target is bound. The game's own scripts draw their HUD from the
+  script tick as well - from there `DRAW_RECT` and `DISPLAY_TEXT` land in the HUD
+  phase, where they belong.
 
-**Zwei Fallen beim Zeichnen**, beide erst im Spiel sichtbar:
+**Two traps when drawing**, both only visible in game:
 
-- `DRAW_RECT` nimmt in GTA IV **Mittelpunkt und Größe**, nicht zwei Ecken — die
-  Parameternamen im SDK (`x1, y1, x2, y2`) legen anderes nahe. Mit Ecken
-  gefüttert landen die Flächen sichtbar daneben.
-- `beginFrame` bekommt die Anzahl der Einträge, weil der Hintergrund gezeichnet
-  sein muss, **bevor** der Text darauf landet. Später gezeichnete Flächen lägen
-  darüber.
+- In GTA IV `DRAW_RECT` takes **centre and size**, not two corners - the parameter
+  names in the SDK (`x1, y1, x2, y2`) suggest otherwise. Fed with corners, the
+  rectangles land visibly off.
+- `beginFrame` is given the number of entries, because the background has to be
+  drawn **before** the text lands on it. Areas drawn later would sit on top.
 
-Der `VersionAdapter` prüft beim Laden die Spielversion und **bricht ab, wenn
-sie nicht unterstützt wird**. Auf einer anderen Version stimmen Native-Hashes
-und Speicheradressen nicht, und Schreiben an falschen Adressen fällt nicht
-sofort auf, sondern später und an ganz anderer Stelle.
+The `VersionAdapter` checks the game version on load and **aborts if it is not
+supported**. On another version the native hashes and memory addresses do not
+match, and writing to wrong addresses does not show up immediately but later and
+somewhere else entirely. For the same reason the recipe's `appliesToVersions`
+lists 1.0.7.0 only: otherwise the wizard would happily install the trainer on
+1.0.8.0 and the user would end up with a file in the plugins folder that silently
+does nothing.
 
-Gearbeitet wird nicht in `DllMain`, sondern in einem eigenen Thread — dort hält
-Windows die Loader-Sperre, und wer mehr tut als das Nötigste riskiert einen
-Deadlock, der sich als „hängt beim Spielstart" äußert.
+Work does not happen in `DllMain` but in a thread of its own - Windows holds the
+loader lock there, and anyone doing more than the bare minimum risks a deadlock
+that presents as "hangs on game start".
 
-Das Logfile heißt `ModlauncherIV-Trainer.log` und wird nach jeder Zeile geleert;
-sonst fehlt nach einem Absturz genau die Zeile, die den Grund verraten hätte.
+The log file is called `ModlauncherIV-Trainer.log` and is flushed after every
+line; otherwise, after a crash, the one line that would have given away the
+reason is exactly the one missing.
 
-Es wird zuerst neben der DLL angelegt — dort sucht man es. Liegt das Spiel unter
-`Program Files` und läuft ohne erhöhte Rechte, scheitert das aber, und dann
-weicht es nach `%LOCALAPPDATA%\ModlauncherIV\Trainer.log` aus. **Auf dieser
-Installation greift genau der Ausweichpfad.** Ein Trainer ohne Logfile ist bei
-einem Problem so stumm wie einer, der gar nicht geladen hat.
+It is created next to the DLL first - that is where people look for it. If the
+game sits under `Program Files` and runs without elevated rights, that fails, and
+it then falls back to `%LOCALAPPDATA%\ModlauncherIV\Trainer.log`. **On this
+installation it is exactly the fallback path that is used.** A trainer without a
+log file is, when there is a problem, as mute as one that never loaded at all.
 
-Das ASI lädt, erkennt 1.0.7.0 und meldet sich:
+The ASI loads, recognises 1.0.7.0 and reports for duty:
 
 ```
-[14:25:53.944] Modlauncher IV Trainer, Stufe T2c
+[14:25:53.944] Modlauncher IV Trainer, stage T6
 [14:25:53.945] Version: 1.0.7.0 (1.0.7.0)
-[14:25:53.946] Menue bereit. F7 oeffnet, Numblock oder Pfeiltasten bedienen.
+[14:25:53.946] Menu ready. F7 opens it, 13 key bindings active.
 ```
 
-## Katalogsignatur
+## Catalog signature
 
-Der Katalog bestimmt, welche Dateien ins Spielverzeichnis geschrieben werden.
-Wer ihn austauschen kann, kann beliebigen Code unterschieben — TLS schützt dabei
-nur den Transportweg, nicht vor einem übernommenen Server.
+The catalog determines which files are written into the game directory. Whoever
+can swap it out can slip in arbitrary code - TLS only protects the transport,
+not against a server that has been taken over.
 
-Deshalb: ein signierter `index.json` führt jede Rezeptdatei mit ihrer Prüfsumme
-auf, die Signatur wird gegen einen fest eingebauten öffentlichen Schlüssel
-geprüft (ECDSA P-256, SHA-256). Ohne gültige Signatur wird **kein einziges**
-Rezept geladen — nicht "die unauffälligen trotzdem", denn wer fälschen kann,
-sucht sich aus, welche unauffällig aussehen.
+Hence: a signed `index.json` lists every recipe file with its checksum, and the
+signature is checked against a public key built into the program (ECDSA P-256,
+SHA-256). Without a valid signature **not a single** recipe is loaded - not "the
+inconspicuous ones anyway", because whoever can forge gets to pick which ones
+look inconspicuous.
 
 ```
-mliv catalog-key  --key C:\keys\catalog.pem        einmalig, ausserhalb des Repos
+mliv catalog-key  --key C:\keys\catalog.pem        once, outside the repository
 mliv catalog-sign --catalog .\catalog --key C:\keys\catalog.pem
 ```
 
-Der öffentliche Teil gehört in `CatalogSignature.EmbeddedPublicKey`, der private
-**nicht ins Repository** — er liegt hier unter
-`%LOCALAPPDATA%\ModlauncherIV\keys\`. Solange kein Schlüssel eingebaut ist, lehnt
-der Launcher jeden Katalog ab; für die Entwicklung gibt es `--allow-unsigned`,
-was laut warnt, und `--public-key <Base64>` für einen abweichenden Signierer.
+The public half belongs in `CatalogSignature.EmbeddedPublicKey`, the private half
+**not into the repository** - here it lives under
+`%LOCALAPPDATA%\ModlauncherIV\keys\`. As long as no key is built in, the launcher
+rejects every catalog; for development there is `--allow-unsigned`, which warns
+loudly, and `--public-key <base64>` for a different signer.
 
-Ein Wechsel des eingebauten Schlüssels macht **jeden bisher signierten Katalog
-ungültig**. Das ist gewollt — es ist derselbe Vorgang wie ein Rückruf.
+Changing the built-in key makes **every catalog signed so far invalid**. That is
+intended - it is the same operation as a recall.
 
-**Wer den Katalog anfasst, muss neu signieren.** Jede Änderung an einer
-Rezeptdatei bricht den Index, und der Launcher lädt dann nichts mehr. Das ist
-kein Ärgernis, sondern der Sinn der Sache: eine geänderte Rezeptdatei ist von
-außen nicht von einer manipulierten zu unterscheiden.
+**Whoever touches the catalog has to sign it again.** Every change to a recipe
+file breaks the index, and the launcher then loads nothing at all. That is not an
+annoyance, it is the whole point: a changed recipe file is, from the outside,
+indistinguishable from a tampered one.
 
 ## Smart App Control
 
-Auf diesem Entwicklungsrechner ist Smart App Control aktiv. Es hat den ersten
-Build sofort blockiert: ein normaler `dotnet build` erzeugt `mliv.exe` plus
-`mliv.dll`, die exe darf starten, aber das Laden der unsignierten `mliv.dll`
-lehnt die Code-Integrity-Richtlinie ab.
+Smart App Control is active on this development machine. It blocked the first
+build immediately: a normal `dotnet build` produces `mliv.exe` plus `mliv.dll`,
+the exe is allowed to start, but loading the unsigned `mliv.dll` is refused by the
+code integrity policy.
 
 ```
-Ereignis 3077 — attempted to load mliv.dll that did not meet the
+Event 3077 - attempted to load mliv.dll that did not meet the
 Enterprise signing level requirements
 Policy ID {0283ac0f-fff1-49ae-ada1-8a933130cad6}
 ```
 
-**Was gemessen wurde — und was nicht.** Als der Block aktiv war, lief ein
-Single-File-Publish zuverlässig durch: ohne separate Managed-DLL gibt es nichts
-zu blockieren. Später hörte SAC von sich aus auf, auch unsignierte Builds zu
-blockieren. Drei Wiederholungen mit erzwungenem Neukompilieren liefen alle
-durch, signiert wie unsigniert.
+**What was measured - and what was not.** While the block was active, a
+single-file publish went through reliably: without a separate managed DLL there
+is nothing to block. Later SAC stopped blocking unsigned builds of its own
+accord. Three repetitions with a forced recompile all went through, signed and
+unsigned alike.
 
-Daraus folgt das eigentliche Problem: **SAC ist nicht regelhaft, sondern
-reputationsbasiert.** Microsofts Intelligent Security Graph entscheidet pro
-Datei, und dieselbe Datei kann heute blockiert und morgen zugelassen werden. Ob
-das Signieren geholfen hat, ließ sich deshalb nicht sauber messen.
+From which follows the actual problem: **SAC is not rule-based, it is
+reputation-based.** Microsoft's Intelligent Security Graph decides per file, and
+the same file can be blocked today and allowed tomorrow. Whether signing helped
+could therefore not be measured cleanly.
 
-**Was daraus gebaut wurde:**
+**What was built out of it:**
 
-| Maßnahme | Wirkung |
+| Measure | Effect |
 |---|---|
-| Single-File-Publish (`scripts/run.ps1`) | Entfernt die separate Managed-DLL — die eine Angriffsfläche, bei der der Block nachweislich griff. |
-| Signieren bei jedem Durchlauf (`scripts/sign.ps1`) | Die Release-Pipeline steht von Anfang an; später wird nur das Zertifikat getauscht. |
-| SAC-Erkennung im Diagnosebericht | Der Nutzer erfährt es **vor** dem Downgrade, nicht wenn der Trainer stumm bleibt. |
+| Single-file publish (`scripts/run.ps1`, `scripts/package.ps1`) | Removes the separate managed DLL - the one surface where the block demonstrably applied. |
+| Signing on every run (`scripts/sign.ps1`) | The release pipeline stands from the start; later only the certificate is swapped. |
+| SAC detection in the diagnostic report | The user learns about it **before** the downgrade, not when the trainer stays mute. |
 
-**Kein Selbstbetrug beim Signieren:** ein selbstsigniertes Zertifikat stellt SAC
-nicht zufrieden. Bewertet wird der Ruf des Signierers beim ISG, nicht die lokale
-Vertrauenskette. Deterministisch löst das nur ein echtes Codesigning-Zertifikat,
-dessen Reputation aufgebaut ist — `MLIV_SIGN_THUMBPRINT` setzen, dann greift der
-Release-Pfad in `sign.ps1`.
+**No self-deception about signing:** a self-signed certificate does not satisfy
+SAC. What is judged is the signer's reputation with the ISG, not the local trust
+chain. Deterministically, only a real code-signing certificate with established
+reputation solves this - set `MLIV_SIGN_THUMBPRINT`, then the release path in
+`sign.ps1` applies.
 
-**Für den Trainer: gemessen, und es ging schief.**
+**For the trainer: measured, and it went wrong.**
 
 | | T0 | T1 |
 |---|---|---|
-| Größe | 147 KB | 193 KB |
-| Signatur | selbstsigniert | dieselbe |
-| SAC-Zustand | aktiv (`1`) | aktiv (`1`) |
-| Ergebnis | **geladen** | **blockiert** |
+| Size | 147 KB | 193 KB |
+| Signature | self-signed | the same |
+| SAC state | active (`1`) | active (`1`) |
+| Result | **loaded** | **blocked** |
 
-Gleicher Rechner, gleiches Zertifikat, gleiche Richtlinie — anderes Ergebnis.
-T1 scheiterte mit Ereignis 3077 und ASI-Loader-Fehler 4551 (`0x11C7`, der
-Win32-Anteil von `0x800711C7`). Die Abhängigkeiten waren sauber, das ASI x86 und
-signiert. Es gab technisch nichts zu korrigieren.
+Same machine, same certificate, same policy - a different result. T1 failed with
+event 3077 and ASI loader error 4551 (`0x11C7`, the Win32 part of `0x800711C7`).
+The dependencies were clean, the ASI x86 and signed. There was technically
+nothing to correct.
 
-Damit ist belegt, was oben als Vermutung steht: **SAC ist keine Regel, die man
-erfüllen kann.** Auf diesem Entwicklungsrechner wurde es deshalb abgeschaltet.
+That establishes what stands above as a suspicion: **SAC is not a rule you can
+satisfy.** On this development machine it was therefore switched off.
 
-**Für Endnutzer bleibt das ungelöst.** Wer Smart App Control aktiv hat, bekommt
-den Trainer nicht geladen. Deterministisch hilft dort nur ein echtes
-Codesigning-Zertifikat mit aufgebauter Reputation — `MLIV_SIGN_THUMBPRINT`
-setzen, dann greift der Release-Pfad in `sign.ps1`.
+**For end users this stays unsolved.** Anyone with Smart App Control active will
+not get the trainer loaded. Deterministically, only a real code-signing
+certificate with established reputation helps there - set
+`MLIV_SIGN_THUMBPRINT`, then the release path in `sign.ps1` applies.
 
-**Alter Stand, überholt:** Für den Trainer hilft das Single-File-Verfahren
-nicht. Eine `.asi` ist definitionsgemäß eine unsignierte DLL, die in `GTAIV.exe`
-geladen wird — genau der Vorgang, den SAC unterbindet. Betrifft auch jeden
-Endnutzer mit aktivem Smart App Control.
+**Old state, superseded:** the single-file approach does not help the trainer. An
+`.asi` is by definition an unsigned DLL loaded into `GTAIV.exe` - exactly the
+operation SAC prevents. This affects every end user with Smart App Control active
+as well.
 
-## Meilensteine
+## Milestones
 
-- **M0** Erkennung und Diagnosebericht ✔
-- **M1** Rezept-Engine, Snapshot, Rollback, Ledger, Dry-Run ✔
-- **M2** Beschaffung, Hash-Prüfung, Mirror, Katalogsignatur ✔
-- **M3** Downgrade-Rezepte, Versionsgraph, Update-Sperre, Gegenprobe, Rückbau ✔
-- **M4** Basis-Stack ✔ · Trainer T0 ✔ · T1 Menügerüst ✔
-- **M5** Assistent ✔ · Wegplanung ✔ · Trainer im Katalog ✔ ·
-  T2a Spieler ✔ · T2b Waffen ✔ · T2c Fahrzeuge und Welt ✔ ← *hier*
-- **M6** Profile, Katalog-Update · Trainer T3: Config und Politur
+- **M0** detection and diagnostic report ✔
+- **M1** recipe engine, snapshot, rollback, ledger, dry run ✔
+- **M2** acquisition, hash check, mirrors, catalog signature ✔
+- **M3** downgrade recipes, version graph, update lock, counter-check, removal ✔
+- **M4** base stack ✔ · trainer T0 ✔ · T1 menu scaffold ✔
+- **M5** wizard ✔ · journey planning ✔ · trainer in the catalog ✔ ·
+  T2a player ✔ · T2b weapons ✔ · T2c vehicles and world ✔ ·
+  home page, self-install, icon, one-file release ✔ ·
+  T3 configuration ✔ · T4-T6 movement, tuning, peds, time and physics ✔ ← *here*
+- **M6** profiles, catalog update · uninstaller · mirrors for third-party sources
 
-Offen und bewusst zurückgestellt: **Noclip** braucht einen eigenen Tick-Modus,
-und der Trainer hat noch **keine Konfigurationsdatei** — Tastenbelegung steht im
-Code.
+Open before a public release: `vc80-runtime` has **no source URL** - it is
+supplied by the user, and a stranger cannot get past that step. Beyond that:
+SmartScreen without a real code-signing certificate, third-party download sources
+that can vanish (the Dropbox already did), and no uninstaller yet.
 
-Der vollständige Projektplan mit Architektur, Risiken und offenen Fragen liegt
-als eigenes Dokument vor.
+The full project plan with architecture, risks and open questions exists as a
+separate document.
 
-## Grundregeln
+## Ground rules
 
-- Der Kern fasst nie direkt Dateien an — jede Änderung läuft durch die Pipeline
-  aus Pre-Flight, Snapshot, Apply, Verify, Commit, mit automatischem Rollback.
-- Ledger und Snapshots liegen unter `%LOCALAPPDATA%\ModlauncherIV\`, nicht im
-  Spielverzeichnis.
-- Es werden keine Spieldateien und keine fremden Mods mit ausgeliefert. Alles
-  wird von der Originalquelle geladen und per SHA-256 geprüft.
+- The core never touches files directly - every change runs through the pipeline
+  of pre-flight, snapshot, apply, verify, commit, with automatic rollback.
+- Ledger and snapshots live under `%LOCALAPPDATA%\ModlauncherIV\`, not in the
+  game directory.
+- No game files and no third-party mods are shipped along. Everything is
+  downloaded from the original source and checked by SHA-256.

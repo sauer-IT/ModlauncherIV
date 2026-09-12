@@ -1,24 +1,24 @@
 <#
 .SYNOPSIS
-  Signiert Binaries mit Authenticode.
+  Signs binaries with Authenticode.
 
 .DESCRIPTION
-  Zwei Betriebsarten, gleicher Ablauf:
+  Two modes, same procedure:
 
-  * Release  — wenn die Umgebungsvariable MLIV_SIGN_THUMBPRINT gesetzt ist, wird
-               dieses Zertifikat benutzt und die Signatur zusaetzlich
-               zeitgestempelt. Das ist der Weg fuer ein echtes
-               Codesigning-Zertifikat.
+  * Release     - when the environment variable MLIV_SIGN_THUMBPRINT is set,
+                that certificate is used and the signature is time-stamped as
+                well. That is the route for a real code-signing certificate.
 
-  * Entwicklung — sonst wird ein selbstsigniertes Zertifikat "CN=ModlauncherIV Dev"
-               benutzt und beim ersten Mal angelegt.
 
-  Zum Thema Smart App Control, damit hier keine falsche Erwartung entsteht:
-  Eine SELBSTSIGNIERTE Signatur macht SAC NICHT zufrieden. SAC bewertet den Ruf
-  des Signierers ueber Microsofts Intelligent Security Graph, nicht die lokale
-  Vertrauenskette — ein selbstsigniertes Zertifikat hat dort keinen Ruf.
-  Das Signieren hier dient dazu, dass die Release-Pipeline von Anfang an steht
-  und spaeter nur das Zertifikat getauscht werden muss.
+  * Development - otherwise a self-signed certificate "CN=ModlauncherIV Dev"
+                is used, and created the first time round.
+
+  About Smart App Control, so no false expectation forms here: a SELF-SIGNED
+  signature does NOT satisfy SAC. SAC judges the signer's reputation through
+  Microsoft's Intelligent Security Graph, not the local trust chain - and a
+  self-signed certificate has no reputation there. Signing here exists so the
+  release pipeline stands from the start and only the certificate has to be
+  swapped later.
 
 .EXAMPLE
   .\scripts\sign.ps1 -Path .\artifacts\fd\mliv.exe
@@ -42,8 +42,8 @@ function Get-SigningCertificate {
                 Where-Object { $_.Thumbprint -eq $thumbprint } |
                 Select-Object -First 1
 
-        if (-not $cert) { throw "Zertifikat mit Thumbprint $thumbprint nicht gefunden." }
-        Write-Host "Signiere mit Release-Zertifikat: $($cert.Subject)"
+        if (-not $cert) { throw "No certificate with thumbprint $thumbprint found." }
+        Write-Host "Signing with the release certificate: $($cert.Subject)"
         return [pscustomobject]@{ Certificate = $cert; IsRelease = $true }
     }
 
@@ -54,7 +54,7 @@ function Get-SigningCertificate {
             Select-Object -First 1
 
     if (-not $cert) {
-        Write-Host "Lege Entwicklungszertifikat an: $subject"
+        Write-Host "Creating a development certificate: $subject"
         $cert = New-SelfSignedCertificate -Type CodeSigningCert -Subject $subject `
                 -CertStoreLocation "Cert:\CurrentUser\My" -NotAfter (Get-Date).AddYears(3) `
                 -KeyUsage DigitalSignature -KeyAlgorithm RSA -KeyLength 3072
@@ -66,7 +66,7 @@ function Get-SigningCertificate {
 $signer = Get-SigningCertificate
 $files = $Path | ForEach-Object { Get-ChildItem $_ -File -ErrorAction SilentlyContinue } | Sort-Object FullName -Unique
 
-if (-not $files) { throw "Keine Dateien zum Signieren gefunden: $($Path -join ', ')" }
+if (-not $files) { throw "No files to sign found: $($Path -join ', ')" }
 
 foreach ($file in $files) {
     $params = @{
@@ -75,28 +75,28 @@ foreach ($file in $files) {
         HashAlgorithm = "SHA256"
     }
 
-    # Zeitstempel nur beim Release: der Dev-Lauf soll ohne Internet funktionieren.
+    # Time stamp only for releases: the dev run should work without internet.
     if ($signer.IsRelease) { $params.TimestampServer = $TimestampUrl }
 
     $result = Set-AuthenticodeSignature @params
 
-    # "UnknownError" heisst bei einem selbstsignierten Zertifikat nicht, dass
-    # das Signieren fehlgeschlagen waere - die Signatur liegt drauf. Es heisst,
-    # dass die Kette bei einem Stamm endet, dem dieser Rechner nicht vertraut,
-    # und das ist bei einem Dev-Zertifikat genau so zu erwarten.
+    # With a self-signed certificate "UnknownError" does not mean signing failed
+    # - the signature is on the file. It means the chain ends at a root this
+    # machine does not trust, and with a dev certificate that is exactly what to
+    # expect.
     #
-    # Das ungefiltert als Fehler auszugeben, hat schon einmal eine Viertelstunde
-    # Fehlersuche gekostet. Also hier unterscheiden.
+    # Reporting that unfiltered as an error has already cost a quarter of an
+    # hour of debugging once. So distinguish here.
     $note = switch ($result.Status) {
-        "Valid"        { "signiert und vertrauenswuerdig" }
-        "UnknownError" { if ($signer.IsRelease) { "FEHLER: $($result.StatusMessage)" }
-                         else { "signiert (Dev-Zertifikat, dem Stamm vertraut niemand - erwartet)" } }
-        default        { "FEHLER: $($result.Status) - $($result.StatusMessage)" }
+        "Valid"        { "signed and trusted" }
+        "UnknownError" { if ($signer.IsRelease) { "ERROR: $($result.StatusMessage)" }
+                         else { "signed (dev certificate, nobody trusts the root - expected)" } }
+        default        { "ERROR: $($result.Status) - $($result.StatusMessage)" }
     }
 
     "{0,-24} {1}" -f $file.Name, $note
 
-    if ($note -like "FEHLER*") { $script:failed = $true }
+    if ($note -like "ERROR*") { $script:failed = $true }
 }
 
-if ($script:failed) { throw "Mindestens eine Datei liess sich nicht signieren." }
+if ($script:failed) { throw "At least one file could not be signed." }

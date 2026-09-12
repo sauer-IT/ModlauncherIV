@@ -3,7 +3,7 @@
   "name": "ScriptHookDotNet",
   "version": "1.7.2.0",
   "game": "GtaIV",
-  "description": "Erlaubt .NET-Skripte im Spiel. Braucht den ASI-Loader. Nicht noetig fuer einen Trainer, der als C++-ASI gebaut wird - aber die Grundlage fuer einen Grossteil der vorhandenen Mods.",
+  "description": "Allows .NET scripts in the game. Needs the ASI loader. Not required for a trainer built as a C++ ASI - but the basis for a large part of the existing mods.",
 
   "appliesToVersions": [ "1.0.7.0", "1.0.8.0" ],
   "requires": [ "ultimate-asi-loader" ],
@@ -17,7 +17,7 @@
       "urls": [
         "https://github.com/ClonkAndre/gta4_scripthookdotnet/releases/download/v1.7.2.0/ScriptHookDotNet.asi"
       ],
-      "note": "Fortgefuehrte Fassung von HazardX' ScriptHookDotNet, gepflegt von ClonkAndre."
+      "note": "Continued version of HazardX's ScriptHookDotNet, maintained by ClonkAndre."
     }
   ],
 

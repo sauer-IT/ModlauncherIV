@@ -1,9 +1,9 @@
 {
   "id": "gfwl-stub",
-  "name": "GFWL-Stub (FusionFix Legacy Addon)",
+  "name": "GFWL stub (FusionFix Legacy Addon)",
   "version": "5.0.1",
   "game": "GtaIV",
-  "description": "Ersetzt Games for Windows Live durch einen Stub, damit 1.0.7.0 ohne GFWL startet. Bringt xlive.dll und XLivelessAddon.asi mit. Die Complete Edition braucht das nicht - erst der Downgrade fuehrt die GFWL-Abhaengigkeit wieder ein.",
+  "description": "Replaces Games for Windows Live with a stub so that 1.0.7.0 starts without GFWL. Brings xlive.dll and XLivelessAddon.asi. The Complete Edition does not need this - only the downgrade reintroduces the GFWL dependency.",
 
   "appliesToVersions": [ "1.0.7.0", "1.0.8.0" ],
   "requires": [ "ultimate-asi-loader" ],
@@ -17,7 +17,7 @@
       "urls": [
         "https://github.com/ThirteenAG/GTAIV.EFLC.FusionFix/releases/download/v5.0.1/GTAIV.EFLC.FusionFixLegacyAddon.zip"
       ],
-      "note": "Legacy Addon von FusionFix. Enthaelt plugins/XLivelessAddon.asi und xlive.dll."
+      "note": "Legacy Addon by FusionFix. Contains plugins/XLivelessAddon.asi and xlive.dll."
     }
   ],
 

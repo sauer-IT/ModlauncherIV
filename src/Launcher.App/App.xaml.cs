@@ -9,18 +9,18 @@ public partial class App : Application
     {
         base.OnStartup(e);
 
-        // Ein Programm, das gerade hunderte Dateien im Spielverzeichnis
-        // austauscht, darf nicht wortlos verschwinden. Wer hier landet, soll
-        // wenigstens wissen, woran er ist - und dass die Sicherungen liegen.
+        // A program in the middle of swapping hundreds of files in the game
+        // directory must not vanish without a word. Whoever ends up here should
+        // at least know where they stand — and that the backups are there.
         DispatcherUnhandledException += OnUnhandled;
     }
 
     private static void OnUnhandled(object sender, DispatcherUnhandledExceptionEventArgs e)
     {
         MessageBox.Show(
-            $"Der Assistent ist auf einen unerwarteten Fehler gestoßen:\n\n{e.Exception.Message}\n\n"
-            + "Am Spiel wurde nichts halb verändert — jedes Rezept räumt bei einem "
-            + "Fehlschlag selbst auf. Die Sicherungen liegen unter %LOCALAPPDATA%\\ModlauncherIV.",
+            $"The wizard hit an unexpected error:\n\n{e.Exception.Message}\n\n"
+            + "Nothing in the game was left half-changed — every recipe cleans up "
+            + "after itself on failure. The backups are under %LOCALAPPDATA%\\ModlauncherIV.",
             "Modlauncher IV",
             MessageBoxButton.OK,
             MessageBoxImage.Error);

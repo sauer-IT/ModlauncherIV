@@ -14,11 +14,11 @@ namespace mliv
             int code;
         };
 
-        /// Die Tasten, die sich benennen lassen.
+        /// The keys that can be named.
         ///
-        /// Deutsche Namen, weil der Rest der Oberflaeche deutsch ist, mit den
-        /// englischen als Zweitname - wer aus anderen Trainern "ENTER" oder
-        /// "NUMPAD8" gewohnt ist, soll nicht raten muessen.
+        /// NUM* and NUMPAD* are both accepted for the same keys: people coming
+        /// from other trainers are used to one or the other, and neither should
+        /// have to guess.
         const NamedKey kKeys[] = {
             {"F1", 0x70},  {"F2", 0x71},  {"F3", 0x72},  {"F4", 0x73},
             {"F5", 0x74},  {"F6", 0x75},  {"F7", 0x76},  {"F8", 0x77},
@@ -33,25 +33,23 @@ namespace mliv
             {"NUMPAD6", 0x66}, {"NUMPAD7", 0x67}, {"NUMPAD8", 0x68},
             {"NUMPAD9", 0x69},
 
-            {"NUMPLUS", 0x6B},    {"NUMMINUS", 0x6D}, {"NUMMAL", 0x6A},
-            {"NUMGETEILT", 0x6F}, {"NUMPUNKT", 0x6E},
+            {"NUMPLUS", 0x6B},   {"NUMMINUS", 0x6D}, {"NUMMULTIPLY", 0x6A},
+            {"NUMDIVIDE", 0x6F}, {"NUMDOT", 0x6E},
 
-            {"HOCH", 0x26},  {"RUNTER", 0x28}, {"LINKS", 0x25}, {"RECHTS", 0x27},
-            {"UP", 0x26},    {"DOWN", 0x28},   {"LEFT", 0x25},  {"RIGHT", 0x27},
+            {"UP", 0x26}, {"DOWN", 0x28}, {"LEFT", 0x25}, {"RIGHT", 0x27},
 
-            {"EINGABE", 0x0D},    {"ENTER", 0x0D},
-            {"RUECKTASTE", 0x08}, {"BACKSPACE", 0x08},
-            {"LEERTASTE", 0x20},  {"SPACE", 0x20},
-            {"TABULATOR", 0x09},  {"TAB", 0x09},
-            {"ESC", 0x1B},        {"ESCAPE", 0x1B},
+            {"ENTER", 0x0D},  {"RETURN", 0x0D},
+            {"BACKSPACE", 0x08},
+            {"SPACE", 0x20},
+            {"TAB", 0x09},
+            {"ESC", 0x1B},    {"ESCAPE", 0x1B},
 
-            {"EINFG", 0x2D}, {"INSERT", 0x2D}, {"ENTF", 0x2E},  {"DELETE", 0x2E},
-            {"POS1", 0x24},  {"HOME", 0x24},   {"ENDE", 0x23},  {"END", 0x23},
-            {"BILDHOCH", 0x21}, {"PAGEUP", 0x21},
-            {"BILDRUNTER", 0x22}, {"PAGEDOWN", 0x22},
+            {"INSERT", 0x2D}, {"DELETE", 0x2E},
+            {"HOME", 0x24},   {"END", 0x23},
+            {"PAGEUP", 0x21}, {"PAGEDOWN", 0x22},
 
-            {"UMSCHALT", 0x10}, {"SHIFT", 0x10},
-            {"STRG", 0x11},     {"CTRL", 0x11},
+            {"SHIFT", 0x10},
+            {"CTRL", 0x11},   {"CONTROL", 0x11},
             {"ALT", 0x12},
         };
 
@@ -94,8 +92,8 @@ namespace mliv
             return 0;
         }
 
-        // Einzelne Buchstaben und Ziffern stehen nicht in der Tabelle: ihre
-        // Virtual-Keys sind schlicht die ASCII-Werte der Grossbuchstaben.
+        // Single letters and digits are not in the table: their virtual keys
+        // are simply the ASCII values of the upper-case characters.
         if (wanted.size() == 1)
         {
             const char c = wanted[0];
@@ -161,7 +159,7 @@ namespace mliv
             if (equals == std::string::npos)
             {
                 problems_.push_back(
-                    "Zeile " + std::to_string(number) + ": kein Gleichheitszeichen, uebergangen.");
+                    "Line " + std::to_string(number) + ": no equals sign, skipped.");
 
                 continue;
             }
@@ -171,11 +169,11 @@ namespace mliv
 
             if (name.empty())
             {
-                problems_.push_back("Zeile " + std::to_string(number) + ": leerer Name, uebergangen.");
+                problems_.push_back("Line " + std::to_string(number) + ": empty name, skipped.");
                 continue;
             }
 
-            if (section == "tasten")
+            if (section == "keys")
             {
                 bind(name, value);
                 continue;
@@ -183,8 +181,8 @@ namespace mliv
 
             const std::string key = section.empty() ? name : section + "." + name;
 
-            // Der letzte Eintrag gewinnt. Eine doppelte Zeile ist meistens ein
-            // Ueberbleibsel vom Ausprobieren, und die untere ist die neuere.
+            // The last entry wins. A duplicate line is usually a leftover from
+            // experimenting, and the lower one is the newer of the two.
             bool replaced = false;
             for (Entry& entry : entries_)
             {
@@ -220,9 +218,9 @@ namespace mliv
             const int code = KeyCodeFromName(name);
             if (code == 0)
             {
-                // Nicht stillschweigend uebergehen: wer "NUM 8" mit Leerzeichen
-                // schreibt, sucht den Fehler sonst im Spiel.
-                problems_.push_back("Unbekannte Taste \"" + name + "\" bei " + action + ".");
+                // Do not skip silently: somebody writing "NUM 8" with a space
+                // would otherwise look for the bug in the game.
+                problems_.push_back("Unknown key \"" + name + "\" for " + action + ".");
                 continue;
             }
 
@@ -279,18 +277,18 @@ namespace mliv
 
         const std::string text = Lower(*value);
 
-        if (text == "ja" || text == "an" || text == "1" || text == "true" || text == "wahr")
+        if (text == "yes" || text == "on" || text == "1" || text == "true")
         {
             return true;
         }
 
-        if (text == "nein" || text == "aus" || text == "0" || text == "false" || text == "falsch")
+        if (text == "no" || text == "off" || text == "0" || text == "false")
         {
             return false;
         }
 
         problems_.push_back(
-            "Bei " + name + " steht \"" + *value + "\" - erwartet wird ja oder nein.");
+            name + " is set to \"" + *value + "\" - expected yes or no.");
 
         return fallback;
     }
@@ -308,12 +306,12 @@ namespace mliv
             size_t used = 0;
             const float parsed = std::stof(*value, &used);
 
-            // Nachgestellter Text heisst, dass jemand etwas anderes meinte als
-            // das, was gelesen wurde. "0,5" etwa ergaebe stillschweigend 0.
+            // Trailing text means somebody meant something other than what was
+            // read. "0,5" for instance would silently come out as 0.
             if (used != value->size())
             {
                 problems_.push_back(
-                    "Bei " + name + " steht \"" + *value + "\" - erwartet wird eine Zahl mit Punkt.");
+                    name + " is set to \"" + *value + "\" - expected a number with a dot.");
 
                 return fallback;
             }
@@ -323,61 +321,61 @@ namespace mliv
         catch (...)
         {
             problems_.push_back(
-                "Bei " + name + " steht \"" + *value + "\" - das ist keine Zahl.");
+                name + " is set to \"" + *value + "\" - that is not a number.");
 
             return fallback;
         }
     }
 
-    /// Die Vorlage.
+    /// The template.
     ///
-    /// Reines ASCII, keine Umlaute: die Datei landet neben dem Spiel und wird
-    /// mit dem geoeffnet, was gerade da ist. Editor, Notepad++ und die Konsole
-    /// raten die Kodierung unterschiedlich, und ein falsch geratenes Umlaut
-    /// sieht aus wie ein kaputter Trainer.
+    /// Pure ASCII: the file lands next to the game and gets opened with whatever
+    /// happens to be around. Editor, Notepad++ and the console each guess the
+    /// encoding differently, and a wrongly guessed character looks like a broken
+    /// trainer.
     std::string Config::DefaultText()
     {
         return
             "# Modlauncher IV Trainer\n"
             "#\n"
-            "# Diese Datei wurde beim ersten Start angelegt. Aenderungen greifen\n"
-            "# beim naechsten Spielstart.\n"
+            "# This file was created on the first start. Changes take effect on\n"
+            "# the next game start.\n"
             "#\n"
-            "# Mehrere Tasten pro Aktion durch Komma trennen.\n"
-            "# Erlaubt sind unter anderem: F1 bis F12, NUM0 bis NUM9, HOCH,\n"
-            "# RUNTER, LINKS, RECHTS, ENTER, RUECKTASTE, LEERTASTE, ENTF, POS1,\n"
-            "# ENDE, BILDHOCH, BILDRUNTER, ESC, sowie einzelne Buchstaben und\n"
-            "# Ziffern. Was nicht erkannt wird, steht als Meldung im Logfile.\n"
+            "# Separate several keys per action with commas.\n"
+            "# Allowed among others: F1 to F12, NUM0 to NUM9, UP, DOWN, LEFT,\n"
+            "# RIGHT, ENTER, BACKSPACE, SPACE, DELETE, HOME, END, PAGEUP,\n"
+            "# PAGEDOWN, ESC, plus single letters and digits. Anything not\n"
+            "# recognised shows up as a message in the log file.\n"
             "\n"
-            "[Tasten]\n"
-            "Menue   = F7\n"
-            "Hoch    = NUM8, HOCH\n"
-            "Runter  = NUM2, RUNTER\n"
-            "Links   = NUM4, LINKS\n"
-            "Rechts  = NUM6, RECHTS\n"
-            "Waehlen = NUM5, ENTER\n"
-            "Zurueck = NUM0, RUECKTASTE\n"
+            "[Keys]\n"
+            "Menu    = F7\n"
+            "Up      = NUM8, UP\n"
+            "Down    = NUM2, DOWN\n"
+            "Left    = NUM4, LEFT\n"
+            "Right   = NUM6, RIGHT\n"
+            "Select  = NUM5, ENTER\n"
+            "Back    = NUM0, BACKSPACE\n"
             "\n"
-            "# Fliegen (Noclip). Diese Tasten wirken nur, solange Fliegen an ist,\n"
-            "# und werden gehalten statt getippt. Jeweils nur eine Taste.\n"
-            "FlugVor     = W\n"
-            "FlugZurueck = S\n"
-            "FlugLinks   = A\n"
-            "FlugRechts  = D\n"
-            "FlugHoch    = LEERTASTE\n"
-            "FlugRunter  = STRG\n"
+            "# Flying (noclip). These keys only work while flying is on, and they\n"
+            "# are held rather than tapped. One key each.\n"
+            "FlyForward  = W\n"
+            "FlyBack     = S\n"
+            "FlyLeft     = A\n"
+            "FlyRight    = D\n"
+            "FlyUp       = SPACE\n"
+            "FlyDown     = CTRL\n"
             "\n"
-            "# Lage und Groesse des Menues, in Bildanteilen von 0 bis 1.\n"
-            "# Gedacht fuer ungewoehnliche Seitenverhaeltnisse und fuer alle, denen\n"
-            "# die Schrift zu klein ist.\n"
-            "[Menue]\n"
-            "Links   = 0.025\n"
-            "Oben    = 0.12\n"
-            "Breite  = 0.235\n"
-            "Schrift = 1.0\n"
+            "# Position and size of the menu, as a fraction of the screen (0 to 1).\n"
+            "# Meant for unusual aspect ratios and for anyone who finds the text\n"
+            "# too small.\n"
+            "[Menu]\n"
+            "Left    = 0.025\n"
+            "Top     = 0.12\n"
+            "Width   = 0.235\n"
+            "Scale   = 1.0\n"
             "\n"
-            "[Protokoll]\n"
-            "# Auf nein stellen, wenn kein Logfile geschrieben werden soll.\n"
-            "Aktiv = ja\n";
+            "[Log]\n"
+            "# Set to no if no log file should be written.\n"
+            "Enabled = yes\n";
     }
 }

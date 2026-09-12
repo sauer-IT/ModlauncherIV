@@ -8,7 +8,7 @@
 
 namespace
 {
-    /// Baut "1.0.7.0" aus den vier Feldern der Versionsressource.
+    /// Builds "1.0.7.0" from the four fields of the version resource.
     std::wstring Format(const VS_FIXEDFILEINFO& info)
     {
         wchar_t buffer[32];
@@ -57,9 +57,9 @@ namespace mliv
 
         info.raw = Format(*fixed);
 
-        // Nach Zahlen vergleichen, nicht nach Text: die Schreibweise der
-        // Versionsressource schwankt, die Zahlen nicht. Genau daran ist der
-        // Launcher schon einmal gescheitert.
+        // Compare by numbers, not by text: the spelling of the version resource
+        // varies, the numbers do not. That is exactly what the launcher tripped
+        // over once already.
         const WORD major = HIWORD(fixed->dwFileVersionMS);
         const WORD minor = LOWORD(fixed->dwFileVersionMS);
         const WORD build = HIWORD(fixed->dwFileVersionLS);
@@ -87,10 +87,10 @@ namespace mliv
 
     bool IsSupported(const GameVersion version)
     {
-        // Vorerst nur 1.0.7.0. Die Complete Edition hat andere Speicherlagen
-        // und andere Native-Hashes; dort zu laufen hiesse, an falschen Adressen
-        // zu schreiben. Ein Trainer, der nicht startet, ist unendlich viel
-        // besser als einer, der Savegames zerschiesst.
+        // For now only 1.0.7.0. The Complete Edition has different memory
+        // layouts and different native hashes; running there would mean writing
+        // to wrong addresses. A trainer that refuses to start is infinitely
+        // better than one that wrecks save games.
         return version == GameVersion::V1070;
     }
 

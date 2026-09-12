@@ -39,8 +39,8 @@ internal static class FetchCommand
         http.DefaultRequestHeaders.UserAgent.ParseAdd("ModlauncherIV/0.1");
 
         var log = new ExecutionLog(line => Console.WriteLine($"  {line}"));
-        // Auch die CLI kennt den Lieferumfang, damit sich "fetch mliv-trainer"
-        // nicht anders verhaelt als derselbe Schritt im Assistenten.
+        // The CLI knows about the shipped payload as well, so that "fetch mliv-trainer"
+        // does not behave differently from the same step in the wizard.
         var acquirer = new SourceAcquirer(http, cache, log, AppPaths.BundledDirectory);
         var progress = new ConsoleProgress();
 

@@ -44,8 +44,8 @@
                                 <TextBlock Text="{Binding State}" FontSize="11" Foreground="{StaticResource TextDim}" />
                             </Border>
                         </Grid>
-                        <!-- Bereits Vorhandenes wird zurueckgenommen, nicht hervorgehoben:
-                             der Blick soll auf dem liegen, was noch passieren wird. -->
+                        <!-- What is already there is played down, not highlighted: the eye
+                             should rest on what is still going to happen. -->
                         <Border.Style>
                             <Style TargetType="Border" BasedOn="{StaticResource Card}">
                                 <Style.Triggers>

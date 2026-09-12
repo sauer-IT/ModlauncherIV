@@ -8,12 +8,12 @@
             <ColumnDefinition Width="*" />
         </Grid.ColumnDefinitions>
 
-        <!-- Links die Schrittliste. Sie sagt nicht nur, wo man ist, sondern auch,
-             wie viel noch kommt - das nimmt einem Assistenten das Endlose. -->
+        <!-- The step list on the left. It says not only where you are but also
+             how much is still coming - that takes the endlessness out of a wizard. -->
         <Border Grid.Column="0" Background="{StaticResource Panel}" BorderBrush="{StaticResource Line}" BorderThickness="0,0,1,0">
             <StackPanel Margin="0,26,0,0">
                 <TextBlock Text="MODLAUNCHER IV" Style="{StaticResource Head}" Margin="22,0,22,2" />
-                <TextBlock Text="für GTA IV" Style="{StaticResource Dim}" Margin="22,0,22,22" />
+                <TextBlock Text="for GTA IV" Style="{StaticResource Dim}" Margin="22,0,22,22" />
 
                 <ItemsControl ItemsSource="{Binding Steps}">
                     <ItemsControl.ItemTemplate>
@@ -65,7 +65,7 @@
                     </StackPanel>
 
                     <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
-                        <Button Content="Zurück" Command="{Binding BackCommand}" Margin="0,0,10,0" />
+                        <Button Content="Back" Command="{Binding BackCommand}" Margin="0,0,10,0" />
                         <Button Content="{Binding Current.NextLabel}" Command="{Binding NextCommand}" Style="{StaticResource Primary}" />
                     </StackPanel>
                 </Grid>

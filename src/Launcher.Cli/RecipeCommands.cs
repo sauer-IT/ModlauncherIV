@@ -46,8 +46,8 @@ internal static class RecipeCommands
             Console.WriteLine();
         }
 
-        // Auch wenn Rezepte geladen wurden: ein Fehler im Katalog kann bedeuten,
-        // dass eine Datei manipuliert wurde. Das darf nicht als Erfolg durchgehen.
+        // Even when recipes did load: an error in the catalog can mean a file was
+        // tampered with. That must not pass as success.
         return result.Errors.Count > 0 ? ExitCode.Failed : ExitCode.Ok;
     }
 

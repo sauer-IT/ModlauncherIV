@@ -4,7 +4,7 @@ using ModlauncherIV.Core.Detection;
 
 namespace ModlauncherIV.App;
 
-/// <summary>Eine Zielversion zur Auswahl.</summary>
+/// <summary>A target version to pick from.</summary>
 public sealed class VersionChoice(string raw, string label, string reason, bool isCurrent)
 {
     public string Raw { get; } = raw;
@@ -16,7 +16,7 @@ public sealed class VersionChoice(string raw, string label, string reason, bool 
     public bool IsCurrent { get; } = isCurrent;
 }
 
-/// <summary>Ein ankreuzbares Rezept.</summary>
+/// <summary>A recipe with a tick box.</summary>
 public sealed class RecipeChoice(Recipe recipe, bool installed) : Observable
 {
     private bool _selected;
@@ -29,7 +29,7 @@ public sealed class RecipeChoice(Recipe recipe, bool installed) : Observable
 
     public bool Installed { get; } = installed;
 
-    public string State => Installed ? "bereits installiert" : string.Empty;
+    public string State => Installed ? "already installed" : string.Empty;
 
     public bool Selected
     {
@@ -42,11 +42,11 @@ public sealed class ChoiceStep(Session session) : WizardStep(session)
 {
     private VersionChoice? _target;
 
-    public override string Title => "Was soll passieren?";
+    public override string Title => "What should happen?";
 
     public override string Lead =>
-        "Wähle die Spielversion und die Mods. Abhängigkeiten ergänzt der Assistent "
-        + "im nächsten Schritt von selbst — du musst nicht wissen, was ein ASI-Loader ist.";
+        "Pick the game version and the mods. The wizard adds dependencies by "
+        + "itself in the next step — you do not have to know what an ASI loader is.";
 
     public ObservableCollection<VersionChoice> Versions { get; } = [];
 
@@ -66,8 +66,8 @@ public sealed class ChoiceStep(Session session) : WizardStep(session)
     }
 
     /// <summary>
-    /// Weiter geht es nur mit einem Ziel. Nichts auszuwählen ist erlaubt — dann
-    /// bleibt es beim reinen Versionswechsel, was ein völlig legitimer Wunsch ist.
+    /// You can only move on with a target. Picking nothing is fine — then it
+    /// stays a pure version change, which is a perfectly legitimate wish.
     /// </summary>
     public override bool CanGoNext => Target is not null;
 
@@ -97,14 +97,14 @@ public sealed class ChoiceStep(Session session) : WizardStep(session)
             return;
         }
 
-        // Die vorhandene Version steht immer zur Wahl: wer nur eine Mod einbauen
-        // will, soll dafür nicht sein Spiel herunterstufen müssen.
+        // The version in place is always on offer: somebody who only wants to add
+        // one mod should not have to downgrade their game for it.
         Versions.Add(new VersionChoice(
             current.Raw,
-            current.IsKnown ? $"{current.Raw} behalten" : "Version behalten",
+            current.IsKnown ? $"keep {current.Raw}" : "keep the version",
             current.IsKnown
                 ? current.DisplayName
-                : "Die vorhandene Version konnte nicht zugeordnet werden.",
+                : "The version in place could not be recognised.",
             isCurrent: true));
 
         foreach (var version in KnownVersions.ModdingTargets)
@@ -116,19 +116,19 @@ public sealed class ChoiceStep(Session session) : WizardStep(session)
 
             Versions.Add(new VersionChoice(
                 version.Raw,
-                $"auf {version.Raw} wechseln",
+                $"switch to {version.Raw}",
                 version.DisplayName,
                 isCurrent: false));
         }
 
-        // Vorbelegt ist der übliche Wunsch: die Version, für die es die meisten
-        // Mods gibt. Wer es anders will, klickt daneben.
+        // Preselected is the usual wish: the version with the most mods for it.
+        // Anyone wanting something else clicks elsewhere.
         Target = Versions.FirstOrDefault(v => v.Raw == "1.0.7.0") ?? Versions.FirstOrDefault();
     }
 
     private void BuildRecipes()
     {
-        // Die Auswahl beim Zurückspringen nicht wegwerfen.
+        // Do not throw the selection away when going back.
         var previously = Recipes.Where(r => r.Selected).Select(r => r.Recipe.Id).ToHashSet(StringComparer.OrdinalIgnoreCase);
         if (previously.Count == 0)
         {

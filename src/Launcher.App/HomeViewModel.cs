@@ -8,15 +8,15 @@ using ModlauncherIV.Core.Verification;
 
 namespace ModlauncherIV.App;
 
-/// <summary>Ein installiertes Rezept, wie es auf der Startseite steht.</summary>
+/// <summary>An installed recipe, the way it appears on the home page.</summary>
 public sealed record InstalledMod(string Name, string Version, string State, bool Intact);
 
 /// <summary>
-/// Die Startseite.
+/// The home page.
 ///
-/// Wer sein Spiel schon eingerichtet hat, will spielen — nicht sieben Schritte
-/// durchklicken, um am Ende zu erfahren, dass es nichts zu tun gibt. Der
-/// Assistent bleibt genau einen Klick entfernt.
+/// Anyone whose game is already set up wants to play - not click through seven
+/// steps only to learn at the end that there is nothing to do. The wizard stays
+/// exactly one click away.
 /// </summary>
 public sealed class HomeViewModel : Observable
 {
@@ -45,10 +45,10 @@ public sealed class HomeViewModel : Observable
 
     public ObservableCollection<InstalledMod> Mods { get; } = [];
 
-    /// <summary>Das Angebot, sich auf den Desktop zu legen. Verschwindet, sobald erledigt.</summary>
+    /// <summary>The offer to put itself on the desktop. Disappears once done.</summary>
     public SetupBanner Setup { get; } = new();
 
-    public string GamePath => _session.Install?.Path ?? "keine Installation";
+    public string GamePath => _session.Install?.Path ?? "no installation";
 
     public string Version => _session.Install is { } install
         ? $"{install.Version.Raw} — {install.Version.DisplayName}"
@@ -59,18 +59,18 @@ public sealed class HomeViewModel : Observable
         GamePlatform.Steam => "Steam",
         GamePlatform.RockstarLauncher => "Rockstar Games Launcher",
         GamePlatform.Epic => "Epic Games",
-        GamePlatform.Retail => "Datenträger",
+        GamePlatform.Retail => "Disc",
         _ => "unbekannte Herkunft",
     };
 
-    /// <summary>Der Satz über dem Spiel-starten-Knopf. Sagt, ob etwas nicht stimmt.</summary>
+    /// <summary>The sentence above the play button. Says whether something is wrong.</summary>
     public string Status
     {
         get => _status;
         private set => Set(ref _status, value);
     }
 
-    /// <summary>False, wenn die Gegenprobe etwas gefunden hat. Färbt den Status.</summary>
+    /// <summary>False when the counter-check found something. Colours the status.</summary>
     public bool Healthy
     {
         get => _healthy;
@@ -79,16 +79,16 @@ public sealed class HomeViewModel : Observable
 
     public bool CanPlay => _session.Install is not null && File.Exists(_session.Install.ExecutablePath);
 
-    /// <summary>Erste Anzeige. Die Gegenprobe läuft dabei gleich mit.</summary>
+    /// <summary>First display. The counter-check runs along with it.</summary>
     public Task EnterAsync() => VerifyAsync();
 
     /// <summary>
-    /// Startet das Spiel direkt, am Plattform-Launcher vorbei.
+    /// Starts the game directly, bypassing the platform launcher.
     ///
-    /// Das ist kein Komfort, sondern der Kern der Sache: Steam, Epic und der
-    /// Rockstar Games Launcher prüfen beim Start die Dateien und spielen die
-    /// aktuelle Version zurück. Wer nach dem Downgrade über den Launcher startet,
-    /// hat das Downgrade wieder verloren.
+    /// That is not convenience but the heart of the matter: Steam, Epic and the
+    /// Rockstar Games Launcher check the files on start and put the current
+    /// version back. Anyone starting through the launcher after a downgrade has
+    /// lost that downgrade again.
     /// </summary>
     private void Play()
     {
@@ -117,21 +117,21 @@ public sealed class HomeViewModel : Observable
     {
         if (_session.Install is not { } install)
         {
-            Status = "Keine Installation gefunden.";
+            Status = "No installation found.";
             Healthy = false;
             return;
         }
 
         _busy = true;
         VerifyCommand.RaiseCanExecuteChanged();
-        Status = "Prüfe die Installation ...";
+        Status = "Checking the installation ...";
 
         try
         {
             var ledger = _session.Ledger;
 
-            // Prüfsummen über hunderte Dateien — das gehört nicht auf den Thread,
-            // der das Fenster zeichnet.
+            // Checksums over hundreds of files — that does not belong on the
+            // thread that draws the window.
             var result = await Task.Run(() => InstallVerifier.Verify(install, ledger)).ConfigureAwait(true);
 
             Mods.Clear();
@@ -145,7 +145,7 @@ public sealed class HomeViewModel : Observable
                 Mods.Add(new InstalledMod(
                     entry.RecipeName,
                     entry.RecipeVersion,
-                    broken == 0 ? $"{entry.Files.Count} Datei(en)" : $"{broken} Datei(en) verändert oder weg",
+                    broken == 0 ? $"{entry.Files.Count} file(s)" : $"{broken} file(s) changed or gone",
                     broken == 0));
             }
 
@@ -162,17 +162,17 @@ public sealed class HomeViewModel : Observable
     {
         if (ledger.Entries.Count == 0)
         {
-            Status = "An dieser Installation hat der Launcher noch nichts verändert.";
+            Status = "The launcher has not changed anything here yet.";
             Healthy = true;
             return;
         }
 
-        // Die Version zuerst: wurde zurückgepatcht, sind alle anderen Befunde
-        // nur Folgen davon, und die Ursache steht sonst unten in einer Liste.
+        // The version first: if it was patched back, every other finding is just
+        // a consequence, and the cause would otherwise sit down in a list.
         if (result.VersionReverted)
         {
-            Status = $"Die Plattform hat das Spiel auf {result.CurrentVersion} zurückgesetzt. "
-                   + $"Eingebaut war {result.ExpectedVersion}. Die Mods laden so nicht.";
+            Status = $"The platform reset the game to {result.CurrentVersion}. "
+                   + $"{result.ExpectedVersion} was installed. The mods will not load like this.";
 
             Healthy = false;
             return;
@@ -180,24 +180,24 @@ public sealed class HomeViewModel : Observable
 
         if (!result.IsIntact)
         {
-            Status = $"{result.ModifiedCount + result.MissingCount} Datei(en) sind nicht mehr so, "
-                   + "wie der Launcher sie hinterlassen hat.";
+            Status = $"{result.ModifiedCount + result.MissingCount} file(s) are no longer the way "
+                   + "the launcher left them.";
 
             Healthy = false;
             return;
         }
 
-        Status = "Alles bereit.";
+        Status = "All set.";
         Healthy = true;
     }
 
     /// <summary>
-    /// Ob diese Installation eingerichtet genug ist, um die Startseite zu zeigen.
+    /// Whether this installation is set up enough to show the home page.
     ///
-    /// Die Schwelle ist bewusst niedrig: schon ein einziges eingebautes Rezept
-    /// heisst, dass hier jemand war und weiss, was er tut. Wer dagegen ein
-    /// unberuehrtes Spiel hat, soll den Assistenten sehen und nicht einen
-    /// Spiel-starten-Knopf, der ihm nichts bringt.
+    /// The bar is deliberately low: a single installed recipe already means
+    /// somebody has been here and knows what they are doing. Whoever has an
+    /// untouched game should see the wizard instead of a play button that does
+    /// nothing for them.
     /// </summary>
     public static bool LooksConfigured(Session session) =>
         session.Install is not null && session.Ledger.Entries.Count > 0;

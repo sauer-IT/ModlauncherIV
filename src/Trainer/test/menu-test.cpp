@@ -1,8 +1,8 @@
-// Prueft die Menuelogik ohne Spiel.
+// Checks the menu logic without the game.
 //
-// Das Menue haengt bewusst an keiner Spielfunktion, also laesst es sich hier
-// vollstaendig durchspielen. Ein Navigationsfehler faellt damit in
-// Millisekunden auf statt nach Spielstart, Ladebildschirm und Tastendruck.
+// The menu deliberately depends on no game function, so it can be played
+// through completely here. A navigation bug shows up in milliseconds instead
+// of after a game start, a loading screen and a key press.
 
 #include <cstdio>
 #include <memory>
@@ -31,7 +31,7 @@ namespace
         }
     }
 
-    /// Sammelt das Gezeichnete als Text, damit sich die Ausgabe pruefen laesst.
+    /// Collects what was drawn as text, so the output can be checked.
     class TextRenderer final : public mliv::IMenuRenderer
     {
     public:
@@ -63,31 +63,31 @@ namespace
 
 int main()
 {
-    std::printf("\n== Menuelogik ==\n");
+    std::printf("\n== Menu logic ==\n");
 
     bool godmode = false;
     int weather = 0;
     int actionsRun = 0;
     int choiceCalls = 0;
 
-    auto vehicles = std::make_shared<mliv::Menu>("Fahrzeuge");
-    vehicles->add({"Reparieren", mliv::ItemKind::Action, [&] { ++actionsRun; }});
-    vehicles->add({"Unkaputtbar", mliv::ItemKind::Toggle, nullptr, &godmode});
+    auto vehicles = std::make_shared<mliv::Menu>("Vehicles");
+    vehicles->add({"Repair", mliv::ItemKind::Action, [&] { ++actionsRun; }});
+    vehicles->add({"Indestructible", mliv::ItemKind::Toggle, nullptr, &godmode});
 
     auto root = std::make_shared<mliv::Menu>("Modlauncher IV");
-    root->add({"-- Spieler --", mliv::ItemKind::Label});
+    root->add({"-- Player --", mliv::ItemKind::Label});
     root->add({"Godmode", mliv::ItemKind::Toggle, nullptr, &godmode});
 
     mliv::MenuItem weatherItem;
-    weatherItem.label = "Wetter";
+    weatherItem.label = "Weather";
     weatherItem.kind = mliv::ItemKind::Choice;
-    weatherItem.choices = {"Sonnig", "Regen", "Nebel"};
+    weatherItem.choices = {"Sunny", "Rain", "Fog"};
     weatherItem.choiceIndex = &weather;
     weatherItem.onChoice = [&](int) { ++choiceCalls; };
     root->add(weatherItem);
 
     mliv::MenuItem sub;
-    sub.label = "Fahrzeuge";
+    sub.label = "Vehicles";
     sub.kind = mliv::ItemKind::Submenu;
     sub.submenu = vehicles;
     root->add(sub);
@@ -95,77 +95,77 @@ int main()
     mliv::MenuController menu(root);
     TextRenderer renderer;
 
-    // --- Sichtbarkeit ---------------------------------------------------
-    Check(!menu.visible(), "startet geschlossen");
+    // --- Visibility -----------------------------------------------------
+    Check(!menu.visible(), "starts closed");
     menu.draw(renderer);
-    Check(renderer.output.empty(), "zeichnet nichts, solange es zu ist");
+    Check(renderer.output.empty(), "draws nothing while it is closed");
 
     menu.handle(mliv::MenuInput::Toggle);
-    Check(menu.visible(), "Menuetaste oeffnet");
+    Check(menu.visible(), "the menu key opens it");
 
-    // --- Labels werden uebersprungen -------------------------------------
-    Check(root->selected() == 1, "Auswahl steht nicht auf der Ueberschrift");
+    // --- Labels are skipped ----------------------------------------------
+    Check(root->selected() == 1, "the selection does not sit on the heading");
 
     menu.draw(renderer);
-    Check(Contains(renderer.output, "[Modlauncher IV]"), "Titel wird gezeichnet");
-    Check(Contains(renderer.output, "> Godmode : AUS"), "Auswahl ist hervorgehoben");
+    Check(Contains(renderer.output, "[Modlauncher IV]"), "the title is drawn");
+    Check(Contains(renderer.output, "> Godmode : OFF"), "the selection is highlighted");
 
-    // --- Umlauf am Rand ---------------------------------------------------
+    // --- Wrapping at the ends ---------------------------------------------
     menu.handle(mliv::MenuInput::Up);
-    Check(root->selected() == 3, "nach oben vom ersten Eintrag laeuft ans Ende um");
-    Check(root->items()[3].label == "Fahrzeuge", "und landet nicht auf der Ueberschrift");
+    Check(root->selected() == 3, "up from the first entry wraps to the end");
+    Check(root->items()[3].label == "Vehicles", "and does not land on the heading");
 
     menu.handle(mliv::MenuInput::Down);
-    Check(root->selected() == 1, "nach unten vom letzten Eintrag laeuft an den Anfang");
+    Check(root->selected() == 1, "down from the last entry wraps to the start");
 
     // --- Toggle -----------------------------------------------------------
     menu.handle(mliv::MenuInput::Select);
-    Check(godmode, "Auswaehlen schaltet den Schalter ein");
+    Check(godmode, "selecting turns the switch on");
     menu.draw(renderer);
-    Check(Contains(renderer.output, "Godmode : AN"), "der Zustand steht im Menue");
+    Check(Contains(renderer.output, "Godmode : ON"), "the state shows in the menu");
 
     menu.handle(mliv::MenuInput::Select);
-    Check(!godmode, "nochmal Auswaehlen schaltet zurueck");
+    Check(!godmode, "selecting again toggles it back");
 
     // --- Choice -----------------------------------------------------------
     menu.handle(mliv::MenuInput::Down);
-    Check(root->selected() == 2, "Wetter ist ausgewaehlt");
+    Check(root->selected() == 2, "weather is selected");
 
     menu.handle(mliv::MenuInput::Right);
-    Check(weather == 1 && choiceCalls == 1, "rechts erhoeht und meldet es");
+    Check(weather == 1 && choiceCalls == 1, "right increases it and reports it");
     menu.handle(mliv::MenuInput::Left);
     menu.handle(mliv::MenuInput::Left);
-    Check(weather == 2, "links laeuft unter null hinweg ans Ende um");
+    Check(weather == 2, "left wraps past zero to the end");
 
-    // --- Untermenue -------------------------------------------------------
+    // --- Submenu ----------------------------------------------------------
     menu.handle(mliv::MenuInput::Down);
     menu.handle(mliv::MenuInput::Select);
-    Check(menu.depth() == 1, "Untermenue wurde betreten");
-    Check(menu.active().title() == "Fahrzeuge", "und es ist das richtige");
+    Check(menu.depth() == 1, "the submenu was entered");
+    Check(menu.active().title() == "Vehicles", "and it is the right one");
 
     menu.handle(mliv::MenuInput::Select);
-    Check(actionsRun == 1, "Aktion im Untermenue wurde ausgefuehrt");
+    Check(actionsRun == 1, "the action in the submenu ran");
 
     menu.handle(mliv::MenuInput::Back);
-    Check(menu.depth() == 0, "Zurueck fuehrt eine Ebene hoeher");
-    Check(menu.visible(), "und schliesst dabei nicht gleich alles");
+    Check(menu.depth() == 0, "back moves one level up");
+    Check(menu.visible(), "and does not close everything at once");
 
-    // --- Zurueck auf der Wurzel schliesst ----------------------------------
+    // --- Back at the root closes -------------------------------------------
     menu.handle(mliv::MenuInput::Back);
-    Check(!menu.visible(), "Zurueck auf der Wurzel schliesst das Menue");
+    Check(!menu.visible(), "back at the root closes the menu");
 
-    // --- Ein Menue nur aus Labels darf sich nicht aufhaengen ---------------
-    auto onlyLabels = std::make_shared<mliv::Menu>("Nur Text");
+    // --- A menu of labels only must not hang -------------------------------
+    auto onlyLabels = std::make_shared<mliv::Menu>("Text only");
     onlyLabels->add({"a", mliv::ItemKind::Label});
     onlyLabels->add({"b", mliv::ItemKind::Label});
     mliv::MenuController stuck(onlyLabels);
     stuck.handle(mliv::MenuInput::Toggle);
     stuck.handle(mliv::MenuInput::Down);
     stuck.handle(mliv::MenuInput::Up);
-    Check(true, "Menue ohne anwaehlbare Eintraege haengt sich nicht auf");
+    Check(true, "a menu without selectable entries does not hang");
 
     std::printf("\n%s\n", std::string(46, '=').c_str());
-    std::printf(" %d bestanden, %d fehlgeschlagen\n", g_passed, g_failed);
+    std::printf(" %d passed, %d failed\n", g_passed, g_failed);
     std::printf("%s\n\n", std::string(46, '=').c_str());
 
     return g_failed == 0 ? 0 : 1;

@@ -16,8 +16,8 @@ public partial class AcquireView : UserControl
             return;
         }
 
-        // Der Ordner existiert nicht zwingend schon - der Explorer bekäme sonst
-        // einen Pfad ins Leere und meldete einen Fehler, der wie unserer aussieht.
+        // The folder does not necessarily exist yet - Explorer would otherwise
+        // get a path into nowhere and report an error that looks like ours.
         Directory.CreateDirectory(step.CacheFolder);
 
         Process.Start(new ProcessStartInfo
@@ -43,7 +43,7 @@ public partial class AcquireView : UserControl
         }
         catch (Exception error)
         {
-            MessageBox.Show(error.Message, "Beschaffung fehlgeschlagen",
+            MessageBox.Show(error.Message, "Acquisition failed",
                 MessageBoxButton.OK, MessageBoxImage.Warning);
         }
         finally

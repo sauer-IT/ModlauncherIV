@@ -4,7 +4,7 @@ using System.Windows.Data;
 
 namespace ModlauncherIV.App;
 
-/// <summary>True blendet ein, False blendet aus und nimmt keinen Platz weg.</summary>
+/// <summary>True shows it, False hides it and takes up no space.</summary>
 public sealed class ShowConverter : IValueConverter
 {
     public object Convert(object? value, Type targetType, object? parameter, CultureInfo culture) =>
@@ -14,7 +14,7 @@ public sealed class ShowConverter : IValueConverter
         throw new NotSupportedException();
 }
 
-/// <summary>Umgekehrt: True blendet aus.</summary>
+/// <summary>The other way round: true hides it.</summary>
 public sealed class HideConverter : IValueConverter
 {
     public object Convert(object? value, Type targetType, object? parameter, CultureInfo culture) =>
@@ -25,9 +25,9 @@ public sealed class HideConverter : IValueConverter
 }
 
 /// <summary>
-/// Zeigt an, was tatsächlich etwas enthält. Leere Zeichenketten zählen als
-/// nichts — sonst hinterließe ein leerer Hinweis eine Lücke im Layout, die
-/// aussieht, als fehlte dort etwas.
+/// Shows what actually contains something. Empty strings count as nothing —
+/// otherwise an empty note would leave a gap in the layout that looks like
+/// something is missing there.
 /// </summary>
 public sealed class HasContentConverter : IValueConverter
 {

@@ -4,16 +4,17 @@
   <assemblyIdentity version="1.0.0.0" name="ModlauncherIV.app" />
 
   <!--
-    Der Launcher verlangt Administratorrechte.
+    The launcher requires administrator rights.
 
-    GTA IV liegt bei Steam wie bei Rockstar unter C:\Program Files. Dorthin
-    schreiben heisst erhoehte Rechte, und zwar nicht nur beim Einbauen: auch
-    der Snapshot, ohne den es keinen Rueckbau gibt, wird dort abgelegt.
+    On Steam as on Rockstar, GTA IV sits under C:\Program Files. Writing there
+    means elevated rights, and not only while installing: the snapshot, without
+    which there is no rollback, is put there too.
 
-    Die Alternative waere, ohne Rechte zu starten und sich erst beim Schreiben
-    neu zu starten. Das hiesse: Assistent von vorn, Auswahl weg, und im
-    schlimmsten Fall ein halb angewendetes Rezept, weil die Erhoehung mitten
-    in einer Transaktion kommt. Eine Abfrage am Anfang ist ehrlicher.
+    The alternative would be to start without rights and relaunch only once
+    something has to be written. That would mean: the wizard from the top, the
+    selection gone, and in the worst case a half-applied recipe, because the
+    elevation lands in the middle of a transaction. One prompt up front is more
+    honest.
   -->
   <trustInfo xmlns="urn:schemas-microsoft-com:asm.v2">
     <security>
@@ -25,8 +26,8 @@
 
   <compatibility xmlns="urn:schemas-microsoft-com:compatibility.v1">
     <application>
-      <!-- Windows 10 und 11. Ohne diesen Eintrag meldet Windows aeltere
-           Versionsnummern, und die Erkennung liefe ins Leere. -->
+      <!-- Windows 10 and 11. Without this entry Windows reports older version
+           numbers, and the detection would come up empty. -->
       <supportedOS Id="{8e0f7a12-bfb3-4fe8-b9a5-48fd50a15a9a}" />
     </application>
   </compatibility>

@@ -1,7 +1,7 @@
 namespace ModlauncherIV.App;
 
 /// <summary>
-/// Der Rahmen: hält die Schritte, weiß, wo man gerade ist, und schaltet weiter.
+/// The shell: holds the steps, knows where you are, and moves on.
 /// </summary>
 public sealed class WizardViewModel : Observable
 {
@@ -34,10 +34,10 @@ public sealed class WizardViewModel : Observable
         }
     }
 
-    /// <summary>Eine Ausnahme, die beim Weiterschalten hochkam. Das Fenster zeigt sie.</summary>
+    /// <summary>An exception raised while moving on. The window shows it.</summary>
     public event EventHandler<Exception>? Failed;
 
-    /// <summary>Der Nutzer ist am Ende angekommen und will zurück zur Startseite.</summary>
+    /// <summary>The user reached the end and wants to go back to the home page.</summary>
     public event EventHandler? Finished;
 
     public void Finish() => Finished?.Invoke(this, EventArgs.Empty);
@@ -50,8 +50,8 @@ public sealed class WizardViewModel : Observable
 
     public IReadOnlyList<WizardStep> Steps => _steps;
 
-    /// <summary>"Schritt 3 von 7". Ein Assistent ohne Fortschrittsangabe fühlt sich endlos an.</summary>
-    public string Position => $"Schritt {_index + 1} von {_steps.Count}";
+    /// <summary>"Step 3 of 7". A wizard without progress feels endless.</summary>
+    public string Position => $"Step {_index + 1} of {_steps.Count}";
 
     public bool IsBusy
     {
@@ -65,7 +65,7 @@ public sealed class WizardViewModel : Observable
         }
     }
 
-    /// <summary>Startet den ersten Schritt. Aus dem Fenster heraus aufgerufen.</summary>
+    /// <summary>Starts the first step. Called from the window.</summary>
     public async Task StartAsync()
     {
         Current.IsActive = true;
@@ -76,17 +76,17 @@ public sealed class WizardViewModel : Observable
 
     private async Task NextAsync()
     {
-        // Auf der letzten Seite fuehrt "Weiter" aus dem Assistenten heraus,
-        // statt nichts zu tun. Ein grauer Knopf am Ende laesst den Nutzer
-        // ratlos zurueck, wo er doch gerade fertig geworden ist.
+        // On the last page "Next" leads out of the wizard instead of doing
+        // nothing. A grey button at the end leaves the user at a loss right
+        // when they have just finished.
         if (_index >= _steps.Count - 1)
         {
             Finish();
             return;
         }
 
-        // Erst fragen, ob der Schritt fertig ist. Ein Schritt, der noch arbeitet
-        // oder etwas gefunden hat, darf hier anhalten.
+        // Ask first whether the step is done. A step that is still working or
+        // has found something may stop here.
         if (!await RunGuarded(Current.LeaveAsync).ConfigureAwait(true))
         {
             return;
@@ -117,8 +117,8 @@ public sealed class WizardViewModel : Observable
     }
 
     /// <summary>
-    /// Führt Schrittarbeit aus und sperrt derweil die Knöpfe. Ohne die Sperre
-    /// könnte der Nutzer während eines laufenden Downloads weiterklicken.
+    /// Runs step work and locks the buttons meanwhile. Without that lock the
+    /// user could click on during a running download.
     /// </summary>
     private async Task RunGuarded(Func<Task> work)
     {

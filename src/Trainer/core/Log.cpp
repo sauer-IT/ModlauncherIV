@@ -17,10 +17,10 @@ namespace
         return slash == std::wstring::npos ? L"." : path.substr(0, slash);
     }
 
-    /// Legt das Logfile an. FILE_SHARE_READ, damit man waehrend des Spielens
-    /// mitlesen kann. CREATE_ALWAYS, weil jeder Spielstart ein frisches Log
-    /// beginnen soll - eine mitwachsende Datei waere beim Suchen nach dem
-    /// letzten Absturz nur im Weg.
+    /// Creates the log file. FILE_SHARE_READ so it can be followed while
+    /// playing. CREATE_ALWAYS because every game start should begin a fresh log
+    /// - an ever-growing file would only be in the way when hunting for the last
+    /// crash.
     bool TryOpen(const std::wstring& file)
     {
         const HANDLE handle = CreateFileW(
@@ -52,14 +52,14 @@ namespace mliv
             return;
         }
 
-        // Zuerst neben der DLL: dort sucht man es, und dort erwartet es jeder,
-        // der schon einmal ein ASI-Plugin benutzt hat.
+        // Next to the DLL first: that is where people look for it, and where
+        // anyone who has used an ASI plugin before expects it.
         //
-        // Das Spiel liegt aber haeufig unter Program Files und laeuft ohne
-        // erhoehte Rechte. Dann schlaegt das Anlegen fehl - und ein Trainer
-        // ohne Logfile ist bei einem Problem genau so stumm wie einer, der gar
-        // nicht geladen hat. Deshalb der Ausweichpfad unter LOCALAPPDATA, wo
-        // auch der Launcher seinen Zustand haelt.
+        // The game often sits under Program Files though, and runs without
+        // elevation. Creating it then fails - and a trainer without a log file
+        // is just as silent about a problem as one that never loaded at all.
+        // Hence the fallback under LOCALAPPDATA, where the launcher keeps its
+        // state as well.
         if (TryOpen(DirectoryOf(dllPath) + L"\\ModlauncherIV-Trainer.log"))
         {
             return;
@@ -118,7 +118,7 @@ namespace mliv
         DWORD ignored = 0;
         WriteFile(g_file, line, static_cast<DWORD>(length), &ignored, nullptr);
 
-        // Ohne das steht nach einem Absturz genau die Zeile nicht drin, die
+        // Without this, the one line that would have explained the crash is
         // verraten haette, woran es lag.
         FlushFileBuffers(g_file);
     }

@@ -12,11 +12,11 @@ public sealed class DoneStep(Session session) : WizardStep(session)
     private bool _canLock;
     private string? _lockResult;
 
-    public override string Title => "Fertig";
+    public override string Title => "Done";
 
     public override string Lead => string.Empty;
 
-    public override string NextLabel => "Zur Startseite";
+    public override string NextLabel => "To the home page";
 
     public override bool CanGoNext => true;
 
@@ -34,7 +34,7 @@ public sealed class DoneStep(Session session) : WizardStep(session)
 
     public bool CanPlay => Session.Install is not null && File.Exists(Session.Install.ExecutablePath);
 
-    /// <summary>True, wenn die Plattform einen Schalter hat, den wir umlegen können.</summary>
+    /// <summary>True when the platform has a switch we can flip.</summary>
     public bool CanLockUpdates => _canLock;
 
     public string? LockResult
@@ -44,8 +44,8 @@ public sealed class DoneStep(Session session) : WizardStep(session)
     }
 
     /// <summary>
-    /// Legt die Update-Sperre der Plattform um. Nur Steam hat einen solchen
-    /// Schalter; für den Rockstar Games Launcher bleibt es beim Hinweis.
+    /// Flips the platform's update lock. Only Steam has such a switch; for the
+    /// Rockstar Games Launcher it stays a note.
     /// </summary>
     public void LockUpdates()
     {
@@ -73,9 +73,9 @@ public sealed class DoneStep(Session session) : WizardStep(session)
 
         Headline = Session.Applied.Count switch
         {
-            0 => "Es wurde nichts verändert.",
-            1 => "Ein Rezept wurde eingebaut.",
-            _ => $"{Session.Applied.Count} Rezepte wurden eingebaut.",
+            0 => "Nothing was changed.",
+            1 => "One recipe was installed.",
+            _ => $"{Session.Applied.Count} recipes were installed.",
         };
 
         BuildAdvice();
@@ -87,12 +87,12 @@ public sealed class DoneStep(Session session) : WizardStep(session)
     }
 
     /// <summary>
-    /// Startet das Spiel direkt, am Plattform-Launcher vorbei.
+    /// Starts the game directly, bypassing the platform launcher.
     ///
-    /// Das ist kein Komfort, sondern der Kern der Sache: Steam, Epic und der
-    /// Rockstar Games Launcher prüfen beim Start die Dateien und spielen die
-    /// aktuelle Version zurück. Wer nach dem Downgrade über den Launcher startet,
-    /// hat das Downgrade wieder verloren.
+    /// That is not convenience but the heart of the matter: Steam, Epic and the
+    /// Rockstar Games Launcher check the files on start and put the current
+    /// version back. Anyone starting through the launcher after a downgrade has
+    /// lost that downgrade again.
     /// </summary>
     public void Play()
     {
@@ -119,12 +119,12 @@ public sealed class DoneStep(Session session) : WizardStep(session)
         }
 
         Advice.Add(
-            "Starte das Spiel ab jetzt über den Knopf unten oder direkt über GTAIV.exe. "
-            + "Über Steam, Epic oder den Rockstar Games Launcher gestartet, wird die "
-            + "Installation geprüft und im Zweifel zurückgesetzt.");
+            "From now on start the game with the button below, or directly via GTAIV.exe. "
+            + "Started through Steam, Epic or the Rockstar Games Launcher, the "
+            + "installation gets checked and, in case of doubt, reset.");
 
-        // Bei Steam lässt sich das automatische Update tatsächlich sperren. Das
-        // anzubieten, ist sinnvoller als die Warnung allein.
+        // With Steam the automatic update can genuinely be locked. Offering that
+        // is more useful than the warning alone.
         var guard = UpdateGuard.Check(install);
 
         _canLock = guard.State == GuardState.Unlocked;
@@ -137,14 +137,14 @@ public sealed class DoneStep(Session session) : WizardStep(session)
         if (Session.Environment?.SmartAppControl is SmartAppControlState.Enforced or SmartAppControlState.Evaluation)
         {
             Advice.Add(
-                "Smart App Control ist aktiv. Es blockiert unsignierte Erweiterungen, "
-                + "auch innerhalb des Spiels — Mods laden dann einfach nicht. "
-                + "Abschalten geht in der Windows-Sicherheit, ist aber endgültig: "
-                + "einschalten lässt es sich danach nur mit einer Neuinstallation.");
+                "Smart App Control is active. It blocks unsigned extensions, "
+                + "including inside the game — mods then simply do not load. "
+                + "It can be turned off in Windows Security, but that is final: "
+                + "turning it back on afterwards needs a Windows reinstall.");
         }
 
         Advice.Add(
-            "Zurückbauen kannst du jederzeit: der Assistent hat vor jeder Änderung "
-            + "eine Sicherung angelegt.");
+            "You can undo this at any time: the wizard took a backup before every "
+            + "change.");
     }
 }

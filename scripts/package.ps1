@@ -1,28 +1,28 @@
 <#
 .SYNOPSIS
-  Baut die auslieferbare Fassung: eine einzige EXE zum Anklicken.
+  Builds the shippable release: one single clickable EXE.
 
 .DESCRIPTION
-  Selbstenthaltend, das heisst mit kompletter .NET-Laufzeit im Inneren. Das
-  kostet rund 150 MB, spart dem Nutzer aber genau das, woran solche Werkzeuge
-  sonst scheitern: eine Fehlermeldung ueber eine fehlende Runtime statt eines
-  Programms. .NET 10 ist neu genug, dass fast niemand es installiert hat.
+  Self-contained, meaning the complete .NET runtime sits inside. That costs
+  around 60 MB but spares the user exactly what such tools usually fail on: an
+  error message about a missing runtime instead of a program. .NET 10 is new
+  enough that almost nobody has it installed.
 
-  Katalog und mitgelieferter Trainer wandern mit in die EXE
-  (IncludeAllContentForSelfExtract). Beim Start entpackt .NET sie in einen
-  Ordner unter TEMP, und AppContext.BaseDirectory zeigt dorthin - genau der
-  Pfad, unter dem AppPaths Katalog und Lieferumfang sucht. Damit bleibt es
-  eine Datei, ohne dass der Code etwas von Verpackung wissen muss.
+  Catalog and the shipped trainer go into the EXE as well
+  (IncludeAllContentForSelfExtract). On start .NET unpacks them into a folder
+  under TEMP, and AppContext.BaseDirectory points there - exactly the path
+  AppPaths looks for the catalog and the shipped payload under. So it stays one
+  file without the code having to know anything about packaging.
 
-  Reihenfolge ist wichtig: erst der Trainer, dann das Signieren des Katalogs,
-  dann die EXE. Wer die EXE zuerst baut, packt den alten Katalog ein.
+  The order matters: the trainer first, then signing the catalog, then the EXE.
+  Building the EXE first packs the old catalog.
 
 .PARAMETER Key
-  Privater Katalogschluessel fuer die Signatur.
+  Private catalog key for the signature.
 
 .PARAMETER SkipTrainer
-  Ueberspringt den Trainer-Build. Nur sinnvoll, wenn sich am Trainer nichts
-  geaendert hat - sonst passt die Pruefsumme im Rezept nicht zur Datei.
+  Skips the trainer build. Only sensible when nothing about the trainer
+  changed - otherwise the checksum in the recipe will not match the file.
 
 .EXAMPLE
   .\scripts\package.ps1
@@ -37,31 +37,31 @@ $ErrorActionPreference = "Stop"
 $root = Split-Path -Parent $PSScriptRoot
 $out = Join-Path $root "artifacts\release"
 
-# --------------------------------------------------- 1. Trainer und Katalog
+# --------------------------------------------------- 1. Trainer and catalog
 
 if (-not $SkipTrainer) {
-    Write-Host "== Trainer bauen und Katalog signieren ==" -ForegroundColor Cyan
+    Write-Host "== Building the trainer and signing the catalog ==" -ForegroundColor Cyan
     & (Join-Path $PSScriptRoot "pack-trainer.ps1") -Key $Key
-    if ($LASTEXITCODE -ne 0) { throw "pack-trainer ist fehlgeschlagen." }
+    if ($LASTEXITCODE -ne 0) { throw "pack-trainer failed." }
 }
 
 $index = Join-Path $root "catalog\index.json.sig"
 if (-not (Test-Path $index)) {
-    throw "Der Katalog ist nicht signiert. Ohne Signatur laedt der Launcher kein Rezept."
+    throw "The catalog is not signed. Without a signature the launcher loads no recipe."
 }
 
-# ----------------------------------------------------------------- 2. Bauen
+# --------------------------------------------------------------- 2. Building
 
-Write-Host "`n== Die EXE bauen ==" -ForegroundColor Cyan
+Write-Host "`n== Building the EXE ==" -ForegroundColor Cyan
 if (Test-Path $out) { Remove-Item $out -Recurse -Force }
 
-# obj und bin mit wegraeumen.
+# Clear out obj and bin as well.
 #
-# Der WPF-Build legt dort erzeugte Dateien ab, und nach einer Aenderung an der
-# csproj findet er seine eigenen .baml nicht mehr wieder - der Fehler lautet
-# dann "Datei wurde nicht gefunden" und zeigt auf etwas, das der Build selbst
-# haette schreiben sollen. Fuer eine Auslieferung ist ein sauberer Anfang
-# ohnehin das Richtige.
+# The WPF build puts generated files there, and after a change to the csproj it
+# no longer finds its own .baml - the error then reads "file not found" and
+# points at something the build itself should have written. For a release, a
+# clean start is the right thing to do anyway.
+
 foreach ($dir in @("obj", "bin")) {
     $path = Join-Path $root "src\Launcher.App\$dir"
     if (Test-Path $path) { Remove-Item $path -Recurse -Force }
@@ -82,28 +82,28 @@ try {
 }
 finally { $ErrorActionPreference = $previous }
 
-if ($code -ne 0) { throw "Der Build ist fehlgeschlagen (Exitcode $code)." }
+if ($code -ne 0) { throw "The build failed (exit code $code)." }
 
 $exe = Join-Path $out "ModlauncherIV.exe"
-if (-not (Test-Path $exe)) { throw "ModlauncherIV.exe wurde nicht erzeugt." }
+if (-not (Test-Path $exe)) { throw "ModlauncherIV.exe was not produced." }
 
-# Alles, was nicht die eine Datei ist, waere ein Widerspruch zum Zweck der
-# Uebung. Bleibt etwas liegen, soll es auffallen statt mitgeliefert zu werden.
+# Anything that is not the one file would contradict the point of the exercise.
+# If something is left over it should be noticed rather than shipped.
 $extra = Get-ChildItem $out -File | Where-Object { $_.Name -ne "ModlauncherIV.exe" }
 if ($extra) {
-    Write-Host "Neben der EXE liegt noch:" -ForegroundColor Yellow
+    Write-Host "Sitting next to the EXE:" -ForegroundColor Yellow
     $extra | ForEach-Object { Write-Host "  $($_.Name)" -ForegroundColor Yellow }
 }
 
-# -------------------------------------------------------------- 3. Signieren
+# --------------------------------------------------------------- 3. Signing
 
 & (Join-Path $PSScriptRoot "sign.ps1") -Path $exe
 
 $size = [math]::Round((Get-Item $exe).Length / 1MB, 1)
 
 Write-Host ""
-Write-Host "Fertig: $exe ($size MB)" -ForegroundColor Green
-Write-Host "Eine Datei. Doppelklick genuegt - .NET muss nicht installiert sein." -ForegroundColor Green
+Write-Host "Done: $exe ($size MB)" -ForegroundColor Green
+Write-Host "One file. A double click is enough - .NET does not have to be installed." -ForegroundColor Green
 Write-Host ""
-Write-Host "Beim Start fragt Windows nach Administratorrechten. Das ist so gewollt:" -ForegroundColor DarkGray
-Write-Host "GTA IV liegt unter Program Files, und dorthin schreibt niemand ohne." -ForegroundColor DarkGray
+Write-Host "On start Windows asks for administrator rights. That is intended:" -ForegroundColor DarkGray
+Write-Host "GTA IV sits under Program Files, and nobody writes there without them." -ForegroundColor DarkGray

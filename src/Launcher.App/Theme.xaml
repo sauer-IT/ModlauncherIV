@@ -2,9 +2,9 @@
                     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
 
     <!--
-        Dunkel mit orangefarbenem Akzent - dieselben Farben, die das Trainer-Menue
-        im Spiel benutzt. Der Launcher und das, was er einbaut, sollen erkennbar
-        zusammengehoeren.
+        Dark with an orange accent - the same colours the trainer menu uses in
+        the game. The launcher and what it installs should visibly belong
+        together.
     -->
     <Color x:Key="BackColor">#FF16181C</Color>
     <Color x:Key="PanelColor">#FF1E2126</Color>
@@ -67,8 +67,8 @@
         <Setter Property="TextWrapping" Value="NoWrap" />
     </Style>
 
-    <!-- Knoepfe. Kein Standardaussehen: das helle Systemgrau auf dunklem Grund
-         sieht aus wie ein Fehler, nicht wie eine Gestaltung. -->
+    <!-- Buttons. No default look: the light system grey on a dark ground looks
+         like a bug, not like a design. -->
     <Style TargetType="Button">
         <Setter Property="Foreground" Value="{StaticResource Text}" />
         <Setter Property="Background" Value="{StaticResource PanelHi}" />
@@ -124,7 +124,7 @@
         <Setter Property="Cursor" Value="Hand" />
     </Style>
 
-    <!-- Ein Kasten fuer Inhalte, die sich vom Grund absetzen sollen. -->
+    <!-- A box for content that should stand out from the ground. -->
     <Style x:Key="Card" TargetType="Border">
         <Setter Property="Background" Value="{StaticResource Panel}" />
         <Setter Property="BorderBrush" Value="{StaticResource Line}" />

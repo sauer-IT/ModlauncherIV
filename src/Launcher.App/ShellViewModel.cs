@@ -1,12 +1,12 @@
 namespace ModlauncherIV.App;
 
 /// <summary>
-/// Die Hülle: entscheidet beim Start, ob die Startseite oder der Assistent
-/// gezeigt wird, und schaltet zwischen beiden um.
+/// The shell: decides at startup whether the home page or the wizard is shown,
+/// and switches between the two.
 ///
-/// Beide teilen sich dieselbe <see cref="Session"/>. Der Assistent findet
-/// deshalb die Installation schon vor, die die Startseite angezeigt hat - und
-/// die Startseite sieht nach einem Durchlauf sofort, was dazugekommen ist.
+/// Both share the same <see cref="Session"/>. The wizard therefore already
+/// finds the installation the home page displayed — and the home page sees
+/// immediately after a run what has been added.
 /// </summary>
 public sealed class ShellViewModel : Observable
 {
@@ -43,7 +43,7 @@ public sealed class ShellViewModel : Observable
 
         Current = wizard;
 
-        // Der erste Schritt darf erst laufen, wenn die Ansicht steht.
+        // The first step may only run once the view is up.
         _ = wizard.StartAsync();
     }
 

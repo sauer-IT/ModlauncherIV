@@ -3,11 +3,11 @@ using System.Windows;
 namespace ModlauncherIV.App;
 
 /// <summary>
-/// Das Angebot, sich einzurichten.
+/// The offer to set itself up.
 ///
-/// Sitzt auf der Startseite und auf der Willkommensseite, weil man den
-/// Launcher auf beiden Wegen zum ersten Mal sieht. Sobald er an seinem Platz
-/// liegt und auf dem Desktop steht, verschwindet es von selbst.
+/// Sits on the home page and on the welcome page, because those are the two
+/// ways you first see the launcher. As soon as it sits in its place and appears
+/// on the desktop, the offer disappears by itself.
 /// </summary>
 public sealed class SetupBanner : Observable
 {
@@ -22,15 +22,15 @@ public sealed class SetupBanner : Observable
 
     public RelayCommand SetupCommand { get; }
 
-    /// <summary>Ob das Angebot überhaupt angezeigt wird.</summary>
+    /// <summary>Whether the offer is shown at all.</summary>
     public bool Visible => !_done;
 
-    public string Headline => "Auf den Desktop legen";
+    public string Headline => "Put it on the desktop";
 
     public string Text =>
-        "Der Launcher liegt gerade dort, wo du ihn heruntergeladen hast. "
-        + "Ein Klick legt ihn an einen festen Platz und macht eine Verknüpfung "
-        + "auf dem Desktop und im Startmenü — dann findest du ihn wieder.";
+        "The launcher is sitting wherever you downloaded it. One click moves it "
+        + "to a fixed place and creates a shortcut on the desktop and in the start "
+        + "menu — then you will find it again.";
 
     public string? Result
     {
@@ -52,12 +52,12 @@ public sealed class SetupBanner : Observable
             return;
         }
 
-        // Wurde kopiert, laeuft aber noch die alte Datei. Ab jetzt soll die am
-        // festen Platz gelten - sonst bearbeitet der Nutzer beim naechsten Mal
-        // eine Kopie im Downloads-Ordner und wundert sich, dass Aenderungen
-        // verschwinden.
+        // It was copied, but the old file is still running. From now on the one
+        // in the fixed place should count - otherwise next time the user works on
+        // a copy in the downloads folder and wonders why changes keep
+        // disappearing.
         var answer = MessageBox.Show(
-            $"{Result}\n\nDer Launcher startet jetzt von seinem neuen Platz neu.",
+            $"{Result}\n\nThe launcher will now restart from its new place.",
             SelfInstall.ProgramName,
             MessageBoxButton.OKCancel,
             MessageBoxImage.Information);

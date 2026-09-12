@@ -1,13 +1,13 @@
-﻿// Modlauncher IV - Trainer, Stufe T6
+﻿// Modlauncher IV - Trainer, stage T6
 //
-// Die einzige Uebersetzungseinheit, die das IV-SDK einbindet. Das ist keine
-// Bequemlichkeit: IVSDK.cpp definiert Globals und ein eigenes DllMain. Wuerde
-// es aus zwei .cpp-Dateien eingebunden, gaebe es doppelte Symbole. Alles
-// SDK-Beruehrende bleibt deshalb hier, und die Menuelogik in Menu.cpp kennt das
-// Spiel weiterhin nicht.
+// The only translation unit that includes the IV-SDK. That is not a
+// convenience: IVSDK.cpp defines globals and its own DllMain. Included from
+// two .cpp files it would produce duplicate symbols. Everything touching the
+// SDK therefore stays here, and the menu logic in Menu.cpp still does not know
+// the game.
 
-// Fremde Header sollen unsere Warnungsstufe nicht ausloesen - wir bauen mit
-// /W4 /WX, und an fremdem Code haben wir nichts zu korrigieren.
+// Foreign headers should not trigger our warning level - we build with
+// /W4 /WX, and there is nothing for us to fix in somebody else's code.
 #pragma warning(push, 0)
 #include "IVSDK.cpp"
 #pragma warning(pop)
@@ -27,35 +27,35 @@
 
 namespace
 {
-    // ------------------------------------------------------------ Zustand
+    // -------------------------------------------------------------- State
 
     std::shared_ptr<mliv::Menu> g_root;
     std::unique_ptr<mliv::MenuController> g_menu;
 
 
-    // ------------------------------------------------------------ Zeichnen
+    // ------------------------------------------------------------- Drawing
 
-    /// Zeichnet mit den Text-Natives des Spiels.
+    /// Draws with the game's text natives.
     ///
-    /// Bewusst kein D3D9-Hook: der waere huebscher, beisst sich aber mit DXVK,
-    /// Overlays und anderen Mods - eine der haeufigsten Absturzursachen in
-    /// dieser Szene. Die Text-Natives sehen schlichter aus und halten dafuer.
+    /// Deliberately no D3D9 hook: that would look nicer but clashes with DXVK,
+    /// overlays and other mods - one of the most common causes of crashes in
+    /// this scene. The text natives look plainer and hold up instead.
     class NativeMenuRenderer final : public mliv::IMenuRenderer
     {
     public:
         void beginFrame(const int itemCount) override
         {
-            // Kopfzeile plus Eintraege, beides in Zeilenhoehen gerechnet.
+            // Header plus entries, both counted in line heights.
             const float bodyHeight = static_cast<float>(itemCount) * line_;
             const float total = titleHeight_ + bodyHeight + 2.0f * padding_;
 
             titleY_ = top_ + padding_;
             y_ = titleY_ + titleHeight_;
 
-            // Der Kasten zuerst: was spaeter gezeichnet wird, liegt darueber.
+            // The box first: whatever is drawn later sits on top of it.
             FillRect(left_, top_, width_, total, 0, 0, 0, 190);
 
-            // Schmaler Streifen als Kopf, damit der Titel sich absetzt.
+            // A narrow strip as a header so the title stands out.
             FillRect(left_, top_, width_, titleHeight_ + padding_, 158, 87, 16, 230);
         }
 
@@ -82,16 +82,16 @@ namespace
             {
                 SetupText(tone, tone, tone, 255, itemScale_);
 
-                // Rechtsbuendig am rechten Rand des Kastens. SET_TEXT_WRAP legt
-                // fest, wo "rechts" liegt - ohne das richtet sich der Text am
-                // Bildschirmrand aus statt am Menue.
+                // Right-aligned to the right edge of the box. SET_TEXT_WRAP
+                // defines where "right" is - without it the text aligns to the
+                // screen edge instead of the menu.
                 Scripting::SET_TEXT_RIGHT_JUSTIFY(1);
                 Scripting::SET_TEXT_WRAP(left_, left_ + width_ - padding_);
                 Scripting::DISPLAY_TEXT_WITH_LITERAL_STRING(
                     left_ + padding_, y_, "STRING", value.c_str());
 
-                // Beides sofort zuruecknehmen: sonst erbt das Label des
-                // naechsten Eintrags unsere Umbruchgrenzen und wird beschnitten.
+                // Undo both immediately: otherwise the label of the next entry
+                // inherits our wrap bounds and gets cut off.
                 Scripting::SET_TEXT_RIGHT_JUSTIFY(0);
                 Scripting::SET_TEXT_WRAP(0.0f, 1.0f);
             }
@@ -99,16 +99,16 @@ namespace
             y_ += line_;
         }
 
-        /// Textzustand zuruecksetzen.
+        /// Reset the text state.
         ///
-        /// Die SET_TEXT_*-Natives wirken global und bleiben stehen, bis jemand
-        /// sie wieder aendert. Wer danach zeichnet - Handy, HUD, Untertitel -
-        /// erbt unsere Schriftart, Skalierung, Farbe und vor allem unsere
-        /// Umbruchgrenzen. Beim Handy sah man das als verzerrte Darstellung,
-        /// solange das Menue offen war.
+        /// The SET_TEXT_* natives are global and stay in effect until somebody
+        /// changes them again. Whoever draws next - phone, HUD, subtitles -
+        /// inherits our font, scale, colour and above all our wrap bounds. On
+        /// the phone that showed up as a distorted display for as long as the
+        /// menu was open.
         ///
-        /// Das Spiel setzt vieles davon selbst, aber eben nicht alles und nicht
-        /// zuverlaessig. Wer den Zustand anfasst, raeumt ihn auf.
+        /// The game sets much of this itself, but not all of it and not
+        /// reliably. Whoever touches the state cleans it up.
         void endFrame() override
         {
             Scripting::SET_TEXT_RIGHT_JUSTIFY(0);
@@ -121,11 +121,11 @@ namespace
             Scripting::SET_TEXT_PROPORTIONAL(1);
         }
 
-        /// Uebernimmt Lage und Groesse aus der Konfiguration.
+        /// Takes position and size from the configuration.
         ///
-        /// Der Schriftfaktor zieht Zeilenhoehe, Rand und beide Textgroessen
-        /// gemeinsam mit. Nur die Schrift zu vergroessern reichte nicht - der
-        /// Text waere dann ueber seine eigene Zeile hinausgewachsen.
+        /// The scale factor pulls line height, padding and both text sizes along
+        /// with it. Enlarging only the font would not be enough - the text would
+        /// then grow beyond its own line.
         void configure(const float left, const float top, const float width, const float scale)
         {
             left_ = left;
@@ -140,8 +140,8 @@ namespace
         }
 
     private:
-        // Linke obere Ecke des Menues, in Bildanteilen (0..1). Die Werte hier
-        // sind die Vorgabe; die Konfiguration darf sie ueberschreiben.
+        // Top-left corner of the menu, as a fraction of the screen (0..1). The
+        // values here are the defaults; the configuration may override them.
         float left_ = 0.025f;
         float top_ = 0.12f;
         float width_ = 0.235f;
@@ -156,10 +156,10 @@ namespace
         float titleY_ = 0.12f;
         float y_ = 0.12f;
 
-        /// DRAW_RECT in GTA IV nimmt MITTELPUNKT und GROESSE, nicht zwei Ecken.
-        /// Die Parameternamen im SDK legen anderes nahe; mit Ecken gefuettert
-        /// landen die Flaechen sichtbar daneben. Diese Funktion rechnet von
-        /// links-oben plus Groesse um, weil sich Layout so denken laesst.
+        /// DRAW_RECT in GTA IV takes CENTRE and SIZE, not two corners. The
+        /// parameter names in the SDK suggest otherwise; fed with corners the
+        /// rectangles land visibly off. This function converts from top-left
+        /// plus size, because that is how layout is thought about.
         static void FillRect(const float left, const float top,
                              const float width, const float height,
                              const int r, const int g, const int b, const int a)
@@ -182,7 +182,7 @@ namespace
 
     NativeMenuRenderer g_renderer;
 
-    // ------------------------------------------------------------- Eingabe
+    // --------------------------------------------------------------- Input
 
     struct Key
     {
@@ -193,13 +193,13 @@ namespace
 
     std::vector<Key> g_keys;
 
-    /// Die Vorgaben: Numblock, wie es in dieser Szene ueblich ist, dazu die
-    /// Pfeiltasten, damit es auch ohne Zehnerblock bedienbar bleibt.
+    /// The defaults: numpad, as is usual in this scene, plus the arrow keys so
+    /// it stays usable without a numpad.
     ///
-    /// Sie stehen hier und nicht nur in der Vorlagendatei, weil sie auch dann
-    /// gelten muessen, wenn die Datei fehlt, unlesbar ist oder jemand eine
-    /// Aktion herausgeloescht hat. Ein Trainer, der sich nach einer kaputten
-    /// Zeile gar nicht mehr bedienen laesst, waere die schlechteste Antwort.
+    /// They live here and not only in the template file, because they also have
+    /// to apply when the file is missing, unreadable, or somebody deleted an
+    /// action from it. A trainer that cannot be operated at all after one
+    /// broken line would be the worst possible answer.
     struct DefaultBinding
     {
         const char* action;
@@ -209,16 +209,16 @@ namespace
     };
 
     const DefaultBinding kDefaults[] = {
-        { "Menue",   mliv::MenuInput::Toggle, VK_F7,      0         },
-        { "Hoch",    mliv::MenuInput::Up,     VK_NUMPAD8, VK_UP     },
-        { "Runter",  mliv::MenuInput::Down,   VK_NUMPAD2, VK_DOWN   },
-        { "Links",   mliv::MenuInput::Left,   VK_NUMPAD4, VK_LEFT   },
-        { "Rechts",  mliv::MenuInput::Right,  VK_NUMPAD6, VK_RIGHT  },
-        { "Waehlen", mliv::MenuInput::Select, VK_NUMPAD5, VK_RETURN },
-        { "Zurueck", mliv::MenuInput::Back,   VK_NUMPAD0, VK_BACK   },
+        { "Menu",    mliv::MenuInput::Toggle, VK_F7,      0         },
+        { "Up",      mliv::MenuInput::Up,     VK_NUMPAD8, VK_UP     },
+        { "Down",    mliv::MenuInput::Down,   VK_NUMPAD2, VK_DOWN   },
+        { "Left",    mliv::MenuInput::Left,   VK_NUMPAD4, VK_LEFT   },
+        { "Right",   mliv::MenuInput::Right,  VK_NUMPAD6, VK_RIGHT  },
+        { "Select",  mliv::MenuInput::Select, VK_NUMPAD5, VK_RETURN },
+        { "Back",    mliv::MenuInput::Back,   VK_NUMPAD0, VK_BACK   },
     };
 
-    /// Baut die Tastenbelegung aus der Konfiguration, mit den Vorgaben als Netz.
+    /// Builds the key bindings from the configuration, with the defaults as a net.
     void BindKeys(const mliv::Config& config)
     {
         g_keys.clear();
@@ -244,11 +244,11 @@ namespace
         }
     }
 
-    /// Nur Flanken melden, nicht gehaltene Tasten.
+    /// Report edges only, not held keys.
     ///
-    /// Der Zeichen-Event laeuft pro Bild. Ohne Flankenerkennung raste ein
-    /// einziger Tastendruck bei 60 Bildern je Sekunde sechzig Eintraege weiter -
-    /// das Menue waere unbedienbar.
+    /// The tick runs once per frame. Without edge detection a single key press
+    /// would race sixty entries onwards at 60 frames per second - the menu
+    /// would be unusable.
     void PollInput()
     {
         for (Key& key : g_keys)
@@ -264,14 +264,14 @@ namespace
         }
     }
 
-    // --------------------------------------------------------- Einstellungen
+    // ------------------------------------------------------------- Settings
 
-    /// Wo die Konfiguration gesucht und angelegt wird.
+    /// Where the configuration is looked for and created.
     ///
-    /// Neben der DLL zuerst - dort sucht man sie. Liegt das Spiel unter Program
-    /// Files und laeuft ohne erhoehte Rechte, scheitert das Schreiben dort
-    /// allerdings, und dann weicht es nach LOCALAPPDATA aus. Dieselbe Aufteilung
-    /// wie beim Logfile, damit beide Dateien am selben Ort landen.
+    /// Next to the DLL first - that is where people look. If the game sits under
+    /// Program Files and runs without elevation, writing there fails, and then
+    /// it falls back to LOCALAPPDATA. The same split as for the log file, so
+    /// both files end up in the same place.
     std::wstring ConfigPathNextToDll(const std::wstring& dllPath)
     {
         const size_t slash = dllPath.find_last_of(L"\\/");
@@ -329,11 +329,11 @@ namespace
         return file.good();
     }
 
-    /// Liest die Konfiguration und legt sie an, wenn es noch keine gibt.
+    /// Reads the configuration and creates it when there is none yet.
     ///
-    /// Das Anlegen ist Absicht: eine Datei, die es erst gibt, wenn man sie
-    /// selbst schreibt, findet niemand. So sieht jeder beim ersten Blick ins
-    /// Spielverzeichnis, was sich einstellen laesst.
+    /// Creating it is deliberate: a file that only exists once you write it
+    /// yourself is one nobody finds. This way anyone glancing into the game
+    /// directory sees what can be configured.
     mliv::Config LoadConfig(const std::wstring& dllPath)
     {
         mliv::Config config;
@@ -347,34 +347,34 @@ namespace
         {
             if (!candidate.empty() && ReadFileText(candidate, text))
             {
-                mliv::LogLine("Einstellungen aus: %ls", candidate.c_str());
+                mliv::LogLine("Settings from: %ls", candidate.c_str());
                 config.parse(text);
 
                 return config;
             }
         }
 
-        // Keine da - Vorlage schreiben, bevorzugt neben die DLL.
+        // None there - write the template, preferably next to the DLL.
         for (const std::wstring& candidate : {beside, appdata})
         {
             if (!candidate.empty() && WriteFileText(candidate, mliv::Config::DefaultText()))
             {
-                mliv::LogLine("Einstellungen angelegt: %ls", candidate.c_str());
+                mliv::LogLine("Settings created: %ls", candidate.c_str());
                 config.parse(mliv::Config::DefaultText());
 
                 return config;
             }
         }
 
-        mliv::LogLine("Einstellungen liessen sich weder lesen noch anlegen - Vorgaben gelten.");
+        mliv::LogLine("Settings could neither be read nor created - defaults apply.");
         return config;
     }
 
-    // -------------------------------------------------------- Spielzugriff
+    // ---------------------------------------------------------- Game access
 
-    /// Die Spielfunktionen leben hier und nicht in einer eigenen Datei, weil
-    /// das IV-SDK nur in diese eine Uebersetzungseinheit darf. Die Menuelogik
-    /// bleibt davon unberuehrt - sie kennt nur Lambdas.
+    /// The game functions live here and not in their own file, because the
+    /// IV-SDK may only appear in this one translation unit. The menu logic
+    /// stays untouched by that - it only knows lambdas.
     namespace game
     {
         Scripting::Player LocalPlayer()
@@ -382,9 +382,9 @@ namespace
             return static_cast<Scripting::Player>(Scripting::GET_PLAYER_ID());
         }
 
-        /// Der Ped des Spielers. 0, wenn gerade keiner da ist - etwa im Menue,
-        /// beim Laden oder in einer Zwischensequenz. Jeder Aufrufer muss das
-        /// pruefen: ein Native mit ungueltigem Handle ist kein harmloser
+        /// The player ped. 0 when there is none right now - in the menu, while
+        /// loading or during a cutscene. Every caller has to check that: a
+        /// native with an invalid handle is not a harmless no-op but a crash.
         /// Fehlschlag.
         Scripting::Ped LocalPed()
         {
@@ -405,9 +405,9 @@ namespace
             const Scripting::Ped ped = LocalPed();
             if (ped != 0)
             {
-                // Das Spiel begrenzt selbst auf das Maximum der Figur; hoeher
-                // anzusetzen ist ungefaehrlich und erspart uns die Frage, wie
-                // hoch das Maximum gerade ist.
+                // The game clamps to the character maximum itself; setting it
+                // higher is harmless and spares us the question of what the
+                // maximum currently is.
                 Scripting::SET_CHAR_HEALTH(ped, 200);
             }
         }
@@ -426,12 +426,12 @@ namespace
             Scripting::ADD_SCORE(LocalPlayer(), amount);
         }
 
-        /// Die Waffen, die es im Grundspiel wirklich gibt.
+        /// The weapons that actually exist in the base game.
         ///
-        /// Bewusst aufgezaehlt statt ueber den Enum-Bereich zu laufen: dort
-        /// stehen WEAPON_UNUSED0, zwoelf EPISODIC-Plaetze, WEAPON_CAMERA und
-        /// WEAPON_OBJECT dazwischen. Die durchzugeben faengt sich entweder
-        /// nichts ein oder Gegenstaende, die niemand im Waffenrad haben will.
+        /// Listed deliberately rather than walking the enum range: there are
+        /// WEAPON_UNUSED0, twelve EPISODIC slots, WEAPON_CAMERA and
+        /// WEAPON_OBJECT in between. Handing those out catches you either
+        /// nothing, or items nobody wants in their weapon wheel.
         const unsigned kWeapons[] = {
             Scripting::WEAPON_BASEBALLBAT, Scripting::WEAPON_POOLCUE,
             Scripting::WEAPON_KNIFE,       Scripting::WEAPON_GRENADE,
@@ -468,12 +468,12 @@ namespace
             }
         }
 
-        /// Fuellt die Munition der gerade gehaltenen Waffe wieder auf.
+        /// Refills the ammo of the weapon currently held.
         ///
-        /// Nur die aktuelle, nicht alle: das ist ein Native je Bild statt
-        /// neunzehn. Wer umschaltet, hat im naechsten Bild wieder volle
-        /// Munition - der Unterschied ist nicht wahrnehmbar, die Ersparnis
-        /// schon.
+        /// Only the current one, not all of them: that is one native per frame
+        /// instead of nineteen. Switching weapons gives full ammo again on the
+        /// next frame - the difference is imperceptible, the saving is not.
+
         void RefillCurrentAmmo()
         {
             const Scripting::Ped ped = LocalPed();
@@ -496,9 +496,9 @@ namespace
             }
         }
 
-        // ------------------------------------------------------- Fahrzeuge
+        // -------------------------------------------------------- Vehicles
 
-        /// Das Fahrzeug, in dem der Spieler sitzt. 0, wenn er zu Fuss ist.
+        /// The vehicle the player is sitting in. 0 when they are on foot.
         Scripting::Vehicle CurrentVehicle()
         {
             const Scripting::Ped ped = LocalPed();
@@ -523,12 +523,12 @@ namespace
             }
         }
 
-        /// Spawnt ein Fahrzeug vor dem Spieler und setzt ihn hinein.
+        /// Spawns a vehicle in front of the player and puts them inside.
         ///
-        /// Der Umweg ueber das Streaming ist Pflicht: CREATE_CAR mit einem
-        /// nicht geladenen Modell erzeugt kein Fahrzeug, sondern beendet das
-        /// Spiel. REQUEST_MODEL ist im SDK auskommentiert, deshalb der direkte
-        /// Weg ueber CStreaming.
+        /// The detour through streaming is mandatory: CREATE_CAR with a model
+        /// that is not loaded does not create a vehicle, it ends the game.
+        /// REQUEST_MODEL is commented out in the SDK, hence going through
+        /// CStreaming directly.
         void SpawnVehicle(const char* modelName)
         {
             const Scripting::Ped ped = LocalPed();
@@ -544,7 +544,7 @@ namespace
 
             if (!Scripting::HAS_MODEL_LOADED(hash))
             {
-                mliv::LogLine("Modell nicht geladen: %s", modelName);
+                mliv::LogLine("Model not loaded: %s", modelName);
                 return;
             }
 
@@ -557,16 +557,16 @@ namespace
             if (vehicle != 0)
             {
                 Scripting::WARP_CHAR_INTO_CAR(ped, vehicle);
-                mliv::LogLine("Fahrzeug gespawnt: %s", modelName);
+                mliv::LogLine("Vehicle spawned: %s", modelName);
             }
 
-            // Ohne das haelt das Spiel das Modell dauerhaft im Speicher. Bei
-            // einem Trainer, mit dem man gern zwanzig Autos durchprobiert,
-            // summiert sich das.
+            // Without this the game keeps the model in memory for good. With a
+            // trainer people like to try twenty cars with, that adds up.
+
             Scripting::MARK_MODEL_AS_NO_LONGER_NEEDED(hash);
         }
 
-        // ------------------------------------------------------------- Welt
+        // ------------------------------------------------------------ World
 
         void SetTime(const int hour)
         {
@@ -575,16 +575,16 @@ namespace
 
         void SetWeather(const unsigned weather)
         {
-            // FORCE_WEATHER_NOW statt FORCE_WEATHER: letzteres blendet langsam
-            // ueber, und im Menue haelt man das fuer wirkungslos.
+            // FORCE_WEATHER_NOW rather than FORCE_WEATHER: the latter fades
+            // slowly, and from the menu that looks like it did nothing.
             Scripting::FORCE_WEATHER_NOW(weather);
         }
 
-        /// Setzt den Spieler an eine Position und lasst ihn auf dem Boden landen.
+        /// Puts the player at a position and lands them on the ground.
         ///
-        /// Ohne die Bodenhoehe faellt man entweder durch die Welt oder steht
-        /// in der Luft. GET_GROUND_Z_FOR_3D_COORD braucht allerdings geladene
-        /// Geometrie - deshalb zuerst grob hinsetzen, dann korrigieren.
+        /// Without the ground height you either fall through the world or stand
+        /// in mid-air. GET_GROUND_Z_FOR_3D_COORD does need loaded geometry
+        /// though - so put them there roughly first, then correct.
         void Teleport(const float x, const float y, const float z)
         {
             const Scripting::Ped ped = LocalPed();
@@ -606,11 +606,11 @@ namespace
 
         // ------------------------------------------------------- Bewegung
 
-        /// Blickrichtung der Spielkamera als Einheitsvektor.
+        /// The game camera's view direction as a unit vector.
         ///
-        /// GET_CAM_ROT liefert Winkel in Grad: X ist die Neigung, Z die
-        /// Himmelsrichtung. Die Umrechnung folgt der Konvention des Spiels -
-        /// Y zeigt nach Norden, nicht X.
+        /// GET_CAM_ROT returns angles in degrees: X is the pitch, Z the compass
+        /// heading. The conversion follows the game's convention - Y points
+        /// north, not X.
         void CameraForward(float& fx, float& fy, float& fz)
         {
             int camera = 0;
@@ -627,18 +627,18 @@ namespace
             fz = std::sin(p);
         }
 
-        /// Schaltet den freien Flug ein oder aus.
+        /// Switches free flight on or off.
         ///
-        /// Der erste Anlauf fror den Spieler ein und versetzte ihn pro Bild um
-        /// ein Stueck. Das sah aus wie Ruckeln, und zwar zu Recht: zwischen
-        /// zwei Sprungen gibt es keine Bewegung, die die Engine glaetten
-        /// koennte, und die Schrittweite haengt an der Bildrate.
+        /// The first attempt froze the player and moved them a step each frame.
+        /// That looked like stutter, and rightly so: between two jumps there is
+        /// no motion for the engine to smooth, and the step size depends on the
+        /// frame rate.
         ///
-        /// Richtig ist, die Physik arbeiten zu lassen und ihr nur die
-        /// Geschwindigkeit vorzugeben. Dann interpoliert die Engine dazwischen,
-        /// und ein Wert in Einheiten je Sekunde ist von der Bildrate unabhaengig.
-        /// Kollision aus, damit man durch Waende kommt - das ist der Sinn der
-        /// Sache -, Schwerkraft aus, damit man stehen bleiben kann.
+        /// The right way is to let the physics work and only hand it a velocity.
+        /// Then the engine interpolates in between, and a value in units per
+        /// second is independent of the frame rate. Collision off so you get
+        /// through walls - that is the point of the exercise - and gravity off
+        /// so you can hold still.
         void SetNoclip(const bool on, const float normalGravity)
         {
             const Scripting::Ped ped = LocalPed();
@@ -652,14 +652,14 @@ namespace
 
             if (!on)
             {
-                // Ohne das behaelt man beim Aussteigen die letzte Fluggeschwindigkeit
-                // und schiesst quer durch die Gegend.
+                // Without this you keep the last flight velocity on exit and
+                // shoot off across the map.
                 Scripting::SET_CHAR_VELOCITY(ped, 0.0f, 0.0f, 0.0f);
             }
         }
 
-        /// Gibt die Flugrichtung vor. Wird pro Bild gerufen, auch ohne Eingabe -
-        /// sonst faellt man in der Pause zwischen zwei Tastendruecken.
+        /// Sets the flight direction. Called every frame, even without input -
+        /// otherwise you fall in the gap between two key presses.
         void FlyBy(const float forward, const float side, const float up, const float speed)
         {
             const Scripting::Ped ped = LocalPed();
@@ -671,9 +671,9 @@ namespace
             float fx = 0.0f, fy = 0.0f, fz = 0.0f;
             CameraForward(fx, fy, fz);
 
-            // Rechtsvektor: die Blickrichtung um 90 Grad gedreht, ohne Neigung.
-            // Mit Neigung kaeme beim Seitwaertsflug ein Steigen oder Sinken
-            // heraus, das niemand angefordert hat.
+            // Right vector: the view direction turned 90 degrees, without pitch.
+            // With pitch, strafing sideways would produce a climb or descent
+            // nobody asked for.
             const float length = std::sqrt(fx * fx + fy * fy);
             const float rx = length > 0.0001f ? fy / length : 1.0f;
             const float ry = length > 0.0001f ? -fx / length : 0.0f;
@@ -682,8 +682,8 @@ namespace
             float vy = (fy * forward + ry * side) * speed;
             float vz = (fz * forward + up) * speed;
 
-            // Diagonal gedrueckt waere man sonst um den Faktor 1,41 schneller
-            // als geradeaus - der aelteste Fehler in jeder Flugsteuerung.
+            // Held diagonally you would otherwise be 1.41 times faster than
+            // straight ahead - the oldest bug in any flight control.
             const float total = std::sqrt(vx * vx + vy * vy + vz * vz);
             if (total > speed)
             {
@@ -696,11 +696,11 @@ namespace
             Scripting::SET_CHAR_VELOCITY(ped, vx, vy, vz);
         }
 
-        /// Springt zum Wegpunkt auf der Karte.
+        /// Jumps to the waypoint on the map.
         ///
-        /// Der Wegpunkt ist ein Blip wie jeder andere; seine Z-Koordinate ist
-        /// allerdings nicht die Hoehe des Bodens, sondern Null. Deshalb wird sie
-        /// verworfen und der Boden gesucht - sonst landet man unter der Karte.
+        /// The waypoint is a blip like any other; its Z coordinate, however, is
+        /// not the ground height but zero. So it gets discarded and the ground
+        /// is looked up - otherwise you land beneath the map.
         bool TeleportToWaypoint()
         {
             const Scripting::Blip blip = Scripting::GET_FIRST_BLIP_INFO_ID(Scripting::BLIP_WAYPOINT);
@@ -716,7 +716,7 @@ namespace
             return true;
         }
 
-        // ----------------------------------------------------- Fahrzeuge II
+        // ------------------------------------------------------ Vehicles II
 
         void BoostVehicle(const float extra)
         {
@@ -731,11 +731,11 @@ namespace
             Scripting::SET_CAR_FORWARD_SPEED(vehicle, speed + extra);
         }
 
-        /// Stellt ein liegengebliebenes Fahrzeug wieder auf die Raeder.
+        /// Puts a stranded vehicle back on its wheels.
         ///
-        /// SET_CAR_ON_GROUND_PROPERLY gibt es in diesem SDK nicht, also von
-        /// Hand: ein Stueck ueber den Boden setzen und die Neigung durch ein
-        /// erneutes Setzen der Himmelsrichtung zuruecknehmen.
+        /// SET_CAR_ON_GROUND_PROPERLY does not exist in this SDK, so by hand:
+        /// place it a little above the ground and undo the tilt by setting the
+        /// heading again.
         void UprightVehicle()
         {
             const Scripting::Vehicle vehicle = CurrentVehicle();
@@ -755,9 +755,9 @@ namespace
 
             Scripting::SET_CAR_COORDINATES(vehicle, x, y, (ground > 0.0f ? ground : z) + 1.5f);
 
-            // Die Himmelsrichtung neu zu setzen nimmt Neigung und Rollen mit
-            // zurueck - das ist der Weg zum Aufrichten ohne die Native, die es
-            // in diesem SDK nicht gibt.
+            // Setting the heading again takes pitch and roll back with it -
+            // that is the way to flip it upright without the native this SDK
+            // does not have.
             Scripting::SET_CAR_HEADING(vehicle, heading);
         }
 
@@ -772,8 +772,8 @@ namespace
             const Scripting::Ped ped = LocalPed();
             if (ped != 0)
             {
-                // Erst aussteigen lassen. Ein geloeschtes Fahrzeug mit einem
-                // Insassen darin hinterlaesst den Spieler in der Luft.
+                // Get out first. A deleted vehicle with an occupant inside
+                // leaves the player in mid-air.
                 float x = 0.0f, y = 0.0f, z = 0.0f;
                 Scripting::GET_CHAR_COORDINATES(ped, &x, &y, &z);
                 Scripting::SET_CHAR_COORDINATES(ped, x + 2.0f, y, z);
@@ -782,9 +782,9 @@ namespace
             Scripting::DELETE_CAR(&vehicle);
         }
 
-        // --------------------------------------------------------- Passanten
+        // ------------------------------------------------------ Pedestrians
 
-        /// Bewaffnet den naechsten Passanten und hetzt ihn auf den Spieler.
+        /// Arms the nearest pedestrian and sets them on the player.
         void ProvokeNearest()
         {
             const Scripting::Ped player = LocalPed();
@@ -810,12 +810,12 @@ namespace
             Scripting::TASK_COMBAT(other, player);
         }
 
-        /// Setzt die Gesundheit der Umstehenden auf null.
+        /// Sets the health of everyone nearby to zero.
         ///
-        /// GET_CLOSEST_CHAR liefert immer nur einen; nach jedem Treffer ist ein
-        /// anderer der naechste, also mehrfach rufen. Eine feste Obergrenze statt
-        /// einer Schleife bis "keiner mehr da" - sonst haengt das Spiel, sobald
-        /// die Native aus irgendeinem Grund denselben Passanten zurueckgibt.
+        /// GET_CLOSEST_CHAR only ever returns one; after each hit a different
+        /// one is nearest, so call it repeatedly. A fixed upper bound rather
+        /// than a loop until "nobody left" - otherwise the game hangs as soon
+        /// as the native returns the same pedestrian for any reason.
         void KillNearby()
         {
             const Scripting::Ped player = LocalPed();
@@ -841,10 +841,10 @@ namespace
             }
         }
 
-        /// Eine Explosion in einiger Entfernung vor dem Spieler.
+        /// An explosion some distance in front of the player.
         ///
-        /// Bewusst versetzt und nicht am eigenen Standort: eine Explosion unter
-        /// den eigenen Fuessen ist keine Funktion, sondern ein Selbstmordknopf.
+        /// Offset on purpose and not at your own position: an explosion under
+        /// your own feet is not a feature, it is a suicide button.
         void ExplosionAhead()
         {
             const Scripting::Ped ped = LocalPed();
@@ -859,14 +859,14 @@ namespace
             Scripting::ADD_EXPLOSION(x, y, z, 0, 1.0f, 1, 0, 1.0f);
         }
 
-        // --------------------------------------------------- Mehr Fahrzeuge
+        // ------------------------------------------------- More vehicles
 
-        /// Ruft etwas fuer jedes Fahrzeug in einem Umkreis auf.
+        /// Calls something for every vehicle within a radius.
         ///
-        /// GET_RANDOM_CAR_IN_SPHERE_NO_SAVE liefert ein Fahrzeug, nicht alle.
-        /// Mehrfach gerufen kommen unterschiedliche heraus, aber nicht garantiert
-        /// jedes - deshalb eine feste Obergrenze statt einer Schleife, die auf
-        /// Vollstaendigkeit hofft und im Zweifel nie endet.
+        /// GET_RANDOM_CAR_IN_SPHERE_NO_SAVE returns one vehicle, not all of
+        /// them. Called repeatedly it yields different ones, but not every one
+        /// with any guarantee - hence a fixed upper bound rather than a loop
+        /// hoping for completeness that might never end.
         template <typename Action>
         void ForNearbyCars(const float radius, const int attempts, Action action)
         {
@@ -915,7 +915,7 @@ namespace
             }
         }
 
-        // -------------------------------------------------------- Mehr Spieler
+        // ------------------------------------------------------- More player
 
         void SetInvisible(const bool on)
         {
@@ -926,10 +926,10 @@ namespace
             }
         }
 
-        /// Setzt den Spieler dorthin, wo die Kamera steht.
+        /// Puts the player where the camera is.
         ///
-        /// Der schnellste Weg irgendwohin: hinschauen, ausloesen. Gedacht fuer
-        /// Daecher und Stellen, an die man sonst klettern muesste.
+        /// The fastest way anywhere: look at it, trigger. Meant for rooftops
+        /// and places you would otherwise have to climb to.
         void TeleportToCamera()
         {
             const Scripting::Ped ped = LocalPed();
@@ -959,16 +959,16 @@ namespace
             Scripting::ADD_ARMOUR_TO_CHAR(ped, 100);
         }
 
-        // ------------------------------------------------- Dauerhafte Flags
+        // ---------------------------------------------------- Sticky flags
 
-        /// Die Schalter, die sich an den Spieler heften.
+        /// The switches that attach themselves to the player.
         ///
-        /// Alle hier landen pro Bild neu im Spiel, obwohl die meisten Natives
-        /// dauerhaft wirken. Der Grund ist nicht das Spiel, sondern der Ped:
-        /// bei Tod, Modellwechsel oder Missionsstart bekommt der Spieler eine
-        /// neue Ped-Handle, und alles, was auf der alten gesetzt war, ist weg.
-        /// Ein Schalter, der nach dem ersten Krankenhausbesuch still aufhoert
-        /// zu wirken, ist schlimmer als keiner.
+        /// All of these are re-applied every frame, even though most of the
+        /// natives are persistent. The reason is not the game but the ped: on
+        /// death, a model change or a mission start the player gets a new ped
+        /// handle, and everything set on the old one is gone. A switch that
+        /// silently stops working after the first hospital visit is worse than
+        /// no switch at all.
         struct PlayerFlags
         {
             bool neverTired;
@@ -1050,7 +1050,7 @@ namespace
             Scripting::CLEAR_AREA_OF_COPS(x, y, z, 150.0f);
         }
 
-        // ------------------------------------------------------------- Zeit
+        // ------------------------------------------------------------- Time
 
         void SetTimeScale(const float scale)
         {
@@ -1065,9 +1065,9 @@ namespace
                 return;
             }
 
-            // SET_GRAVITY_OFF wirkt auf die ganze Welt, SET_CHAR_GRAVITY nur auf
-            // den Spieler. Fuer Mondsprung will man das zweite - sonst schweben
-            // auch alle Fahrzeuge davon.
+            // SET_GRAVITY_OFF affects the whole world, SET_CHAR_GRAVITY only
+            // the player. For moon jumps you want the second one - otherwise
+            // every vehicle floats away as well.
             Scripting::SET_CHAR_GRAVITY(ped, value);
         }
 
@@ -1076,13 +1076,13 @@ namespace
             const Scripting::Player player = LocalPlayer();
             Scripting::ALTER_WANTED_LEVEL(player, static_cast<unsigned>(level));
 
-            // Ohne das uebernimmt das Spiel die Aenderung erst irgendwann -
-            // der Stern im HUD bliebe stehen und man haelt es fuer kaputt.
+            // Without this the game only picks the change up eventually - the
+            // star in the HUD would stay put and you would think it was broken.
             Scripting::APPLY_WANTED_LEVEL_CHANGE_NOW(player);
         }
     }
 
-    // -------------------------------------------------------------- Zustand
+    // --------------------------------------------------------------- State
 
 
 
@@ -1096,7 +1096,7 @@ namespace
     int g_weatherChoice = 1;
     int g_placeChoice = 0;
 
-    /// Index der Stufe "unveraendert" - dort fassen wir die Dichte nicht an.
+    /// Index of the "untouched" level - there we do not touch the density.
     constexpr int kTrafficDefault = 2;
     int g_trafficChoice = kTrafficDefault;
 
@@ -1116,7 +1116,7 @@ namespace
     int g_maxWantedChoice = 6;
     int g_parkedChoice = kTrafficDefault;
 
-    /// Waffenfertigkeit des Spielers. 100 heisst kein Zittern und kein Streuen.
+    /// The player's weapon skill. 100 means no sway and no spread.
     const int kSkills[] = {50, 75, 100};
     bool g_peacefulPeds = false;
     bool g_noCops = false;
@@ -1130,8 +1130,8 @@ namespace
 
     const float kGravities[] = {9.8f, 2.0f, 0.5f};
     const float kTimeScales[] = {0.1f, 0.3f, 1.0f, 1.6f, 2.5f};
-    /// In Einheiten je Sekunde, nicht je Bild. Zum Vergleich: Gehen ist etwa 2,
-    /// Rennen 7, ein Auto auf der Schnellstrasse 30.
+    /// In units per second, not per frame. For comparison: walking is about 2,
+    /// running 7, a car on the motorway 30.
     const float kFlySpeeds[] = {8.0f, 22.0f, 60.0f};
 
     const float kTrafficDensities[] = {0.0f, 0.5f, 1.0f, 2.0f};
@@ -1143,13 +1143,13 @@ namespace
         Scripting::WEATHER_FOGGY,       Scripting::WEATHER_LIGHTNING,
     };
 
-    /// Modellnamen aus der handling.dat des Spiels.
+    /// Model names from the game's handling.dat.
     const char* const kVehicles[] = {
         "infernus", "comet", "banshee", "turismo", "sultanrs",
         "nrg900",   "sanchez", "patriot", "annihilator", "maverick",
     };
 
-    /// Ein paar Orte in Liberty City. Koordinaten aus dem Spiel.
+    /// A few places in Liberty City. Coordinates taken from the game.
     struct Place
     {
         const char* name;
@@ -1160,21 +1160,21 @@ namespace
         { "Broker",        -70.0f,  1210.0f,  19.0f },
         { "Algonquin",    -350.0f,   970.0f,  15.0f },
         { "Bohan",         640.0f,  1800.0f,  20.0f },
-        { "Flughafen",    1600.0f,  -400.0f,  15.0f },
-        { "Happiness I.",  -380.0f, 1450.0f,  15.0f },
+        { "Airport",      1600.0f,  -400.0f,  15.0f },
+        { "Happiness I.", -380.0f,  1450.0f,  15.0f },
     };
     int  g_wantedChoice = 0;
     int  g_moneyChoice = 1;
 
     const int kMoneyAmounts[] = {1000, 10000, 100000, 1000000};
 
-    /// Laeuft jeden Frame.
+    /// Runs every frame.
     ///
-    /// Godmode und "nie gesucht" werden hier immer wieder gesetzt, nicht nur
-    /// beim Umschalten. Das Spiel setzt beides bei Respawn, Zwischensequenzen
-    /// und Missionswechseln zurueck - ein einmal gesetzter Schalter hoerte
-    /// stillschweigend auf zu wirken, und der Nutzer haelt den Trainer fuer
-    /// kaputt statt das Spiel fuer eigenwillig.
+    /// Godmode and "never wanted" get set again and again here, not just when
+    /// toggled. The game resets both on respawn, during cutscenes and on
+    /// mission changes - a switch set once would silently stop working, and the
+    /// user would think the trainer is broken rather than the game wilful.
+
     void EnforceToggles()
     {
         const Scripting::Player player = game::LocalPlayer();
@@ -1213,8 +1213,8 @@ namespace
             }
         }
 
-        // Die Dichte-Regler setzt das Spiel jedes Bild auf 1.0 zurueck. Ein
-        // einmaliges Setzen im Menue haette keinerlei Wirkung.
+        // The game resets the density multipliers to 1.0 every frame. Setting
+        // them once from the menu would have no effect at all.
         if (g_trafficChoice != kTrafficDefault)
         {
             const float density = kTrafficDensities[g_trafficChoice];
@@ -1248,7 +1248,7 @@ namespace
         game::ApplyPlayerFlags(g_player);
         game::ApplyVehicleFlags(g_vehicleFlags);
 
-        // HUD und Radar schaltet das Spiel bei jedem Szenenwechsel wieder ein.
+        // The game switches HUD and radar back on at every scene change.
         if (g_noHud)
         {
             Scripting::DISPLAY_HUD(0);
@@ -1265,13 +1265,13 @@ namespace
         }
     }
 
-    // ------------------------------------------------------------ Fliegen
+    // ------------------------------------------------------------- Flying
 
-    /// Die Tasten fuers Fliegen.
+    /// The keys for flying.
     ///
-    /// Eigene Tasten und nicht die des Menues: waehrend man fliegt, soll sich
-    /// das Menue weiterhin bedienen lassen. W/A/S/D und Leertaste/Strg liegen
-    /// ausserdem dort, wo man sie aus anderen Spielen kennt.
+    /// Their own keys and not the menu's: while flying, the menu should stay
+    /// usable. W/A/S/D and space/ctrl also sit where people know them from
+    /// other games.
     struct FlyKey
     {
         const char* action;
@@ -1285,12 +1285,12 @@ namespace
     float g_flyUp = 0.0f;
 
     FlyKey g_flyKeys[] = {
-        { "FlugVor",     'W',      &g_flyForward, +1.0f },
-        { "FlugZurueck", 'S',      &g_flyForward, -1.0f },
-        { "FlugRechts",  'D',      &g_flySide,    +1.0f },
-        { "FlugLinks",   'A',      &g_flySide,    -1.0f },
-        { "FlugHoch",    VK_SPACE, &g_flyUp,      +1.0f },
-        { "FlugRunter",  VK_CONTROL, &g_flyUp,   -1.0f },
+        { "FlyForward", 'W',        &g_flyForward, +1.0f },
+        { "FlyBack",    'S',        &g_flyForward, -1.0f },
+        { "FlyRight",   'D',        &g_flySide,    +1.0f },
+        { "FlyLeft",    'A',        &g_flySide,    -1.0f },
+        { "FlyUp",      VK_SPACE,   &g_flyUp,      +1.0f },
+        { "FlyDown",    VK_CONTROL, &g_flyUp,      -1.0f },
     };
 
     void BindFlyKeys(const mliv::Config& config)
@@ -1305,7 +1305,7 @@ namespace
         }
     }
 
-    /// Gehaltene Tasten, keine Flanken: fliegen heisst gedrueckt halten.
+    /// Held keys, not edges: flying means holding the key down.
     void ApplyNoclip()
     {
         if (!g_noclip)
@@ -1325,23 +1325,23 @@ namespace
             }
         }
 
-        // Auch ohne Eingabe gesetzt, und zwar auf null: sonst behaelt der
-        // Spieler seine letzte Geschwindigkeit und treibt weiter.
+        // Set even without input, and to zero: otherwise the player keeps their
+        // last velocity and drifts on.
         game::FlyBy(g_flyForward, g_flySide, g_flyUp, kFlySpeeds[g_flySpeedChoice]);
     }
 
-    // --------------------------------------------------------------- Menue
+    // ---------------------------------------------------------------- Menu
 
     void BuildMenu()
     {
         g_root = std::make_shared<mliv::Menu>("Modlauncher IV");
 
-        // --- Spieler ---
-        g_root->add({"-- Spieler --", mliv::ItemKind::Label});
+        // --- Player ---
+        g_root->add({"-- Player --", mliv::ItemKind::Label});
 
-        // Beim Ausschalten muss die Unverwundbarkeit aktiv zurueckgenommen
-        // werden. EnforceToggles setzt sie nur noch nicht mehr - abschalten
-        // tut es nichts, und der Spieler bliebe unsterblich.
+        // Switching off has to actively take invincibility back. EnforceToggles
+        // merely stops setting it - that turns nothing off, and the player would
+        // stay immortal.
         g_root->add({"Godmode", mliv::ItemKind::Toggle, [] {
             if (!g_godmode)
             {
@@ -1354,61 +1354,61 @@ namespace
             }
         }, &g_godmode});
 
-        g_root->add({"Leben auffuellen", mliv::ItemKind::Action, game::RestoreHealth});
-        g_root->add({"Panzerung auffuellen", mliv::ItemKind::Action, game::RestoreArmour});
-        g_root->add({"Voll aufrichten", mliv::ItemKind::Action, game::Heal});
-        g_root->add({"Unsichtbar", mliv::ItemKind::Toggle,
+        g_root->add({"Refill health", mliv::ItemKind::Action, game::RestoreHealth});
+        g_root->add({"Refill armour", mliv::ItemKind::Action, game::RestoreArmour});
+        g_root->add({"Full heal", mliv::ItemKind::Action, game::Heal});
+        g_root->add({"Invisible", mliv::ItemKind::Toggle,
                      [] { game::SetInvisible(g_invisible); }, &g_invisible});
-        g_root->add({"Zur Kamera springen", mliv::ItemKind::Action, game::TeleportToCamera});
+        g_root->add({"Jump to camera", mliv::ItemKind::Action, game::TeleportToCamera});
 
-        // --- Eigenschaften ---
-        auto traits = std::make_shared<mliv::Menu>("Eigenschaften");
+        // --- Traits ---
+        auto traits = std::make_shared<mliv::Menu>("Traits");
 
-        traits->add({"Wird nie muede", mliv::ItemKind::Toggle, nullptr, &g_player.neverTired});
-        traits->add({"Schnell nachladen", mliv::ItemKind::Toggle, nullptr, &g_player.fastReload});
-        traits->add({"Ertrinkt nicht", mliv::ItemKind::Toggle, nullptr, &g_player.waterproof});
-        traits->add({"Feuerfest", mliv::ItemKind::Toggle, nullptr, &g_player.fireproof});
-        traits->add({"Keine Kopfschuesse", mliv::ItemKind::Toggle, nullptr, &g_player.noCriticalHits});
-        traits->add({"Fuer die KI unsichtbar", mliv::ItemKind::Toggle, nullptr, &g_player.invisibleToAi});
-        traits->add({"Wird nicht rausgezogen", mliv::ItemKind::Toggle, nullptr, &g_player.cantBeDragged});
-        traits->add({"Faellt nicht vom Motorrad", mliv::ItemKind::Toggle, nullptr, &g_player.stayOnBike});
-        traits->add({"Schiessen im Auto", mliv::ItemKind::Toggle, nullptr, &g_player.shootInCar});
-        traits->add({"Betrunken", mliv::ItemKind::Toggle, nullptr, &g_player.drunk});
+        traits->add({"Never gets tired", mliv::ItemKind::Toggle, nullptr, &g_player.neverTired});
+        traits->add({"Fast reload", mliv::ItemKind::Toggle, nullptr, &g_player.fastReload});
+        traits->add({"Does not drown", mliv::ItemKind::Toggle, nullptr, &g_player.waterproof});
+        traits->add({"Fireproof", mliv::ItemKind::Toggle, nullptr, &g_player.fireproof});
+        traits->add({"No critical hits", mliv::ItemKind::Toggle, nullptr, &g_player.noCriticalHits});
+        traits->add({"Invisible to the AI", mliv::ItemKind::Toggle, nullptr, &g_player.invisibleToAi});
+        traits->add({"Cannot be dragged out", mliv::ItemKind::Toggle, nullptr, &g_player.cantBeDragged});
+        traits->add({"Stays on the bike", mliv::ItemKind::Toggle, nullptr, &g_player.stayOnBike});
+        traits->add({"Shoot from vehicles", mliv::ItemKind::Toggle, nullptr, &g_player.shootInCar});
+        traits->add({"Drunk", mliv::ItemKind::Toggle, nullptr, &g_player.drunk});
 
         mliv::MenuItem skill;
-        skill.label = "Waffenfertigkeit";
+        skill.label = "Weapon skill";
         skill.kind = mliv::ItemKind::Choice;
-        skill.choices = {"Normal", "Gut", "Perfekt"};
+        skill.choices = {"Normal", "Good", "Perfect"};
         skill.choiceIndex = &g_skillChoice;
         traits->add(skill);
 
         mliv::MenuItem traitsEntry;
-        traitsEntry.label = "Eigenschaften";
+        traitsEntry.label = "Traits";
         traitsEntry.kind = mliv::ItemKind::Submenu;
         traitsEntry.submenu = traits;
         g_root->add(traitsEntry);
 
-        // --- Waffen ---
-        g_root->add({"-- Waffen --", mliv::ItemKind::Label});
-        g_root->add({"Alle Waffen geben", mliv::ItemKind::Action, game::GiveAllWeapons});
-        g_root->add({"Waffen wegnehmen", mliv::ItemKind::Action, game::RemoveAllWeapons});
-        g_root->add({"Unendlich Munition", mliv::ItemKind::Toggle, nullptr, &g_infiniteAmmo});
+        // --- Weapons ---
+        g_root->add({"-- Weapons --", mliv::ItemKind::Label});
+        g_root->add({"Give all weapons", mliv::ItemKind::Action, game::GiveAllWeapons});
+        g_root->add({"Take weapons away", mliv::ItemKind::Action, game::RemoveAllWeapons});
+        g_root->add({"Infinite ammo", mliv::ItemKind::Toggle, nullptr, &g_infiniteAmmo});
 
-        // --- Fahndung ---
-        g_root->add({"-- Fahndung --", mliv::ItemKind::Label});
+        // --- Wanted ---
+        g_root->add({"-- Wanted --", mliv::ItemKind::Label});
 
         mliv::MenuItem wanted;
-        wanted.label = "Fahndungslevel";
+        wanted.label = "Wanted level";
         wanted.kind = mliv::ItemKind::Choice;
         wanted.choices = {"0", "1", "2", "3", "4", "5", "6"};
         wanted.choiceIndex = &g_wantedChoice;
         wanted.onChoice = [](const int level) { game::SetWantedLevel(level); };
         g_root->add(wanted);
 
-        g_root->add({"Nie gesucht", mliv::ItemKind::Toggle, nullptr, &g_neverWanted});
+        g_root->add({"Never wanted", mliv::ItemKind::Toggle, nullptr, &g_neverWanted});
 
         mliv::MenuItem maxWanted;
-        maxWanted.label = "Hoechstens";
+        maxWanted.label = "At most";
         maxWanted.kind = mliv::ItemKind::Choice;
         maxWanted.choices = {"0", "1", "2", "3", "4", "5", "6"};
         maxWanted.choiceIndex = &g_maxWantedChoice;
@@ -1417,28 +1417,28 @@ namespace
         };
         g_root->add(maxWanted);
 
-        g_root->add({"Polizei im Umkreis aufloesen", mliv::ItemKind::Action, game::ClearCopsNearby});
+        g_root->add({"Clear cops nearby", mliv::ItemKind::Action, game::ClearCopsNearby});
 
-        // --- Geld ---
-        g_root->add({"-- Geld --", mliv::ItemKind::Label});
+        // --- Money ---
+        g_root->add({"-- Money --", mliv::ItemKind::Label});
 
         mliv::MenuItem money;
-        money.label = "Betrag";
+        money.label = "Amount";
         money.kind = mliv::ItemKind::Choice;
         money.choices = {"1.000", "10.000", "100.000", "1.000.000"};
         money.choiceIndex = &g_moneyChoice;
         g_root->add(money);
 
-        g_root->add({"Geld geben", mliv::ItemKind::Action, [] {
+        g_root->add({"Give money", mliv::ItemKind::Action, [] {
             game::AddMoney(kMoneyAmounts[g_moneyChoice]);
-            mliv::LogLine("Geld gegeben: %d", kMoneyAmounts[g_moneyChoice]);
+            mliv::LogLine("Money given: %d", kMoneyAmounts[g_moneyChoice]);
         }});
 
-        // --- Fahrzeuge ---
-        auto vehicles = std::make_shared<mliv::Menu>("Fahrzeuge");
+        // --- Vehicles ---
+        auto vehicles = std::make_shared<mliv::Menu>("Vehicles");
 
         mliv::MenuItem model;
-        model.label = "Modell";
+        model.label = "Model";
         model.kind = mliv::ItemKind::Choice;
         model.choiceIndex = &g_vehicleChoice;
         for (const char* name : kVehicles)
@@ -1447,26 +1447,26 @@ namespace
         }
 
         vehicles->add(model);
-        vehicles->add({"Spawnen", mliv::ItemKind::Action,
+        vehicles->add({"Spawn", mliv::ItemKind::Action,
                        [] { game::SpawnVehicle(kVehicles[g_vehicleChoice]); }});
-        vehicles->add({"Reparieren", mliv::ItemKind::Action, game::RepairVehicle});
-        vehicles->add({"Unkaputtbar", mliv::ItemKind::Toggle, nullptr, &g_strongVehicle});
+        vehicles->add({"Repair", mliv::ItemKind::Action, game::RepairVehicle});
+        vehicles->add({"Indestructible", mliv::ItemKind::Toggle, nullptr, &g_strongVehicle});
 
         vehicles->add({"-- Tuning --", mliv::ItemKind::Label});
-        vehicles->add({"Schub", mliv::ItemKind::Action, [] { game::BoostVehicle(20.0f); }});
-        vehicles->add({"Aufrichten", mliv::ItemKind::Action, game::UprightVehicle});
-        vehicles->add({"Wegraeumen", mliv::ItemKind::Action, game::DeleteCurrentVehicle});
+        vehicles->add({"Boost", mliv::ItemKind::Action, [] { game::BoostVehicle(20.0f); }});
+        vehicles->add({"Flip upright", mliv::ItemKind::Action, game::UprightVehicle});
+        vehicles->add({"Remove", mliv::ItemKind::Action, game::DeleteCurrentVehicle});
 
         mliv::MenuItem colour;
-        colour.label = "Farbe";
+        colour.label = "Colour";
         colour.kind = mliv::ItemKind::Choice;
-        colour.choices = {"Schwarz", "Weiss", "Rot", "Blau", "Gelb", "Gruen"};
+        colour.choices = {"Black", "White", "Red", "Blue", "Yellow", "Green"};
         colour.choiceIndex = &g_colourChoice;
         colour.onChoice = [](const int i) {
             const Scripting::Vehicle vehicle = game::CurrentVehicle();
             if (vehicle != 0)
             {
-                // Die Farbindizes stammen aus carcols.dat des Spiels.
+                // The colour indices come from the game's carcols.dat.
                 static const int kColours[] = {0, 111, 27, 64, 88, 50};
                 Scripting::CHANGE_CAR_COLOUR(vehicle, kColours[i], kColours[i]);
             }
@@ -1474,9 +1474,9 @@ namespace
         vehicles->add(colour);
 
         mliv::MenuItem lights;
-        lights.label = "Licht";
+        lights.label = "Lights";
         lights.kind = mliv::ItemKind::Choice;
-        lights.choices = {"Automatisch", "Immer an", "Immer aus"};
+        lights.choices = {"Automatic", "Always on", "Always off"};
         lights.choiceIndex = &g_lightChoice;
         lights.onChoice = [](const int i) {
             const Scripting::Vehicle vehicle = game::CurrentVehicle();
@@ -1487,76 +1487,76 @@ namespace
         };
         vehicles->add(lights);
 
-        vehicles->add({"-- Spielereien --", mliv::ItemKind::Label});
-        vehicles->add({"Einfrieren", mliv::ItemKind::Toggle,
+        vehicles->add({"-- Toys --", mliv::ItemKind::Label});
+        vehicles->add({"Freeze", mliv::ItemKind::Toggle,
                        [] {
                            const Scripting::Vehicle v = game::CurrentVehicle();
                            if (v != 0) { Scripting::FREEZE_CAR_POSITION(v, g_frozenVehicle ? 1 : 0); }
                        }, &g_frozenVehicle});
-        vehicles->add({"Unsichtbar", mliv::ItemKind::Toggle,
+        vehicles->add({"Invisible", mliv::ItemKind::Toggle,
                        [] {
                            const Scripting::Vehicle v = game::CurrentVehicle();
                            if (v != 0) { Scripting::SET_CAR_VISIBLE(v, g_invisibleVehicle ? 0 : 1); }
                        }, &g_invisibleVehicle});
-        vehicles->add({"Tueren auf", mliv::ItemKind::Action, [] {
+        vehicles->add({"Doors open", mliv::ItemKind::Action, [] {
             const Scripting::Vehicle v = game::CurrentVehicle();
             if (v != 0) { for (unsigned d = 0; d < 6; ++d) { Scripting::OPEN_CAR_DOOR(v, d); } }
         }});
-        vehicles->add({"Tueren zu", mliv::ItemKind::Action, [] {
+        vehicles->add({"Doors closed", mliv::ItemKind::Action, [] {
             const Scripting::Vehicle v = game::CurrentVehicle();
             if (v != 0) { Scripting::CLOSE_ALL_CAR_DOORS(v); }
         }});
-        vehicles->add({"Reifen zerschiessen", mliv::ItemKind::Action, [] {
+        vehicles->add({"Shoot out tyres", mliv::ItemKind::Action, [] {
             const Scripting::Vehicle v = game::CurrentVehicle();
             if (v != 0) { for (unsigned t = 0; t < 4; ++t) { Scripting::BURST_CAR_TYRE(v, t); } }
         }});
-        vehicles->add({"Ins naechste Auto", mliv::ItemKind::Action, game::EnterNearestCar});
-        vehicles->add({"Schwimmt", mliv::ItemKind::Toggle, nullptr, &g_vehicleFlags.watertight});
-        vehicles->add({"Bleibt heil", mliv::ItemKind::Toggle, nullptr, &g_vehicleFlags.noVisibleDamage});
-        vehicles->add({"Faehrt durch alles", mliv::ItemKind::Toggle, nullptr, &g_vehicleFlags.noCollision});
-        vehicles->add({"Zieht immer Spuren", mliv::ItemKind::Toggle, nullptr, &g_vehicleFlags.alwaysSkids});
-        vehicles->add({"Umstehende sprengen", mliv::ItemKind::Action, [] {
+        vehicles->add({"Into the nearest car", mliv::ItemKind::Action, game::EnterNearestCar});
+        vehicles->add({"Floats", mliv::ItemKind::Toggle, nullptr, &g_vehicleFlags.watertight});
+        vehicles->add({"Stays undamaged", mliv::ItemKind::Toggle, nullptr, &g_vehicleFlags.noVisibleDamage});
+        vehicles->add({"Drives through anything", mliv::ItemKind::Toggle, nullptr, &g_vehicleFlags.noCollision});
+        vehicles->add({"Always leaves skid marks", mliv::ItemKind::Toggle, nullptr, &g_vehicleFlags.alwaysSkids});
+        vehicles->add({"Blow up nearby cars", mliv::ItemKind::Action, [] {
             game::ForNearbyCars(40.0f, 24, [](const Scripting::Vehicle car) {
                 Scripting::EXPLODE_CAR(car, 1, 0);
             });
         }});
 
         mliv::MenuItem vehiclesEntry;
-        vehiclesEntry.label = "Fahrzeuge";
+        vehiclesEntry.label = "Vehicles";
         vehiclesEntry.kind = mliv::ItemKind::Submenu;
         vehiclesEntry.submenu = vehicles;
         g_root->add(vehiclesEntry);
 
-        // --- Welt ---
-        auto world = std::make_shared<mliv::Menu>("Welt");
+        // --- World ---
+        auto world = std::make_shared<mliv::Menu>("World");
 
         mliv::MenuItem time;
-        time.label = "Uhrzeit";
+        time.label = "Time of day";
         time.kind = mliv::ItemKind::Choice;
-        time.choices = {"Mitternacht", "Morgen", "Mittag", "Abend", "Nacht"};
+        time.choices = {"Midnight", "Morning", "Noon", "Evening", "Night"};
         time.choiceIndex = &g_timeChoice;
         time.onChoice = [](const int i) { game::SetTime(kTimes[i]); };
         world->add(time);
 
         mliv::MenuItem weather;
-        weather.label = "Wetter";
+        weather.label = "Weather";
         weather.kind = mliv::ItemKind::Choice;
-        weather.choices = {"Klar", "Sonnig", "Bewoelkt", "Regen", "Nebel", "Gewitter"};
+        weather.choices = {"Clear", "Sunny", "Cloudy", "Rain", "Fog", "Thunder"};
         weather.choiceIndex = &g_weatherChoice;
         weather.onChoice = [](const int i) { game::SetWeather(kWeathers[i]); };
         world->add(weather);
 
         mliv::MenuItem traffic;
-        traffic.label = "Verkehr";
+        traffic.label = "Traffic";
         traffic.kind = mliv::ItemKind::Choice;
-        traffic.choices = {"Leer", "Wenig", "Normal", "Viel"};
+        traffic.choices = {"None", "Few", "Normal", "Many"};
         traffic.choiceIndex = &g_trafficChoice;
         world->add(traffic);
 
-        world->add({"-- Hinbringen --", mliv::ItemKind::Label});
+        world->add({"-- Teleport --", mliv::ItemKind::Label});
 
         mliv::MenuItem place;
-        place.label = "Ort";
+        place.label = "Place";
         place.kind = mliv::ItemKind::Choice;
         place.choiceIndex = &g_placeChoice;
         for (const Place& p : kPlaces)
@@ -1565,109 +1565,109 @@ namespace
         }
 
         world->add(place);
-        world->add({"Hinbringen", mliv::ItemKind::Action, [] {
+        world->add({"Take me there", mliv::ItemKind::Action, [] {
             const Place& p = kPlaces[g_placeChoice];
             game::Teleport(p.x, p.y, p.z);
             mliv::LogLine("Teleport: %s", p.name);
         }});
 
         mliv::MenuItem timeScale;
-        timeScale.label = "Zeitlupe";
+        timeScale.label = "Time scale";
         timeScale.kind = mliv::ItemKind::Choice;
-        timeScale.choices = {"Sehr langsam", "Langsam", "Normal", "Schnell", "Sehr schnell"};
+        timeScale.choices = {"Very slow", "Slow", "Normal", "Fast", "Very fast"};
         timeScale.choiceIndex = &g_timeScaleChoice;
 
-        // Einmal beim Umschalten, nicht pro Bild: anders als die Dichte-Regler
-        // haelt der Zeitfaktor von selbst, und ihn jedes Bild neu zu setzen
-        // legte sich mit Zwischensequenzen an.
+        // Once on toggle, not per frame: unlike the density multipliers the time
+        // scale holds by itself, and setting it every frame would fight with
+        // cutscenes.
         timeScale.onChoice = [](const int i) { game::SetTimeScale(kTimeScales[i]); };
         world->add(timeScale);
 
         mliv::MenuItem parked;
-        parked.label = "Geparkte Autos";
+        parked.label = "Parked cars";
         parked.kind = mliv::ItemKind::Choice;
-        parked.choices = {"Keine", "Wenige", "Normal", "Viele"};
+        parked.choices = {"None", "Few", "Normal", "Many"};
         parked.choiceIndex = &g_parkedChoice;
         world->add(parked);
 
-        world->add({"-- Anzeige --", mliv::ItemKind::Label});
+        world->add({"-- Display --", mliv::ItemKind::Label});
 
-        // Beim Ausschalten muss aktiv zurueckgenommen werden: EnforceToggles
-        // setzt dann nur nicht mehr, und die Anzeige bliebe fuer immer weg.
-        world->add({"HUD ausblenden", mliv::ItemKind::Toggle,
+        // Switching off has to actively take it back: EnforceToggles merely
+        // stops setting it, and the display would stay gone forever.
+        world->add({"Hide the HUD", mliv::ItemKind::Toggle,
                     [] { if (!g_noHud) { Scripting::DISPLAY_HUD(1); } }, &g_noHud});
-        world->add({"Radar ausblenden", mliv::ItemKind::Toggle,
+        world->add({"Hide the radar", mliv::ItemKind::Toggle,
                     [] { if (!g_noRadar) { Scripting::DISPLAY_RADAR(1); } }, &g_noRadar});
-        world->add({"Alle Scheinwerfer aus", mliv::ItemKind::Toggle,
+        world->add({"All headlights off", mliv::ItemKind::Toggle,
                     [] { if (!g_noVehicleLights) { Scripting::FORCE_ALL_VEHICLE_LIGHTS_OFF(0); } },
                     &g_noVehicleLights});
 
         mliv::MenuItem worldEntry;
-        worldEntry.label = "Welt";
+        worldEntry.label = "World";
         worldEntry.kind = mliv::ItemKind::Submenu;
         worldEntry.submenu = world;
         g_root->add(worldEntry);
 
-        // --- Bewegung ---
-        auto motion = std::make_shared<mliv::Menu>("Bewegung");
+        // --- Movement ---
+        auto motion = std::make_shared<mliv::Menu>("Movement");
 
         mliv::MenuItem noclip;
-        noclip.label = "Fliegen";
+        noclip.label = "Fly";
         noclip.kind = mliv::ItemKind::Toggle;
         noclip.toggle = &g_noclip;
         noclip.onSelect = [] { game::SetNoclip(g_noclip, kGravities[g_gravityChoice]); };
         motion->add(noclip);
 
         mliv::MenuItem flySpeed;
-        flySpeed.label = "Flugtempo";
+        flySpeed.label = "Fly speed";
         flySpeed.kind = mliv::ItemKind::Choice;
-        flySpeed.choices = {"Langsam", "Normal", "Schnell"};
+        flySpeed.choices = {"Slow", "Normal", "Fast"};
         flySpeed.choiceIndex = &g_flySpeedChoice;
         motion->add(flySpeed);
 
-        motion->add({"W A S D bewegt, Leertaste hoch, Strg runter", mliv::ItemKind::Label});
+        motion->add({"W A S D moves, space up, ctrl down", mliv::ItemKind::Label});
 
         mliv::MenuItem gravity;
-        gravity.label = "Schwerkraft";
+        gravity.label = "Gravity";
         gravity.kind = mliv::ItemKind::Choice;
-        gravity.choices = {"Normal", "Niedrig", "Mond"};
+        gravity.choices = {"Normal", "Low", "Moon"};
         gravity.choiceIndex = &g_gravityChoice;
         gravity.onChoice = [](const int i) { game::SetGravity(kGravities[i]); };
         motion->add(gravity);
 
-        motion->add({"Zum Wegpunkt", mliv::ItemKind::Action, [] {
+        motion->add({"To the waypoint", mliv::ItemKind::Action, [] {
             if (!game::TeleportToWaypoint())
             {
-                mliv::LogLine("Kein Wegpunkt auf der Karte gesetzt.");
+                mliv::LogLine("No waypoint set on the map.");
             }
         }});
 
         mliv::MenuItem motionEntry;
-        motionEntry.label = "Bewegung";
+        motionEntry.label = "Movement";
         motionEntry.kind = mliv::ItemKind::Submenu;
         motionEntry.submenu = motion;
         g_root->add(motionEntry);
 
-        // --- Passanten ---
-        auto peds = std::make_shared<mliv::Menu>("Passanten");
+        // --- Pedestrians ---
+        auto peds = std::make_shared<mliv::Menu>("Pedestrians");
 
         mliv::MenuItem density;
-        density.label = "Passanten";
+        density.label = "Pedestrians";
         density.kind = mliv::ItemKind::Choice;
-        density.choices = {"Keine", "Wenige", "Normal", "Viele"};
+        density.choices = {"None", "Few", "Normal", "Many"};
         density.choiceIndex = &g_pedChoice;
         peds->add(density);
 
-        peds->add({"Alle ignorieren dich", mliv::ItemKind::Toggle, nullptr, &g_peacefulPeds});
-        peds->add({"Keine neuen Streifen", mliv::ItemKind::Toggle, nullptr, &g_noCops});
+        peds->add({"Everyone ignores you", mliv::ItemKind::Toggle, nullptr, &g_peacefulPeds});
+        peds->add({"No new police patrols", mliv::ItemKind::Toggle, nullptr, &g_noCops});
 
         peds->add({"-- Chaos --", mliv::ItemKind::Label});
-        peds->add({"Naechsten aufhetzen", mliv::ItemKind::Action, game::ProvokeNearest});
-        peds->add({"Explosion voraus", mliv::ItemKind::Action, game::ExplosionAhead});
-        peds->add({"Umstehende umlegen", mliv::ItemKind::Action, game::KillNearby});
+        peds->add({"Turn the nearest one on you", mliv::ItemKind::Action, game::ProvokeNearest});
+        peds->add({"Explosion ahead", mliv::ItemKind::Action, game::ExplosionAhead});
+        peds->add({"Kill everyone nearby", mliv::ItemKind::Action, game::KillNearby});
 
         mliv::MenuItem pedsEntry;
-        pedsEntry.label = "Passanten";
+        pedsEntry.label = "Pedestrians";
         pedsEntry.kind = mliv::ItemKind::Submenu;
         pedsEntry.submenu = peds;
         g_root->add(pedsEntry);
@@ -1675,29 +1675,29 @@ namespace
         g_menu = std::make_unique<mliv::MenuController>(g_root);
     }
 
-    /// Spiellogik. Laeuft nur, wenn das Spiel seine Skripte abarbeitet.
+    /// Game logic. Only runs while the game is processing its scripts.
     ///
-    /// Muss hier stehen und nicht im Zeichen-Event: processScriptsEvent setzt
-    /// vorher CTheScripts::m_pCurrentThread, drawingEvent nicht. Natives
-    /// brauchen diesen Script-Kontext. Dazu kommt, dass drawingEvent laut SDK
-    /// auch im Menue und im Ladebildschirm laeuft - dort gibt es noch gar keine
-    /// Skript-Maschine, und ein GET_PLAYER_ID beendet das Spiel wortlos.
+    /// Has to live here and not in the drawing event: processScriptsEvent sets
+    /// CTheScripts::m_pCurrentThread beforehand, drawingEvent does not. Natives
+    /// need that script context. On top of that, per the SDK drawingEvent also
+    /// runs in the menu and on the loading screen - where there is no script
+    /// machine yet, and a GET_PLAYER_ID ends the game without a word.
     void OnScript()
     {
         PollInput();
 
-        // Auch wenn das Menue zu ist: die Schalter sollen wirken, nicht nur
-        // solange man hinsieht.
+        // Even with the menu closed: the switches should take effect, not only
+        // while you are looking.
         EnforceToggles();
         ApplyNoclip();
 
-        // Gezeichnet wird hier, nicht in drawingEvent.
+        // Drawing happens here, not in drawingEvent.
         //
-        // Die Skripte des Spiels zeichnen ihr HUD selbst aus dem Script-Tick;
-        // DRAW_RECT und DISPLAY_TEXT sind dafuer gemacht und landen dann in der
-        // HUD-Phase. Aus drawingEvent gerufen laufen sie mitten in einer
-        // Renderphase - und wenn dabei das Renderziel des Handys gebunden ist,
-        // zeichnen sie in dessen Bildschirm hinein. Genau so sah es aus.
+        // The game's own scripts draw their HUD from the script tick; DRAW_RECT
+        // and DISPLAY_TEXT are made for that and then land in the HUD phase.
+        // Called from drawingEvent they run in the middle of a render phase -
+        // and if the phone's render target happens to be bound at that moment,
+        // they draw into its screen. That is exactly what it looked like.
         if (Scripting::IS_PAUSE_MENU_ACTIVE() == 0)
         {
             g_menu->draw(g_renderer);
@@ -1705,44 +1705,44 @@ namespace
     }
 }
 
-/// Ruft das SDK auf, nachdem es sich eingehaengt hat.
+/// Called by the SDK once it has hooked itself in.
 ///
-/// Das SDK prueft vorher selbst die Spielversion und hookt auf einer
-/// unbekannten gar nichts - diese Funktion wird dann nie aufgerufen. Unsere
-/// eigene Pruefung bleibt trotzdem: sie steht im Log, und sie haelt die
-/// Bedingung dort fest, wo unser Code sie braucht.
+/// The SDK checks the game version itself first and hooks nothing at all on an
+/// unknown one - this function is then never called. Our own check stays
+/// anyway: it goes into the log, and it records the condition where our code
+/// needs it.
 void plugin::gameStartupEvent()
 {
     wchar_t self[MAX_PATH]{};
     GetModuleFileNameW(GetModuleHandleW(L"ModlauncherIV-Trainer.asi"), self, MAX_PATH);
     mliv::LogOpen(self);
 
-    mliv::LogLine("Modlauncher IV Trainer, Stufe T6");
+    mliv::LogLine("Modlauncher IV Trainer, stage T6");
 
     const mliv::GameInfo game = mliv::DetectGame();
     mliv::LogLine("Version: %ls (%s)",
-                  game.raw.empty() ? L"(nicht lesbar)" : game.raw.c_str(),
+                  game.raw.empty() ? L"(not readable)" : game.raw.c_str(),
                   mliv::Describe(game.version));
 
     if (!mliv::IsSupported(game.version))
     {
-        mliv::LogLine("ABBRUCH: Diese Version wird nicht unterstuetzt.");
+        mliv::LogLine("ABORT: this version is not supported.");
         return;
     }
 
     const mliv::Config config = LoadConfig(self);
 
-    // Was beim Lesen nicht aufging, kommt ins Log und nicht auf den Bildschirm.
-    // Eine falsch geschriebene Taste aeussert sich sonst als "die Taste tut
-    // nichts", und danach sucht man im Spiel statt in der Datei.
+    // What did not work out while reading goes into the log, not onto the
+    // screen. A misspelled key otherwise shows up as "the key does nothing",
+    // and then people look in the game instead of in the file.
     for (const std::string& problem : config.problems())
     {
-        mliv::LogLine("Einstellungen: %s", problem.c_str());
+        mliv::LogLine("Settings: %s", problem.c_str());
     }
 
-    if (!config.flag("Protokoll.Aktiv", true))
+    if (!config.flag("Log.Enabled", true))
     {
-        mliv::LogLine("Protokoll wird auf Wunsch beendet.");
+        mliv::LogLine("Log closed on request.");
         mliv::LogClose();
     }
 
@@ -1750,27 +1750,27 @@ void plugin::gameStartupEvent()
     BindFlyKeys(config);
 
     g_renderer.configure(
-        config.number("Menue.Links", 0.025f),
-        config.number("Menue.Oben", 0.12f),
-        config.number("Menue.Breite", 0.235f),
-        config.number("Menue.Schrift", 1.0f));
+        config.number("Menu.Left", 0.025f),
+        config.number("Menu.Top", 0.12f),
+        config.number("Menu.Width", 0.235f),
+        config.number("Menu.Scale", 1.0f));
 
     BuildMenu();
 
-    // Nur dieses eine Event: Eingabe, Schalter und Zeichnen laufen alle im
-    // Script-Kontext. Siehe OnScript.
+    // Only this one event: input, switches and drawing all run in the script
+    // context. See OnScript.
     plugin::processScriptsEvent::Add(OnScript);
 
     const std::string opener = mliv::KeyNameFromCode(g_keys.empty() ? VK_F7 : g_keys.front().code);
-    mliv::LogLine("Menue bereit. %s oeffnet, %zu Tastenbelegungen aktiv.",
+    mliv::LogLine("Menu ready. %s opens it, %zu key bindings active.",
                   opener.empty() ? "F7" : opener.c_str(), g_keys.size());
 }
 
-/// Wird beim Entladen gerufen. Das SDK verlangt die Funktion, auch wenn sie
-/// wenig zu tun hat - ohne sie bleibt ein unaufgeloestes Symbol.
+/// Called on unload. The SDK requires the function even though there is little
+/// for it to do - without it an unresolved symbol remains.
 void plugin::gameShutdownEvent()
 {
-    mliv::LogLine("Spiel wird beendet.");
+    mliv::LogLine("Game is shutting down.");
     mliv::LogClose();
 }
 

@@ -1,6 +1,6 @@
 namespace ModlauncherIV.App;
 
-/// <summary>Eine Seite des Assistenten.</summary>
+/// <summary>One page of the wizard.</summary>
 public abstract class WizardStep(Session session) : Observable
 {
     protected Session Session { get; } = session;
@@ -10,10 +10,10 @@ public abstract class WizardStep(Session session) : Observable
     public abstract string Title { get; }
 
     /// <summary>
-    /// Ob der Assistent gerade auf dieser Seite steht. Die Schrittliste am Rand
-    /// bindet darauf. Das hier zu speichern statt in der Liste zu vergleichen,
-    /// spart einen Konverter und eine Multibinding-Konstruktion, die beide nur
-    /// dasselbe herausfänden.
+    /// Whether the wizard is currently on this page. The step list on the side
+    /// binds to it. Storing it here rather than comparing inside the list saves
+    /// a converter and a multi-binding construction that would both only work
+    /// out the same thing.
     /// </summary>
     public bool IsActive
     {
@@ -21,33 +21,33 @@ public abstract class WizardStep(Session session) : Observable
         internal set => Set(ref _isActive, value);
     }
 
-    /// <summary>Ein Satz unter der Überschrift. Sagt, worum es auf dieser Seite geht.</summary>
+    /// <summary>One sentence under the heading. Says what this page is about.</summary>
     public abstract string Lead { get; }
 
-    public virtual string NextLabel => "Weiter";
+    public virtual string NextLabel => "Next";
 
     public virtual bool CanGoBack => true;
 
     /// <summary>
-    /// Ob der Assistent weiterschalten darf. Wird nach jeder Änderung neu
-    /// abgefragt — die Schritte melden das über <see cref="Changed"/>.
+    /// Whether the wizard may move on. Asked again after every change — the
+    /// steps signal that via <see cref="Changed"/>.
     /// </summary>
     public virtual bool CanGoNext => true;
 
     /// <summary>
-    /// Meldet dem Rahmen, dass sich <see cref="CanGoNext"/> geändert haben könnte.
-    /// Ohne das bliebe der Weiter-Knopf grau, bis der Nutzer irgendwohin klickt.
+    /// Tells the shell that <see cref="CanGoNext"/> may have changed. Without
+    /// this the Next button would stay grey until the user clicks somewhere.
     /// </summary>
     public event EventHandler? Changed;
 
     protected void NotifyChanged() => Changed?.Invoke(this, EventArgs.Empty);
 
-    /// <summary>Wird beim Betreten aufgerufen, auch beim Zurückspringen.</summary>
+    /// <summary>Called on entering, including when going back.</summary>
     public virtual Task EnterAsync() => Task.CompletedTask;
 
     /// <summary>
-    /// Wird vor dem Weiterschalten aufgerufen. False hält den Assistenten an —
-    /// gedacht für Arbeit, die erst hier passieren darf.
+    /// Called before moving on. False stops the wizard — meant for work that may
+    /// only happen at this point.
     /// </summary>
     public virtual Task<bool> LeaveAsync() => Task.FromResult(true);
 }

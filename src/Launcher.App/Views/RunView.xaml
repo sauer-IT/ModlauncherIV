@@ -41,10 +41,10 @@
             </ItemsControl.ItemTemplate>
         </ItemsControl>
 
-        <!-- Das Protokoll steht offen da und ist nicht versteckt: wenn etwas
-             schiefgeht, ist es das Einzige, womit sich nachvollziehen laesst,
-             was passiert ist. -->
-        <TextBlock Text="PROTOKOLL" Style="{StaticResource Dim}" Margin="0,16,0,6"
+        <!-- The log sits out in the open and is not hidden: when something goes
+             wrong it is the only thing that lets anyone reconstruct what
+             happened. -->
+        <TextBlock Text="LOG" Style="{StaticResource Dim}" Margin="0,16,0,6"
                    Visibility="{Binding Log.Count, Converter={StaticResource HasContent}}" />
 
         <Border Background="{StaticResource Panel}" BorderBrush="{StaticResource Line}" BorderThickness="1"

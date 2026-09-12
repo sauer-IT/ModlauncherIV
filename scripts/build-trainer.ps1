@@ -1,20 +1,19 @@
 <#
 .SYNOPSIS
-  Baut das Trainer-ASI (x86) und legt es optional ins Spielverzeichnis.
+  Builds the trainer ASI (x86) and optionally drops it into the game directory.
 
 .DESCRIPTION
-  GTA IV ist 32-bit, also wird zwingend fuer x86 gebaut. Eine x64-DLL wuerde
-  vom ASI-Loader kommentarlos ignoriert - ein Fehler, der sich als "nichts
-  passiert" aeussert und lange gesucht wird.
+  GTA IV is 32-bit, so the build is x86, no exceptions. An x64 DLL would be
+  ignored by the ASI loader without comment - a bug that presents as "nothing
+  happens" and gets hunted for a long time.
 
-  Die C-Laufzeit wird statisch gelinkt (/MT). Ein Trainer, der eine
-  Redistributable voraussetzt, waere ausgerechnet hier fehl am Platz: genau an
-  einer fehlenden Visual-C++-Laufzeit ist das Spiel nach dem Downgrade zuerst
-  gescheitert.
+  The C runtime is linked statically (/MT). A trainer that requires a
+  redistributable would be out of place here of all things: a missing Visual C++
+  runtime is exactly what the game first failed on after the downgrade.
 
 .PARAMETER Deploy
-  Kopiert das fertige ASI nach <Spiel>\plugins\. Braucht Administratorrechte,
-  wenn das Spiel unter Program Files liegt.
+  Copies the finished ASI into <game>\plugins\. Needs administrator rights when
+  the game sits under Program Files.
 
 .EXAMPLE
   .\scripts\build-trainer.ps1
@@ -39,9 +38,9 @@ $asiName = "ModlauncherIV-Trainer.asi"
 
 # ---------------------------------------------------------------- Toolchain
 
-# vswhere ist der saubere Weg, aber es fehlt manchmal - etwa direkt nach einer
-# noch nicht abgeschlossenen Installation. Dann suchen wir vcvarsall.bat selbst,
-# statt an einem Hilfswerkzeug zu scheitern, waehrend der Compiler laengst da ist.
+# vswhere is the clean route, but it is sometimes missing - right after an
+# unfinished installation, say. Then we look for vcvarsall.bat ourselves rather
+# than failing on a helper tool while the compiler has been there all along.
 $vcvars = $null
 
 $vswhere = "${env:ProgramFiles(x86)}\Microsoft Visual Studio\Installer\vswhere.exe"
@@ -63,24 +62,24 @@ if (-not $vcvars) {
 }
 
 if (-not $vcvars) {
-    throw "vcvarsall.bat nicht gefunden. Visual Studio Build Tools mit C++ (x86) installieren."
+    throw "vcvarsall.bat not found. Install the Visual Studio Build Tools with C++ (x86)."
 }
 
 Write-Host "Toolchain: $vcvars" -ForegroundColor Cyan
 
 # ---------------------------------------------------------------------- SDK
 
-# Das IV-SDK wird geholt und geprueft, nicht mitgeliefert - dieselbe Haltung wie
-# beim Launcher. Festgenagelt auf einen Commit statt auf einen Branch: ein
-# Branch-Archiv aendert sich unter der Hand, ein Commit-Archiv nie. Damit ist
-# die Pruefsumme ueberhaupt erst sinnvoll.
+# The IV-SDK is fetched and verified, not shipped - the same stance as in the
+# launcher. Pinned to a commit rather than a branch: a branch archive changes
+# under your hands, a commit archive never does. Only that makes the checksum
+# meaningful in the first place.
 $sdkCommit = "3fb076443afd1b3d5557c9c329bd2131065da99e"
 $sdkSha256 = "271b1ae06d1096f3f3936fc1a8aa2c1f104ed40156363412de8a75c236f0fe63"
 $sdkRoot   = Join-Path $root "third_party\iv-sdk"
 $sdkInclude = Join-Path $sdkRoot "iv-sdk-$sdkCommit\include"
 
 if (-not (Test-Path (Join-Path $sdkInclude "IVSDK.cpp"))) {
-    Write-Host "Hole IV-SDK ($($sdkCommit.Substring(0,7))) ..." -ForegroundColor Cyan
+    Write-Host "Fetching the IV-SDK ($($sdkCommit.Substring(0,7))) ..." -ForegroundColor Cyan
     New-Item -ItemType Directory -Force -Path $sdkRoot | Out-Null
 
     $zip = Join-Path $sdkRoot "iv-sdk.zip"
@@ -90,26 +89,26 @@ if (-not (Test-Path (Join-Path $sdkInclude "IVSDK.cpp"))) {
     $actual = (Get-FileHash $zip -Algorithm SHA256).Hash.ToLower()
     if ($actual -ne $sdkSha256) {
         Remove-Item $zip -Force
-        throw "SDK-Pruefsumme stimmt nicht.`n  erwartet $sdkSha256`n  erhalten $actual"
+        throw "SDK checksum does not match.`n  expected $sdkSha256`n  got      $actual"
     }
 
     Add-Type -AssemblyName System.IO.Compression.FileSystem
     [System.IO.Compression.ZipFile]::ExtractToDirectory($zip, $sdkRoot)
     Remove-Item $zip -Force
-    Write-Host "IV-SDK verifiziert und entpackt." -ForegroundColor Green
+    Write-Host "IV-SDK verified and extracted." -ForegroundColor Green
 }
 
 if (-not (Test-Path (Join-Path $sdkInclude "IVSDK.cpp"))) {
-    throw "IV-SDK unvollstaendig unter $sdkInclude"
+    throw "IV-SDK incomplete under $sdkInclude"
 }
 
 # --------------------------------------------------------------------- D3DX
 #
-# Das SDK bindet d3dx9.h ein. Die Header gehoerten zum DirectX SDK von Juni
-# 2010, das Microsoft eingestellt hat und dessen Installer fuer den Fehler
-# S1023 beruechtigt ist. Dieselben Dateien liegen als NuGet-Paket vor - das ist
-# ein ZIP, kein Installer, und laesst sich wie alles andere hier holen und
-# pruefen, ohne am System etwas zu veraendern.
+# The SDK includes d3dx9.h. Those headers belonged to the June 2010 DirectX SDK,
+# which Microsoft discontinued and whose installer is notorious for error S1023.
+# The same files exist as a NuGet package - that is a ZIP, not an installer, and
+# can be fetched and verified like everything else here, without changing
+# anything about the system.
 $d3dxVersion = "9.29.952.8"
 $d3dxSha256  = "ead0906ae8a26c18a7525da7490127a2110f7c58f18293738283e30e97c6ea4b"
 $d3dxRoot    = Join-Path $root "third_party\d3dx"
@@ -117,7 +116,7 @@ $d3dxInclude = Join-Path $d3dxRoot "build\native\include"
 $d3dxLib     = Join-Path $d3dxRoot "build\native\release\lib\x86"
 
 if (-not (Test-Path (Join-Path $d3dxInclude "d3dx9.h"))) {
-    Write-Host "Hole D3DX-Header ($d3dxVersion) ..." -ForegroundColor Cyan
+    Write-Host "Fetching the D3DX headers ($d3dxVersion) ..." -ForegroundColor Cyan
     New-Item -ItemType Directory -Force -Path $d3dxRoot | Out-Null
 
     $pkg = Join-Path $d3dxRoot "d3dx.zip"
@@ -127,20 +126,20 @@ if (-not (Test-Path (Join-Path $d3dxInclude "d3dx9.h"))) {
     $actual = (Get-FileHash $pkg -Algorithm SHA256).Hash.ToLower()
     if ($actual -ne $d3dxSha256) {
         Remove-Item $pkg -Force
-        throw "D3DX-Pruefsumme stimmt nicht.`n  erwartet $d3dxSha256`n  erhalten $actual"
+        throw "D3DX checksum does not match.`n  expected $d3dxSha256`n  got      $actual"
     }
 
     Add-Type -AssemblyName System.IO.Compression.FileSystem
     [System.IO.Compression.ZipFile]::ExtractToDirectory($pkg, $d3dxRoot)
     Remove-Item $pkg -Force
-    Write-Host "D3DX verifiziert und entpackt." -ForegroundColor Green
+    Write-Host "D3DX verified and extracted." -ForegroundColor Green
 }
 
 if (-not (Test-Path (Join-Path $d3dxInclude "d3dx9.h"))) {
-    throw "d3dx9.h fehlt unter $d3dxInclude"
+    throw "d3dx9.h missing under $d3dxInclude"
 }
 
-# ------------------------------------------------------------------- Bauen
+# ---------------------------------------------------------------- Building
 
 New-Item -ItemType Directory -Force -Path $out, $obj | Out-Null
 
@@ -152,16 +151,16 @@ $sources = @(
     (Join-Path $source "menu\Menu.cpp")
 )
 
-# Die Pruefstaende sind Konsolenanwendungen, keine ASIs. Sie haengen an keiner
-# Spielfunktion und laufen deshalb hier, statt erst im Spiel.
+# The test harnesses are console applications, not ASIs. They depend on no game
+# function and therefore run here rather than only in the game.
 #
-# Genau deshalb sind Menue und Konfiguration frei von Spiel- und
-# Plattformheadern: ein Navigationsfehler oder eine nicht erkannte Taste faellt
-# damit in Millisekunden auf statt nach Spielstart und Ladebildschirm.
+# That is exactly why menu and configuration are free of game and platform
+# headers: a navigation bug or an unrecognised key shows up in milliseconds
+# instead of after a game start and a loading screen.
 if ($Test) {
     $suites = @(
-        @{ Name = "Menue";         Exe = "menu-test.exe";   Files = @("test\menu-test.cpp", "menu\Menu.cpp") },
-        @{ Name = "Konfiguration"; Exe = "config-test.exe"; Files = @("test\config-test.cpp", "core\Config.cpp") }
+        @{ Name = "Menu";          Exe = "menu-test.exe";   Files = @("test\menu-test.cpp", "menu\Menu.cpp") },
+        @{ Name = "Configuration"; Exe = "config-test.exe"; Files = @("test\config-test.cpp", "core\Config.cpp") }
     )
 
     New-Item -ItemType Directory -Force -Path (Join-Path $obj "test") | Out-Null
@@ -185,16 +184,16 @@ if ($Test) {
         $previous = $ErrorActionPreference
         $ErrorActionPreference = "Continue"
         try {
-            & cmd.exe /c $testBatch 2>&1 | Where-Object { $_ -notmatch 'vswhere|konnte nicht gefunden' } |
+            & cmd.exe /c $testBatch 2>&1 | Where-Object { $_ -notmatch 'vswhere|konnte nicht gefunden|cannot find|not recognized' } |
                 ForEach-Object { "  $_" }
             $testCode = $LASTEXITCODE
         }
         finally { $ErrorActionPreference = $previous }
 
-        if ($testCode -ne 0) { throw "Pruefstand $($suite.Name) liess sich nicht bauen (Exitcode $testCode)." }
+        if ($testCode -ne 0) { throw "Test harness $($suite.Name) could not be built (exit code $testCode)." }
 
         & $testExe
-        if ($LASTEXITCODE -ne 0) { throw "Pruefstand $($suite.Name) fehlgeschlagen." }
+        if ($LASTEXITCODE -ne 0) { throw "Test harness $($suite.Name) failed." }
     }
 
     exit 0
@@ -202,12 +201,12 @@ if ($Test) {
 
 $flags = if ($Configuration -eq "Release") { "/O2 /DNDEBUG" } else { "/Od /Zi /D_DEBUG" }
 
-# /MT statt /MD: statische Laufzeit, keine Redistributable noetig.
-# /EHsc: ein Wurf im Tick darf das Spiel nicht mitnehmen.
-# Bewusst als durchgehende Zeichenkette und nicht als Array mit -join:
-# in einem Array-Literal frisst "-join" das folgende Komma als Teil seines
-# rechten Operanden, macht daraus ein Trennzeichen-Array und baut damit einen
-# stillen Unsinn, den erst die erzeugte Batch-Datei sichtbar macht.
+# /MT rather than /MD: static runtime, no redistributable needed.
+# /EHsc: a throw in the tick must not take the game down with it.
+# Deliberately one continuous string rather than an array with -join: inside an
+# array literal "-join" eats the following comma as part of its right operand,
+# turns it into a separator array and thereby builds silent nonsense that only
+# the generated batch file makes visible.
 $sourceArgs = ($sources | ForEach-Object { '"' + $_ + '"' }) -join ' '
 
 $compile = "cl.exe /nologo /std:c++20 /W4 /WX /EHsc /MT /LD $flags " +
@@ -217,12 +216,12 @@ $compile = "cl.exe /nologo /std:c++20 /W4 /WX /EHsc /MT /LD $flags " +
            "$sourceArgs " +
            "/link /MACHINE:X86 /SUBSYSTEM:WINDOWS /LIBPATH:`"$d3dxLib`" user32.lib"
 
-Write-Host "Baue $asiName ($Configuration, x86) ..." -ForegroundColor Cyan
+Write-Host "Building $asiName ($Configuration, x86) ..." -ForegroundColor Cyan
 
-# Ueber eine Batch-Datei statt ueber "cmd /c <langer String>": der Aufruf
-# enthaelt Pfade mit Leerzeichen, Anfuehrungszeichen und && - beim Durchreichen
-# durch PowerShell an cmd zerfaellt das zuverlaessig, und zwar ohne jede
-# Fehlermeldung des Compilers. Eine Datei hat dieses Problem nicht.
+# Through a batch file rather than "cmd /c <long string>": the call contains
+# paths with spaces, quotes and && - passing that through PowerShell to cmd
+# falls apart reliably, and without any usable error message from the compiler.
+# A file does not have that problem.
 $batch = Join-Path $out "build.cmd"
 @(
     "@echo off",
@@ -232,10 +231,10 @@ $batch = Join-Path $out "build.cmd"
     "exit /b %ERRORLEVEL%"
 ) | Set-Content -Path $batch -Encoding ASCII
 
-# Unter Windows PowerShell 5.1 macht "Stop" aus jeder stderr-Zeile eines nativen
-# Programms einen abbrechenden NativeCommandError. vcvarsall.bat warnt auf
-# stderr ueber ein fehlendes vswhere.exe und arbeitet trotzdem korrekt weiter -
-# ohne diese Ausnahme scheitert der Build an einer blossen Warnung.
+# Under Windows PowerShell 5.1 "Stop" turns every stderr line of a native program
+# into an aborting NativeCommandError. vcvarsall.bat warns on stderr about a
+# missing vswhere.exe and still works correctly afterwards -
+# without this exception the build fails over a mere warning.
 $previous = $ErrorActionPreference
 $ErrorActionPreference = "Continue"
 try {
@@ -246,39 +245,39 @@ finally {
     $ErrorActionPreference = $previous
 }
 
-if ($code -ne 0) { throw "Compiler-Aufruf fehlgeschlagen (Exitcode $code)." }
+if ($code -ne 0) { throw "The compiler call failed (exit code $code)." }
 
 $asi = Join-Path $out $asiName
-if (-not (Test-Path $asi)) { throw "Kein $asiName erzeugt." }
+if (-not (Test-Path $asi)) { throw "No $asiName produced." }
 
 $info = Get-Item $asi
-Write-Host ("Fertig: {0} ({1:N0} Bytes)" -f $asi, $info.Length) -ForegroundColor Green
+Write-Host ("Done: {0} ({1:N0} bytes)" -f $asi, $info.Length) -ForegroundColor Green
 
 # ---------------------------------------------------------------- Signieren
 
 & (Join-Path $PSScriptRoot "sign.ps1") -Path $asi | Out-Null
-Write-Host "Signiert." -ForegroundColor Green
+Write-Host "Signed." -ForegroundColor Green
 
 # ------------------------------------------------------------------ Deploy
 
 if (-not $Deploy) {
-    Write-Host "Mit -Deploy landet es in <Spiel>\plugins\."
+    Write-Host "With -Deploy it lands in <game>\plugins\."
     exit 0
 }
 
 $plugins = Join-Path $GamePath "plugins"
 if (-not (Test-Path $plugins)) {
-    throw "Kein plugins-Ordner unter $GamePath. Zuerst: mliv apply ultimate-asi-loader"
+    throw "No plugins folder under $GamePath. First run: mliv apply ultimate-asi-loader"
 }
 
 if (Get-Process -Name GTAIV -ErrorAction SilentlyContinue) {
-    throw "GTAIV.exe laeuft - erst beenden, sonst ist die Datei gesperrt."
+    throw "GTAIV.exe is running - close it first, otherwise the file is locked."
 }
 
 try {
     Copy-Item $asi (Join-Path $plugins $asiName) -Force
-    Write-Host "Kopiert nach $plugins" -ForegroundColor Green
+    Write-Host "Copied to $plugins" -ForegroundColor Green
 }
 catch {
-    throw "Kopieren fehlgeschlagen: $($_.Exception.Message)`nAls Administrator ausfuehren."
+    throw "Copying failed: $($_.Exception.Message)`nRun as administrator."
 }

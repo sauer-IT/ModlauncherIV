@@ -7,10 +7,10 @@ using ModlauncherIV.Core.Execution;
 
 namespace ModlauncherIV.App;
 
-/// <summary>Eine Datei, die ein Rezept braucht, mitsamt ihrem Stand.</summary>
+/// <summary>A file a recipe needs, together with its state.</summary>
 public sealed class SourceRow(RecipeSource source, string recipeName) : Observable
 {
-    private string _state = "wartet";
+    private string _state = "waiting";
     private int? _percent;
     private bool _failed;
     private string? _hint;
@@ -43,7 +43,7 @@ public sealed class SourceRow(RecipeSource source, string recipeName) : Observab
         set => Set(ref _failed, value);
     }
 
-    /// <summary>Was der Nutzer tun muss, wenn der Assistent es nicht kann.</summary>
+    /// <summary>What the user has to do when the wizard cannot.</summary>
     public string? Hint
     {
         get => _hint;
@@ -62,13 +62,13 @@ public sealed class AcquireStep(Session session) : WizardStep(session)
     private bool _running;
     private string _status = string.Empty;
 
-    public override string Title => "Dateien beschaffen";
+    public override string Title => "Getting the files";
 
     public override string Lead =>
-        "Der Assistent lädt, was noch fehlt, und prüft jede Datei anhand ihrer "
-        + "SHA-256-Prüfsumme. Stimmt sie nicht, wird die Datei verworfen.";
+        "The wizard downloads what is still missing and checks every file against "
+        + "its SHA-256 checksum. If that does not match, the file is discarded.";
 
-    public override string NextLabel => "Einbauen";
+    public override string NextLabel => "Install";
 
     public ObservableCollection<SourceRow> Rows { get; } = [];
 
@@ -78,7 +78,7 @@ public sealed class AcquireStep(Session session) : WizardStep(session)
         private set => Set(ref _status, value);
     }
 
-    /// <summary>Der Ordner, in den der Nutzer fehlende Dateien selbst legen muss.</summary>
+    /// <summary>The folder the user has to put missing files into.</summary>
     public string CacheFolder => Session.CacheRoot;
 
     public bool NeedsUser => Rows.Any(r => r.Hint is not null);
@@ -103,7 +103,7 @@ public sealed class AcquireStep(Session session) : WizardStep(session)
         }
     }
 
-    /// <summary>Erneut versuchen — nachdem der Nutzer eine Datei selbst abgelegt hat.</summary>
+    /// <summary>Try again — after the user supplied a file by hand.</summary>
     public async Task RetryAsync()
     {
         _done = false;
@@ -113,13 +113,13 @@ public sealed class AcquireStep(Session session) : WizardStep(session)
     private async Task AcquireAsync()
     {
         Rows.Clear();
-        Status = "Prüfe, was schon da ist ...";
+        Status = "Checking what is already there ...";
         NotifyChanged();
 
         var journey = Session.Journey;
         if (journey is null)
         {
-            Status = "Kein Plan vorhanden.";
+            Status = "No plan available.";
             return;
         }
 
@@ -136,7 +136,7 @@ public sealed class AcquireStep(Session session) : WizardStep(session)
 
         if (needed.Count == 0)
         {
-            Status = "Diese Rezepte brauchen keine externen Dateien.";
+            Status = "These recipes need no external files.";
             _done = true;
             NotifyChanged();
             return;
@@ -147,11 +147,11 @@ public sealed class AcquireStep(Session session) : WizardStep(session)
 
         foreach (var row in needed)
         {
-            // Der Fortschritt kommt aus einem Hintergrund-Thread; Progress<T>
-            // bringt ihn zurück auf den, auf dem es angelegt wurde.
+            // Progress arrives from a background thread; Progress<T> brings it
+            // back onto the one it was created on.
             var progress = new Progress<AcquisitionProgress>(p =>
             {
-                row.State = "lädt ...";
+                row.State = "downloading ...";
                 row.Percent = p.Percent;
             });
 
@@ -164,8 +164,8 @@ public sealed class AcquireStep(Session session) : WizardStep(session)
 
         _done = true;
         Status = Rows.Any(r => r.Failed)
-            ? "Es fehlt noch etwas. Ohne diese Dateien wird nichts eingebaut."
-            : "Alles da und geprüft.";
+            ? "Something is still missing. Without these files nothing gets installed."
+            : "All present and verified.";
 
         Raise(nameof(NeedsUser));
         NotifyChanged();
@@ -178,30 +178,30 @@ public sealed class AcquireStep(Session session) : WizardStep(session)
         switch (result.Status)
         {
             case AcquisitionStatus.AlreadyPresent:
-                row.State = "war schon da, Prüfsumme stimmt";
+                row.State = "already there, checksum matches";
                 break;
 
             case AcquisitionStatus.Downloaded:
-                row.State = "geladen und geprüft";
+                row.State = "downloaded and verified";
                 break;
 
             case AcquisitionStatus.Bundled:
-                row.State = "mitgeliefert, Prüfsumme stimmt";
+                row.State = "shipped, checksum matches";
                 break;
 
             case AcquisitionStatus.NeedsUserAction:
-                row.State = "muss von Hand abgelegt werden";
+                row.State = "has to be supplied by hand";
                 row.Failed = true;
 
-                // Der Katalog nennt Dateien, die wir aus rechtlichen Gründen nicht
-                // spiegeln dürfen. Dann ist die einzige ehrliche Antwort, genau zu
-                // sagen, welche Datei wohin gehört — und nicht bloß "fehlgeschlagen".
+                // The catalog lists files we may not mirror for legal reasons.
+                // Then the only honest answer is to say exactly which file goes
+                // where — and not merely "failed".
                 row.Hint = result.Source.Note
-                           ?? $"Lege {result.Source.FileName} in den Arbeitsordner und versuche es erneut.";
+                           ?? $"Put {result.Source.FileName} into the working folder and try again.";
                 break;
 
             default:
-                row.State = "fehlgeschlagen";
+                row.State = "failed";
                 row.Failed = true;
                 row.Hint = result.Error;
                 break;

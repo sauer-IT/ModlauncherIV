@@ -44,15 +44,15 @@
 
         <TextBlock Text="{Binding Status}" Style="{StaticResource Dim}" Margin="0,8,0,0" />
 
-        <!-- Fehlt eine Datei, die wir nicht selbst laden duerfen, ist die einzige
-             brauchbare Hilfe: sagen, wohin sie gehoert, und den Ordner oeffnen. -->
+        <!-- When a file we may not download ourselves is missing, the only useful
+             help is: say where it belongs, and open the folder. -->
         <StackPanel Visibility="{Binding NeedsUser, Converter={StaticResource Show}}" Margin="0,14,0,0">
-            <TextBlock Text="Arbeitsordner:" Style="{StaticResource Dim}" />
+            <TextBlock Text="Working folder:" Style="{StaticResource Dim}" />
             <TextBlock Text="{Binding CacheFolder}" Style="{StaticResource Mono}" Margin="0,4,0,10" TextWrapping="Wrap" />
 
             <StackPanel Orientation="Horizontal">
-                <Button Content="Ordner öffnen" Click="OnOpenFolder" MinWidth="0" Margin="0,0,8,0" />
-                <Button Content="Erneut prüfen" Click="OnRetry" MinWidth="0" />
+                <Button Content="Open folder" Click="OnOpenFolder" MinWidth="0" Margin="0,0,8,0" />
+                <Button Content="Check again" Click="OnRetry" MinWidth="0" />
             </StackPanel>
         </StackPanel>
 

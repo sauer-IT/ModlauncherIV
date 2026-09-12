@@ -19,8 +19,8 @@ internal static class DetectCommand
         var installs = Collect(options.GamePath, out var explicitFailed);
         if (explicitFailed)
         {
-            // Bewusst kein Bericht: wir haben nirgendwo gesucht, also darf auch
-            // nichts behauptet werden. Den Pfad hat der Aufrufer genannt, nicht wir.
+            // Deliberately no report: we searched nowhere, so nothing may be
+            // claimed either. The caller named the path, not us.
             return ExitCode.NothingFound;
         }
 
@@ -53,7 +53,7 @@ internal static class DetectCommand
         return report.HasBlocker ? ExitCode.Blocked : ExitCode.Ok;
     }
 
-    /// <summary>Sucht Installationen, oder untersucht genau die eine genannte.</summary>
+    /// <summary>Looks for installations, or inspects exactly the one that was named.</summary>
     public static IReadOnlyList<GameInstall> Collect(string? explicitPath, out bool explicitFailed)
     {
         explicitFailed = false;
@@ -92,22 +92,22 @@ internal static class DetectCommand
 
         if (!Directory.Exists(path))
         {
-            Console.Error.WriteLine($"Der Ordner existiert nicht: {path}");
+            Console.Error.WriteLine($"The folder does not exist: {path}");
             return null;
         }
 
         if (!File.Exists(Path.Combine(path, InstallInspector.ExecutableName)))
         {
             Console.Error.WriteLine(
-                $"In {path} liegt keine {InstallInspector.ExecutableName} — das ist kein GTA-IV-Verzeichnis.");
+                $"There is no {InstallInspector.ExecutableName} in {path} - that is not a GTA IV directory.");
             return null;
         }
 
-        // Auch ein von Hand genannter Ordner verraet seine Herkunft — sonst wuessten
-        // wir nicht, ob es dort einen Schalter gegen Updates gibt.
+        // A folder named by hand gives away its origin too - otherwise we would not
+        // know whether there is a switch against updates there.
         var platform = new InstallLocator().InferPlatform(path);
         var via = platform == GamePlatform.Unknown
-            ? "manuell angegeben"
+            ? "given by hand"
             : $"manuell angegeben, erkannt als {platform}";
 
         return new InstallCandidate(path, platform, via);
@@ -127,7 +127,7 @@ internal static class DetectCommand
                                        or ArgumentException
                                        or PathTooLongException)
         {
-            Console.Error.WriteLine($"Bericht konnte nicht geschrieben werden: {e.Message}");
+            Console.Error.WriteLine($"The report could not be written: {e.Message}");
             return false;
         }
     }

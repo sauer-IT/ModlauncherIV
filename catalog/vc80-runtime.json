@@ -1,9 +1,9 @@
 {
   "id": "vc80-runtime",
-  "name": "Visual-C++-2005-Laufzeit (neben der EXE)",
+  "name": "Visual C++ 2005 runtime (next to the EXE)",
   "version": "1.0.0",
   "game": "GtaIV",
-  "description": "GTA IV 1.0.7.0 wurde gegen die Visual-C++-2005-Laufzeit gebaut und startet ohne sie nicht - Windows meldet dann 'Die Side-by-Side-Konfiguration ist ungueltig'. Auf heutigen Systemen fehlt sie, und das Downgrade-Paket bringt sie nicht mit. Hier wird sie neben die EXE gelegt statt systemweit installiert: das bleibt im Spielverzeichnis, ist umkehrbar, und es braucht keinen Rezeptschritt, der fremde Installer ausfuehren darf.",
+  "description": "GTA IV 1.0.7.0 was built against the Visual C++ 2005 runtime and does not start without it - Windows then only reports that the side-by-side configuration is incorrect. It is missing on todays systems, and the downgrade package does not bring it. Here it is placed next to the EXE rather than installed system-wide: that stays inside the game directory, is reversible, and needs no recipe step allowed to run foreign installers.",
 
   "appliesToVersions": [ "1.0.7.0", "1.0.8.0", "1.0.4.0" ],
 
@@ -14,7 +14,7 @@
       "sha256": "0c99315930c3a96f3f2a74e626b991e2d3e93ec3881adf847a103204c084062a",
       "sizeBytes": 7096852,
       "urls": [],
-      "note": "Enthaelt Microsoft.VC80.CRT und Microsoft.VC80.ATL. Keine hinterlegte Bezugsquelle - die Datei muss ins Arbeitsverzeichnis gelegt werden. Die ebenfalls enthaltene GTAIV.exe ist byteidentisch mit der aus dem Downgrade-Paket und wird hier nicht angefasst."
+      "note": "Contains Microsoft.VC80.CRT and Microsoft.VC80.ATL. No source recorded - the file has to be placed in the working directory by hand. The GTAIV.exe it also contains is byte-identical to the one from the downgrade package and is not touched here."
     }
   ],
 

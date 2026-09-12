@@ -5,13 +5,13 @@
 #include <string>
 #include <vector>
 
-// Das Menue kennt das Spiel nicht.
+// The menu does not know the game.
 //
-// Struktur, Navigation und Zustand sind reine Logik; gezeichnet wird ueber
-// IMenuRenderer, und bewegt wird es ueber abstrakte Eingaben. Das ist nicht
-// Selbstzweck: so laesst sich das Menue vollstaendig ausserhalb des Spiels
-// durchspielen. Ein Navigationsfehler, den man sonst erst nach Spielstart,
-// Ladebildschirm und Tastendruck bemerkt, faellt hier in Millisekunden auf.
+// Structure, navigation and state are pure logic; drawing goes through
+// IMenuRenderer, and it is moved through abstract inputs. That is not for its
+// own sake: it lets the menu be played through entirely outside the game. A
+// navigation bug you would otherwise only notice after a game start, a loading
+// screen and a key press shows up here in milliseconds.
 namespace mliv
 {
     enum class MenuInput
@@ -19,20 +19,20 @@ namespace mliv
         None,
         Up,
         Down,
-        Left,     ///< Wert verringern
-        Right,    ///< Wert erhoehen
+        Left,     ///< decrease a value
+        Right,    ///< increase a value
         Select,
         Back,
-        Toggle,   ///< Menue oeffnen oder schliessen
+        Toggle,   ///< open or close the menu
     };
 
     enum class ItemKind
     {
-        Action,     ///< Fuehrt etwas aus.
-        Toggle,     ///< An oder aus.
-        Choice,     ///< Eine Auswahl aus mehreren Werten.
-        Submenu,    ///< Fuehrt eine Ebene tiefer.
-        Label,      ///< Nur Text, nicht anwaehlbar.
+        Action,     ///< Runs something.
+        Toggle,     ///< On or off.
+        Choice,     ///< A choice among several values.
+        Submenu,    ///< Leads one level deeper.
+        Label,      ///< Text only, not selectable.
     };
 
     class Menu;
@@ -42,24 +42,24 @@ namespace mliv
         std::string label;
         ItemKind kind = ItemKind::Action;
 
-        /// Wird bei Action und Toggle aufgerufen.
+        /// Called for Action and Toggle.
         std::function<void()> onSelect;
 
-        /// Bei Toggle: der Zustand. Gehoert dem Aufrufer, nicht dem Menue -
-        /// der Trainer haelt seine Schalter selbst.
+        /// For Toggle: the state. Owned by the caller, not by the menu - the
+        /// trainer keeps its own switches.
         bool* toggle = nullptr;
 
-        /// Bei Choice: die moeglichen Werte und der aktuelle Index.
+        /// For Choice: the possible values and the current index.
         std::vector<std::string> choices;
         int* choiceIndex = nullptr;
         std::function<void(int)> onChoice;
 
-        /// Bei Submenu: das Untermenue.
+        /// For Submenu: the submenu.
         std::shared_ptr<Menu> submenu;
 
         bool selectable() const { return kind != ItemKind::Label; }
 
-        /// Was rechts neben dem Text steht - Zustand oder aktueller Wert.
+        /// What sits to the right of the text - state or current value.
         std::string value() const;
     };
 
@@ -74,8 +74,8 @@ namespace mliv
 
         Menu& add(MenuItem item);
 
-        /// Bewegt die Auswahl. Ueberspringt Labels und laeuft am Rand um -
-        /// wer unten steht und weiter drueckt, landet oben.
+        /// Moves the selection. Skips labels and wraps at the ends - pressing
+        /// down at the bottom takes you to the top.
         void moveUp();
         void moveDown();
 
@@ -89,8 +89,8 @@ namespace mliv
         void skipLabels(int direction);
     };
 
-    /// Zeichnet das Menue. Die Umsetzung mit den Text-Natives des Spiels kommt
-    /// spaeter; fuer Tests genuegt eine, die in die Konsole schreibt.
+    /// Draws the menu. The implementation using the game's text natives lives
+    /// in the plugin; for tests one that writes to the console is enough.
     class IMenuRenderer
     {
     public:
@@ -102,7 +102,7 @@ namespace mliv
         virtual void endFrame() = 0;
     };
 
-    /// Haelt fest, wo im Menuebaum wir gerade sind.
+    /// Keeps track of where in the menu tree we currently are.
     class MenuController
     {
     public:

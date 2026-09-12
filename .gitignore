@@ -14,14 +14,14 @@ Release/
 *.asi
 !tests/fixtures/**/*.asi
 
-# Downloads und Zwischenstaende
+# Downloads and intermediate state
 !tests/fixtures/
 cache/
 tests/work/
 third_party/
 
-# Vom Packskript erzeugt: der mitgelieferte Trainer wird gebaut, nicht versioniert.
+# Produced by the packing script: the shipped trainer is built, not versioned.
 src/Launcher.App/bundled/
 
-# Vorschaubilder aus dem Symbol-Skript
+# Preview images from the icon script
 artifacts/icon-preview.png

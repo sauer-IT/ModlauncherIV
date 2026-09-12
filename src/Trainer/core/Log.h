@@ -2,16 +2,16 @@
 
 #include <string>
 
-// Das Logfile ist bei einem ASI-Plugin der einzige verlaessliche Kanal nach
-// aussen. Ein Debugger am Vollbildspiel ist unbrauchbar, Konsolenausgabe gibt
-// es nicht, und ein Absturz nimmt jede Meldung mit, die noch im Puffer steht.
-// Deshalb wird nach jeder Zeile geleert (flush).
+// For an ASI plugin the log file is the only reliable channel to the outside.
+// A debugger on a fullscreen game is useless, console output there is none, and a
+// crash takes every message still sitting in the buffer with it. That is why
+// it is flushed after every line.
 namespace mliv
 {
-    /// Legt das Logfile neben der DLL an. Mehrfachaufrufe sind harmlos.
+    /// Creates the log file next to the DLL. Calling it repeatedly is harmless.
     void LogOpen(const std::wstring& dllPath);
 
-    /// Schreibt eine Zeile mit Zeitstempel. printf-Format.
+    /// Writes one timestamped line. printf format.
     void LogLine(const char* format, ...);
 
     void LogClose();

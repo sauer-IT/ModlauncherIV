@@ -11,18 +11,18 @@
     <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
     <ApplicationManifest>app.manifest</ApplicationManifest>
 
-    <!-- Erzeugt von scripts\make-icon.ps1. Windows nimmt es fuer die EXE, den
-         Explorer, die Taskleiste und jede Verknuepfung darauf; WPF nimmt es
-         zusaetzlich als Fenstersymbol. -->
+    <!-- Produced by scripts\make-icon.ps1. Windows uses it for the EXE, the
+         Explorer, the taskbar and every shortcut pointing at it; WPF uses it
+         as the window icon on top of that. -->
     <ApplicationIcon>..\..\assets\ModlauncherIV.ico</ApplicationIcon>
 
-    <!-- Steht in den Dateieigenschaften und im SmartScreen-Dialog. Wer eine
-         unsignierte EXE herunterlaedt, sieht diesen Text als einzigen Hinweis
-         darauf, was das Programm ist - also gehoert er gepflegt. -->
+    <!-- Shows up in the file properties and in the SmartScreen dialog. Anyone
+         downloading an unsigned EXE sees this text as the only hint at what the
+         program is - so it deserves care. -->
     <Version>1.0.0</Version>
     <Product>Modlauncher IV</Product>
     <AssemblyTitle>Modlauncher IV</AssemblyTitle>
-    <Description>Gefuehrter Downgrader und Mod-Installer fuer GTA IV</Description>
+    <Description>Guided downgrader and mod installer for GTA IV</Description>
     <Copyright>GPL-3.0</Copyright>
   </PropertyGroup>
 
@@ -31,9 +31,10 @@
   </ItemGroup>
 
   <!--
-    Der Katalog wandert mit in die Ausgabe. Er gehoert zum Programm: ohne ihn
-    kennt der Assistent kein einziges Rezept. Mitkopiert wird auch index.json
-    samt Signatur - fehlt die, laedt der Launcher zu Recht nichts.
+    The catalog travels into the output. It belongs to the program: without it
+    the wizard knows not a single recipe. index.json and its signature are
+    copied along - if the signature is missing, the launcher rightly loads
+    nothing.
   -->
   <ItemGroup>
     <Content Include="..\..\catalog\**\*">
@@ -43,14 +44,14 @@
   </ItemGroup>
 
   <!--
-    Dateien, die der Launcher selbst mitbringt - derzeit nur der eigene Trainer.
-    Sie werden trotzdem gegen die Pruefsumme im Rezept geprueft: der
-    Lieferumfang ist kein Vertrauensbonus, der Ordner liegt neben einem
-    Programm, in den jeder schreiben kann, der dort Rechte hat.
+    Files the launcher brings along itself - currently only its own trainer.
+    They are still checked against the checksum in the recipe: being shipped is
+    no bonus of trust, the folder sits next to a program and anyone with rights
+    there can write into it.
 
-    Angelegt von scripts\pack-trainer.ps1. Fehlt der Ordner, faellt hier nichts
-    aus - dann kennt der Katalog eben ein Rezept, dessen Datei fehlt, und der
-    Assistent sagt das auch.
+    Created by scripts\pack-trainer.ps1. If the folder is missing nothing breaks
+    here - the catalog then simply knows a recipe whose file is absent, and the
+    wizard says so.
   -->
   <ItemGroup>
     <Content Include="bundled\**\*">

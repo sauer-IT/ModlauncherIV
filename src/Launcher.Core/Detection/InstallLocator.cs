@@ -284,7 +284,7 @@ public sealed class InstallLocator
     }
 
     /// <summary>
-    /// Das Manifest liegt in steamapps, das Spiel in steamapps/common/&lt;Name&gt;.
+    /// The manifest sits in steamapps, the game in steamapps/common/&lt;name&gt;.
     /// So we walk upwards instead of asking Steam again.
     /// </summary>
     public static string? FindSteamManifest(string gamePath)

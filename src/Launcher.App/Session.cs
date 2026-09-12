@@ -6,32 +6,32 @@ using ModlauncherIV.Core.Planning;
 namespace ModlauncherIV.App;
 
 /// <summary>
-/// Was der Assistent über den Verlauf hinweg weiß.
+/// What the wizard knows across the whole run.
 ///
-/// Ein einzelnes Objekt statt Eigenschaften, die von Schritt zu Schritt gereicht
-/// werden: die Schritte lesen und schreiben dieselbe Wahrheit, und ein Rücksprung
-/// führt nicht zu zwei Ständen, die sich widersprechen.
+/// A single object rather than properties passed from step to step: the steps
+/// read and write the same truth, and going back does not produce two states
+/// that contradict each other.
 /// </summary>
 public sealed class Session
 {
     public GameInstall? Install { get; set; }
 
-    /// <summary>Alles, was die Erkennung beim Start gefunden hat.</summary>
+    /// <summary>Everything detection found at startup.</summary>
     public IReadOnlyList<GameInstall> Found { get; set; } = [];
 
     public SystemEnvironment? Environment { get; set; }
 
     public CatalogLoadResult? Catalog { get; set; }
 
-    /// <summary>Gewünschte Spielversion. Null = die vorhandene behalten.</summary>
+    /// <summary>Wanted game version. Null = keep the one in place.</summary>
     public string? TargetVersion { get; set; }
 
-    /// <summary>Rezepte, die der Nutzer angehakt hat. Ohne Abhängigkeiten.</summary>
+    /// <summary>Recipes the user ticked. Without dependencies.</summary>
     public List<string> Wanted { get; } = [];
 
     public Journey? Journey { get; set; }
 
-    /// <summary>Rezepte, die tatsächlich gelaufen sind. Für die Schlussseite.</summary>
+    /// <summary>Recipes that actually ran. For the final page.</summary>
     public List<string> Applied { get; } = [];
 
     public string CacheRoot { get; set; } = AppPaths.Cache;
@@ -39,7 +39,7 @@ public sealed class Session
     public InstallLedger Ledger =>
         Install is null ? InstallLedger.Empty(string.Empty) : new LedgerStore(Install.Path).Load();
 
-    /// <summary>Die Rezepte des Katalogs, die für Menschen zur Auswahl taugen.</summary>
+    /// <summary>The catalog recipes that make sense for a human to pick.</summary>
     public IReadOnlyList<Recipe> SelectableRecipes =>
         Catalog is null
             ? []
