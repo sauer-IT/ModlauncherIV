@@ -67,6 +67,15 @@ public sealed class WizardViewModel : Observable
     /// <summary>Whether that way out exists at all. See the constructor.</summary>
     public bool CanGoHome { get; }
 
+    /// <summary>
+    /// Whether the way out needs its own button.
+    ///
+    /// Not on the last step: "Next" already leads home there, and two buttons
+    /// side by side doing the same thing make the reader look for the
+    /// difference between them.
+    /// </summary>
+    public bool ShowHomeButton => CanGoHome && _index < _steps.Count - 1;
+
     public WizardStep Current => _steps[_index];
 
     public IReadOnlyList<WizardStep> Steps => _steps;
@@ -132,6 +141,7 @@ public sealed class WizardViewModel : Observable
 
         Raise(nameof(Current));
         Raise(nameof(Position));
+        Raise(nameof(ShowHomeButton));
 
         await RunGuarded(Current.EnterAsync).ConfigureAwait(true);
         RefreshCommands();

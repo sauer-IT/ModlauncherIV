@@ -57,6 +57,37 @@ if (-not (Test-Path $index)) {
     throw "The catalog is not signed. Without a signature the launcher loads no recipe."
 }
 
+# That the signature exists says nothing about whether it still fits.
+#
+# -SkipTrainer skips the signing along with the trainer, so a recipe added or
+# removed since the last run leaves an index that no longer matches the folder.
+# The launcher is then right to load nothing at all - and the EXE looks perfect
+# from the outside. Cheaper to ask once here than to ship it.
+$mliv = Join-Path $root "artifacts\fd\mliv.exe"
+if (Test-Path $mliv) {
+    $previous = $ErrorActionPreference
+    $ErrorActionPreference = "Continue"
+    try {
+        $listed = & $mliv catalog --catalog (Join-Path $root "catalog") 2>&1 | Out-String
+        $code = $LASTEXITCODE
+    }
+    finally { $ErrorActionPreference = $previous }
+
+    if ($code -ne 0) {
+        throw @"
+The signed index does not match the catalog folder - the launcher would load no
+recipe at all. Sign it again:
+
+  .\scripts\pack-trainer.ps1
+
+$listed
+"@
+    }
+
+    $count = [regex]::Match($listed, "(\d+) recipe").Groups[1].Value
+    Write-Host "Catalog: $count recipe(s), signature checks out." -ForegroundColor Green
+}
+
 # --------------------------------------------------------------- 2. Building
 
 Write-Host "`n== Building the EXE ==" -ForegroundColor Cyan

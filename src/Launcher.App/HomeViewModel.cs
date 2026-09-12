@@ -1,15 +1,24 @@
 using System.Collections.ObjectModel;
 using System.Diagnostics;
 using System.IO;
+using System.Windows;
 using ModlauncherIV.Core.Backup;
+using ModlauncherIV.Core.Catalog;
 using ModlauncherIV.Core.Detection;
+using ModlauncherIV.Core.Execution;
 using ModlauncherIV.Core.Planning;
 using ModlauncherIV.Core.Verification;
 
 namespace ModlauncherIV.App;
 
 /// <summary>An installed recipe, the way it appears on the home page.</summary>
-public sealed record InstalledMod(string Name, string Version, string State, bool Intact);
+public sealed record InstalledMod(
+    string RecipeId,
+    string Name,
+    string Version,
+    string State,
+    bool Intact,
+    RelayCommand RemoveCommand);
 
 /// <summary>
 /// The home page.
@@ -60,7 +69,7 @@ public sealed class HomeViewModel : Observable
         GamePlatform.RockstarLauncher => "Rockstar Games Launcher",
         GamePlatform.Epic => "Epic Games",
         GamePlatform.Retail => "Disc",
-        _ => "unbekannte Herkunft",
+        _ => "unknown origin",
     };
 
     /// <summary>The sentence above the play button. Says whether something is wrong.</summary>
@@ -105,6 +114,84 @@ public sealed class HomeViewModel : Observable
         });
     }
 
+    /// <summary>
+    /// Takes one recipe back out.
+    ///
+    /// Not "delete the files": the snapshot also knows which files existed
+    /// beforehand and with what content, so an overwritten file gets its old
+    /// content back rather than disappearing. That is the whole reason a
+    /// downgrade can be undone at all.
+    ///
+    /// Asks first, and says what it is about to do. Everything else on this page
+    /// only reads; this is the one button that takes something away.
+    /// </summary>
+    private void Remove(string recipeId)
+    {
+        if (_session.Install is not { } install)
+        {
+            return;
+        }
+
+        var uninstaller = new Uninstaller(new SnapshotStore(install.Path), new LedgerStore(install.Path));
+
+        var context = new RecipeContext(
+            gameRoot: install.Path,
+            sourceRoot: _session.CacheRoot,
+            log: new ExecutionLog(),
+            dryRun: false);
+
+        var plan = uninstaller.Plan(recipeId, context, _session.Catalog?.Recipes ?? []);
+
+        if (plan is null)
+        {
+            MessageBox.Show($"{recipeId} is not installed.", SelfInstall.ProgramName,
+                            MessageBoxButton.OK, MessageBoxImage.Information);
+            return;
+        }
+
+        // Blockers before the question, not after it. Being asked "are you sure"
+        // and then told it was never possible is the wrong order.
+        if (!plan.CanRun)
+        {
+            var why = string.Join("\n", plan.Issues
+                .Where(i => i.Severity == IssueSeverity.Fatal)
+                .Select(i => "- " + i.Message));
+
+            MessageBox.Show($"{recipeId} cannot be removed:\n\n{why}", SelfInstall.ProgramName,
+                            MessageBoxButton.OK, MessageBoxImage.Warning);
+            return;
+        }
+
+        var files = plan.Snapshot!.Entries.Count;
+
+        var answer = MessageBox.Show(
+            $"Remove {plan.Entry.RecipeName}?\n\n"
+            + $"{files} path(s) go back to the state before it was installed. "
+            + "Files it created are deleted, files it overwrote get their old content back.",
+            SelfInstall.ProgramName,
+            MessageBoxButton.OKCancel,
+            MessageBoxImage.Question);
+
+        if (answer != MessageBoxResult.OK)
+        {
+            return;
+        }
+
+        var outcome = uninstaller.Remove(plan, context);
+
+        if (!outcome.Success)
+        {
+            MessageBox.Show(
+                "Removal failed:\n\n" + string.Join("\n", outcome.Errors),
+                SelfInstall.ProgramName,
+                MessageBoxButton.OK,
+                MessageBoxImage.Error);
+        }
+
+        // Either way: the page has to show what is actually there now.
+        _ = VerifyAsync();
+    }
+
     private void OpenFolder()
     {
         if (_session.Install is { } install && Directory.Exists(install.Path))
@@ -142,11 +229,15 @@ public sealed class HomeViewModel : Observable
                     string.Equals(f.RecipeId, entry.RecipeId, StringComparison.OrdinalIgnoreCase) &&
                     f.State is OwnedFileState.Modified or OwnedFileState.Missing);
 
+                var id = entry.RecipeId;
+
                 Mods.Add(new InstalledMod(
+                    id,
                     entry.RecipeName,
                     entry.RecipeVersion,
                     broken == 0 ? $"{entry.Files.Count} file(s)" : $"{broken} file(s) changed or gone",
-                    broken == 0));
+                    broken == 0,
+                    new RelayCommand(() => Remove(id), () => !_busy)));
             }
 
             Describe(result, ledger);
