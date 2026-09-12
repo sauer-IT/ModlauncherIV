@@ -3,8 +3,9 @@
 Ein geführter Downgrader und Mod-Installer für GTA IV — und ein selbstgebauter
 Trainer, den er am Ende ausliefert.
 
-**Stand: M3 (Maschinerie)** — Rezept-Engine mit Snapshot und Rollback, Beschaffung mit
-Hash-Prüfung und Mirror-Kette, signierter Katalog.
+**Stand: M3 abgeschlossen** — Rezept-Engine mit Snapshot, Rollback und Rückbau,
+Beschaffung mit Hash-Prüfung und Mirror-Kette, signierter Katalog. Der Downgrade
+ist an einer echten Installation gelaufen: 1.2.0.59 → 1.0.7.0, das Spiel startet.
 Einziger Befehl, der das Spiel verändert, ist `apply` — nach Rückfrage und mit
 vorherigem Snapshot.
 
@@ -16,7 +17,7 @@ vorherigem Snapshot.
 | `src/Launcher.Cli` | Headless-Frontend (`mliv`). Dry-Runs, Diagnose, CI. |
 | `src/Launcher.App` | WPF-Wizard. Kommt mit M5. |
 | `src/Trainer` | C++ ASI-Plugin, x86. Kommt ab M4. |
-| `catalog/` | Die deklarativen Rezepte. Inhalte ab M3. |
+| `catalog/` | Die deklarativen Rezepte. Fünf Stück, vier davon erprobt. |
 | `tests/` | Fixtures und Testskript. |
 
 ## Voraussetzungen
@@ -80,15 +81,25 @@ als String-Begrenzer. Der Parser verrutscht dann still ab dieser Stelle.
 
 ## Der Katalog — Stand und Vorbehalte
 
-Vier Rezepte mit **echten, selbst gebildeten SHA-256-Prüfsummen**. Keines davon
-wurde bisher ausgeführt; `plan` läuft sauber durch, `apply` ist ungetestet.
+Fünf Rezepte mit **echten, selbst gebildeten SHA-256-Prüfsummen**. Vier davon
+sind **an einer echten Installation gelaufen** — Complete Edition 1.2.0.59 über
+den Rockstar Games Launcher, heruntergestuft auf 1.0.7.0. Das Spiel startet.
 
-| Rezept | Quelle | Größe |
-|---|---|---|
-| `downgrade-ce-1070` | GitHub-Release des Gillian-Guide-Projekts | 111 MB |
-| `ultimate-asi-loader` | ThirteenAG, GitHub-Release | 928 KB |
-| `gfwl-stub` | FusionFix Legacy Addon, GitHub-Release | 4,0 MB |
-| `scripthook-dotnet` | ClonkAndre, GitHub-Release | 647 KB |
+| Rezept | Quelle | Größe | Stand |
+|---|---|---|---|
+| `downgrade-ce-1070` | GitHub-Release des Gillian-Guide-Projekts | 111 MB | gelaufen |
+| `ultimate-asi-loader` | ThirteenAG, GitHub-Release | 928 KB | gelaufen |
+| `gfwl-stub` | FusionFix Legacy Addon, GitHub-Release | 4,0 MB | gelaufen |
+| `vc80-runtime` | vom Nutzer beigestellt | 7,1 MB | gelaufen |
+| `scripthook-dotnet` | ClonkAndre, GitHub-Release | 647 KB | ungetestet |
+
+**Ohne `vc80-runtime` startet nichts.** 1.0.7.0 wurde gegen die
+Visual-C++-2005-Laufzeit gebaut; auf heutigen Systemen fehlt sie, und das
+Downgrade-Paket bringt sie nicht mit. Windows meldet dann nur „Die
+Side-by-Side-Konfiguration ist ungültig", was den eigentlichen Grund nicht
+verrät. Die Laufzeit wird neben die EXE gelegt statt systemweit installiert —
+das bleibt im Spielverzeichnis, ist umkehrbar, und es braucht keinen
+Rezeptschritt, der fremde Installer ausführen darf.
 
 **Warum nicht der übliche Downgrader.** Der verbreitete GTAIVDowngrader (v2.2,
 Januar 2025) holt seine Spielpakete aus einer Dropbox. Diese Links liefern
@@ -101,15 +112,21 @@ Nebenbei ein Beleg, dass die Größenprüfung aus M2 ihren Zweck erfüllt: die
 Dropbox-Antwort war 185 KB statt 85,7 MB und wäre abgewiesen worden, bevor
 irgendetwas das Spielverzeichnis erreicht.
 
-**Zwei offene Punkte am Downgrade-Rezept:**
+**Was der echte Lauf ergeben hat:**
 
-- Es entpackt 187 Dateien über die Installation. Die Complete Edition bringt aber
-  Dateien mit, die es in 1.0.7.0 nicht gab — `MTLX.dll`, `index.bin`,
-  `title.rgl` — und die bleiben so liegen. Ob das stört, ist ungeprüft.
-- Die `GTAIV.exe` dieser Installation (MD5 `1a47b45f…`) steht in **keiner** der
-  bekannten Hash-Listen für 1.2.0.59. Die Dateien stammen vom August 2026, die
-  Datenbasis der Community von Januar 2025. Es gibt also offenbar neuere
-  CE-Builds, die noch niemand erfasst hat.
+- 187 Dateien ersetzt. Liegen bleiben nur Rockstar-Launcher-Artefakte
+  (`MTLX.dll`, `index.bin`, `metadata.dat`, `title.rgl`, `uninstall.exe`) und
+  keine Spieldaten — das 1.0.7.0-Spiel liest sie nicht. Ein Aufräumschritt ist
+  damit nicht nötig; `uninstall.exe` zu entfernen wäre sogar schädlich.
+- Die `GTAIV.exe` der Complete Edition (MD5 `1a47b45f…`) steht in **keiner** der
+  bekannten Hash-Listen für 1.2.0.59 — die Dateien stammen vom August 2026, die
+  Datenbasis der Community von Januar 2025. Gestört hat es nicht.
+- Die resultierende 1.0.7.0-`GTAIV.exe` (`ab21c0d9…cb4c`) ist byte-identisch mit
+  der aus einem unabhängig bezogenen `Retail-1070.zip`. Zwei Quellen, dieselbe
+  Prüfsumme.
+
+**Nach dem Downgrade nicht über den Rockstar Games Launcher starten**, sondern
+direkt über `GTAIV.exe` — sonst bemerkt der Launcher die veränderte Installation.
 
 ## Katalogsignatur
 
@@ -181,8 +198,8 @@ Endnutzer mit aktivem Smart App Control.
 - **M0** Erkennung und Diagnosebericht ✔
 - **M1** Rezept-Engine, Snapshot, Rollback, Ledger, Dry-Run ✔
 - **M2** Beschaffung, Hash-Prüfung, Mirror, Katalogsignatur ✔
-- **M3** Versionsgraph, Update-Sperre, Gegenprobe ✔ · Downgrade-Rezepte offen ← *hier*
-- **M4** Basis-Stack (ASI-Loader, xliveless, ScriptHook) · Trainer T0
+- **M3** Downgrade-Rezepte, Versionsgraph, Update-Sperre, Gegenprobe, Rückbau ✔
+- **M4** Trainer T0: leeres ASI, das lädt und ins Logfile schreibt ← *hier*
 - **M5** WPF-Wizard und Dev-Modus · Trainer T1
 - **M6** Profile, Deinstallation, Katalog-Update · Trainer T2/T3
 
