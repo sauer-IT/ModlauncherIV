@@ -198,7 +198,8 @@ public sealed class TransactionRunner(SnapshotStore snapshots, LedgerStore ledge
         return missing;
     }
 
-    private static void CheckProcesses(List<PreflightIssue> issues)
+    /// <summary>Auch der Rueckbau darf nicht laufen, waehrend das Spiel offen ist.</summary>
+    public static void CheckProcesses(List<PreflightIssue> issues)
     {
         foreach (var name in BlockingProcesses)
         {
@@ -432,7 +433,7 @@ public sealed class TransactionRunner(SnapshotStore snapshots, LedgerStore ledge
     /// apply mitten im Entpacken scheitern und zurückrollen: das funktioniert,
     /// ist aber die unnötig teure Art, es herauszufinden.
     /// </summary>
-    private static void CheckWritable(RecipeContext context, List<PreflightIssue> issues)
+    public static void CheckWritable(RecipeContext context, List<PreflightIssue> issues)
     {
         string[] protectedRoots =
         [

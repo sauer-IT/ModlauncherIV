@@ -40,6 +40,8 @@ internal static class Program
                     options, i, RecipeCommands.LoadCatalog(options))),
                 "guard" => WithInstall(options, i => StateCommands.Guard(options, i)),
                 "verify" => WithInstall(options, StateCommands.Verify),
+                "remove" => WithInstall(options, i => RemoveCommand.Run(
+                    options, i, RecipeCommands.LoadCatalog(options))),
                 "catalog-key" => CatalogTools.CreateKey(options),
                 "catalog-sign" => CatalogTools.Sign(options),
                 _ => Unknown(options.Command),

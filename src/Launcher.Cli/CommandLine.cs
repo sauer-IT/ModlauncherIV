@@ -19,6 +19,7 @@ internal sealed record CliOptions(
     bool Yes = false,
     bool AllowUnsigned = false,
     bool Apply = false,
+    bool All = false,
     string? KeyPath = null,
     string? PublicKey = null,
     string? AssumeVersion = null,
@@ -32,7 +33,7 @@ internal sealed record CliOptions(
 internal static class CommandLine
 {
     private static readonly string[] Commands =
-        ["detect", "catalog", "plan", "apply", "status", "fetch", "route", "guard", "verify",
+        ["detect", "catalog", "plan", "apply", "remove", "status", "fetch", "route", "guard", "verify",
          "catalog-key", "catalog-sign"];
 
     public const string HelpText = """
@@ -47,6 +48,7 @@ internal static class CommandLine
           plan   <rezept-id>     Zeigen, was ein Rezept tun würde. Ändert nichts.
           fetch  <rezept-id>     Benötigte Dateien laden und per SHA-256 prüfen.
           apply  <rezept-id>     Rezept ausführen. Fragt vorher nach.
+          remove <rezept-id>     Rezept zurueckbauen. --all fuer alles, neueste zuerst.
           status                 Was der Launcher an dieser Installation verändert hat.
           route  [version]       Welcher Weg zu einer anderen Spielversion führt.
           guard                  Ob die Plattform das Spiel zurückpatchen kann.
@@ -68,6 +70,7 @@ internal static class CommandLine
           --out <Datei>          Ausgabe in eine Datei schreiben.
           --yes                  Rückfrage bei apply überspringen.
           --apply                Bei guard: die Sperre wirklich setzen.
+          --all                  Bei remove: alle Rezepte zurueckbauen.
           -h, --help             Diese Hilfe.
 
         Rückgabewerte:
@@ -122,6 +125,10 @@ internal static class CommandLine
 
                 case "--yes" or "-y":
                     options = options with { Yes = true };
+                    break;
+
+                case "--all":
+                    options = options with { All = true };
                     break;
 
                 case "--apply":

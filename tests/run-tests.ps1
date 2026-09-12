@@ -416,6 +416,18 @@ $goodSize = Get-Size (Join-Path $srvDir "good.bin")
 }
 "@ | Set-Content -Path (Join-Path $work "test-mirror.json") -Encoding utf8
 
+# Haengt an test-ok - fuer die Abhaengigkeitspruefung beim Rueckbau.
+@"
+{
+  "id": "test-needs-ok",
+  "name": "Testrezept, braucht test-ok",
+  "version": "1.0.0",
+  "game": "GtaIV",
+  "requires": [ "test-ok" ],
+  "steps": [ { "type": "ensureDirectory", "target": "haengt-dran" } ]
+}
+"@ | Set-Content -Path (Join-Path $work "test-needs-ok.json") -Encoding utf8
+
 $server = Start-Job -ScriptBlock {
     param($p, $dir)
     $listener = [System.Net.HttpListener]::new()
@@ -527,6 +539,43 @@ Set-Content (Join-Path $catalog "index.json.sig") -Value ([Convert]::ToBase64Str
 $r = Invoke-Mliv @("catalog", "--catalog", $catalog, "--public-key", $publicKey)
 Assert ($r.ExitCode -ne 0) "manipulation: gefaelschte Signatur wird abgelehnt"
 Assert ($r.Output -match "ung..?ltig|nicht vertrauensw") "manipulation: nennt die Signatur als Grund"
+
+# -------------------------------------------------------------------- remove
+
+Write-Host "`n== Rueckbau ==" -ForegroundColor Cyan
+
+# Ein Rezept, das test-ok voraussetzt - damit die Abhaengigkeitspruefung greift.
+Copy-Item (Join-Path $work "test-needs-ok.json") (Join-Path $catalog "test-needs-ok.json")
+$r = Invoke-Mliv (@("apply", "test-needs-ok", "--yes") + $common)
+Assert ($r.ExitCode -eq 0) "rueckbau: abhaengiges Rezept installiert"
+
+# test-ok entfernen, waehrend test-needs-ok daran haengt -> muss abgelehnt werden.
+$r = Invoke-Mliv (@("remove", "test-ok", "--yes") + $common)
+Assert ($r.ExitCode -eq 5) "rueckbau: gebundenes Rezept wird nicht entfernt"
+Assert ($r.Output -match "setzt test-ok voraus") "rueckbau: nennt das abhaengige Rezept"
+Assert (Test-Path (Join-Path $game "xlive.dll")) "rueckbau: nichts wurde angefasst"
+
+# Ohne Argument und ohne --all: Hinweis statt Raten.
+$r = Invoke-Mliv (@("remove") + $common)
+Assert ($r.ExitCode -eq 2) "rueckbau: ohne Angabe wird nicht geraten"
+Assert ($r.Output -match "remove --all") "rueckbau: nennt den Weg fuer alles"
+
+# Alles zurueck, neueste zuerst - damit loest sich die Abhaengigkeit von selbst.
+$r = Invoke-Mliv (@("remove", "--all", "--yes") + $common)
+Assert ($r.ExitCode -eq 0) "rueckbau: --all laeuft durch"
+Assert (-not (Test-Path (Join-Path $game "xlive.dll"))) "rueckbau: neu angelegte Datei ist wieder weg"
+Assert (-not (Test-Path (Join-Path $game "dsound.dll"))) "rueckbau: zweite neue Datei ist wieder weg"
+
+# Die Datei, die es vorher schon gab, muss ihren urspruenglichen Inhalt haben -
+# Loeschen allein wuerde sie nicht zurueckbringen.
+Assert ((Get-Content (Join-Path $game "vorhanden.txt") -Raw) -eq $originalContent) `
+    "rueckbau: vorbestehende Datei hat wieder ihren alten Inhalt"
+
+$r = Invoke-Mliv (@("status") + $common)
+Assert (-not ($r.Output -match "test-ok")) "rueckbau: Ledger ist leer"
+
+$r = Invoke-Mliv (@("remove", "test-ok", "--yes") + $common)
+Assert ($r.ExitCode -eq 5) "rueckbau: was nicht installiert ist, laesst sich nicht entfernen"
 
 # ------------------------------------------------------------------ Ergebnis
 

@@ -38,6 +38,7 @@ catalog                verfügbare Rezepte auflisten
 plan   <rezept-id>     zeigen, was ein Rezept tun würde — ändert nichts
 fetch  <rezept-id>     benötigte Dateien laden und per SHA-256 prüfen
 apply  <rezept-id>     Rezept ausführen, nach Rückfrage und mit Snapshot
+remove <rezept-id>     Rezept zurückbauen. --all für alles, neueste zuerst
 status                 was der Launcher an dieser Installation verändert hat
 route  [version]       welcher Weg zu einer anderen Spielversion führt
 guard                  ob die Plattform das Spiel zurückpatchen kann
@@ -57,7 +58,7 @@ Rückgabewerte: `0` erfolgreich · `1` nichts gefunden · `2` falscher Aufruf ·
 .\tests\run-tests.ps1
 ```
 
-85 Tests gegen gefälschte Spielverzeichnisse. Keine echte Installation wird
+100 Tests gegen gefälschte Spielverzeichnisse. Keine echte Installation wird
 angefasst. Abgedeckt sind unter anderem:
 
 - Prüfsummenschutz und Pfadausbruch aus dem Spielverzeichnis
@@ -68,6 +69,8 @@ angefasst. Abgedeckt sind unter anderem:
 - Versionsgraph: Wegsuche über mehrere Downgrade-Kanten hinweg
 - Update-Sperre: offene Steam-Installation erkennen, Schalter setzen, Sicherung anlegen
 - Gegenprobe: veränderte und gelöschte Dateien werden dem Rezept zugeordnet
+- Rückbau: neu angelegte Dateien verschwinden, überschriebene bekommen ihren
+  alten Inhalt zurück, gebundene Rezepte werden nicht entfernt
 - Katalogsignatur: unsigniert wird abgelehnt, nachträglich veränderte
   Rezeptdatei fällt auf, gefälschte Signatur wird erkannt
 
