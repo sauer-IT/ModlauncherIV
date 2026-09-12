@@ -187,13 +187,31 @@ Exit codes: `0` success - `1` nothing found - `2` wrong invocation -
 `3` blockers found, nothing executed - `4` output not writable -
 `5` execution failed.
 
+## What comes back when it goes wrong
+
+`%LOCALAPPDATA%\ModlauncherIV\launcher.log`, and a **Log** button at the bottom
+of the home page that opens it. It holds what was found and with what version,
+whether the catalog's signature verified, every step of the wizard, every file
+fetched and from where, every recipe applied with its snapshot id, and every
+failure with its stack.
+
+This exists because the handout asked people to send a log and there was none:
+the trainer wrote one, the launcher wrote nothing at all. What came back instead
+was "it did not work", which is the least a person can say and the most they can
+be expected to. Now the useful thing to send is one file, and the button that
+opens it is on the page they are already looking at.
+
+It rolls over at a megabyte, keeping one previous file - a crash should not
+erase its own cause - and nothing in it throws. A launcher that fell over
+because it could not write its own log would be a bad joke.
+
 ## Tests
 
 ```
 .\tests\run-tests.ps1
 ```
 
-228 tests against fake game directories. No real installation is touched. If GTA
+233 tests against fake game directories. No real installation is touched. If GTA
 IV happens to be running, the script aborts up front - otherwise every pre-flight
 rightly blocks and four tests fail without anything being wrong with the code.
 Among the things covered:

@@ -122,9 +122,15 @@ how it found it on the way out.
 When something goes wrong
 -------------------------
 
-Tell me what the screen said and send these two, if they exist:
+There is a "Log" button at the bottom of the main page. It opens a file that
+says what the program did, in the order it did it - that is the useful thing to
+send, along with what the screen said. If the program will not start at all, the
+file is here:
 
-    %LOCALAPPDATA%\ModlauncherIV\sauer.log
+    %LOCALAPPDATA%\ModlauncherIV\launcher.log
+
+And if something went wrong in the game rather than in the launcher:
+
     <game folder>\plugins\sauer.log
 
 Known and not yet fixed:

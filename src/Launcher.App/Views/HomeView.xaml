@@ -147,7 +147,9 @@
             <Grid>
                 <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
                     <Button Content="Manage mods" Command="{Binding WizardCommand}" Margin="0,0,10,0" />
-                    <Button Content="Check" Command="{Binding VerifyCommand}" MinWidth="0" />
+                    <Button Content="Check" Command="{Binding VerifyCommand}" MinWidth="0" Margin="0,0,10,0" />
+                    <Button Content="Log" Command="{Binding LogCommand}" MinWidth="0"
+                            ToolTip="What the launcher did, in the order it happened - the useful thing to send when something goes wrong" />
                 </StackPanel>
 
                 <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">

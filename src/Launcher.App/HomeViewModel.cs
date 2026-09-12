@@ -64,6 +64,7 @@ public sealed class HomeViewModel : Observable
         WizardCommand = new RelayCommand(openWizard);
         VerifyCommand = new AsyncRelayCommand(VerifyAsync, () => !_busy);
         FolderCommand = new RelayCommand(OpenFolder, () => _session.Install is not null);
+        LogCommand = new RelayCommand(Diary.Show);
     }
 
     private readonly ConnectedInstall? _connected = GtaConnected.Find();
@@ -80,6 +81,15 @@ public sealed class HomeViewModel : Observable
     public AsyncRelayCommand VerifyCommand { get; }
 
     public RelayCommand FolderCommand { get; }
+
+    /// <summary>
+    /// Opens the log.
+    ///
+    /// On the page rather than only in the handout: when something goes wrong,
+    /// the person it went wrong for is standing in front of this window, and
+    /// "look under %LOCALAPPDATA%" is a sentence that loses people.
+    /// </summary>
+    public RelayCommand LogCommand { get; }
 
     public ObservableCollection<InstalledMod> Mods { get; } = [];
 
@@ -138,6 +148,8 @@ public sealed class HomeViewModel : Observable
             return;
         }
 
+        Diary.Info($"Starting the game: {install.ExecutablePath}");
+
         Process.Start(new ProcessStartInfo
         {
             FileName = install.ExecutablePath,
@@ -169,7 +181,7 @@ public sealed class HomeViewModel : Observable
         var context = new RecipeContext(
             gameRoot: install.Path,
             sourceRoot: _session.CacheRoot,
-            log: new ExecutionLog(),
+            log: new ExecutionLog(Diary.Line),
             dryRun: false);
 
         var plan = uninstaller.Plan(recipeId, context, _session.Catalog?.Recipes ?? []);
@@ -326,6 +338,8 @@ public sealed class HomeViewModel : Observable
 
     private static void Launch(ConnectedInstall connected, string arguments)
     {
+        Diary.Info($"Handing over to GTA Connected: {connected.LauncherPath} {arguments}".TrimEnd());
+
         Process.Start(new ProcessStartInfo
         {
             FileName = connected.LauncherPath,
@@ -500,7 +514,7 @@ public sealed class HomeViewModel : Observable
         try
         {
             using var http = new HttpClient();
-            var acquirer = new SourceAcquirer(http, _session.CacheRoot, new ExecutionLog());
+            var acquirer = new SourceAcquirer(http, _session.CacheRoot, new ExecutionLog(Diary.Line));
 
             var result = await acquirer.AcquireAsync(tool.Installer).ConfigureAwait(true);
 
@@ -543,6 +557,10 @@ public sealed class HomeViewModel : Observable
 
     private void Describe(VerificationResult result, InstallLedger ledger)
     {
+        Diary.Info($"Counter-check: {ledger.Entries.Count} recipe(s), "
+                   + $"{result.ModifiedCount} changed, {result.MissingCount} missing"
+                   + (result.VersionReverted ? $", version reverted to {result.CurrentVersion}" : string.Empty));
+
         if (ledger.Entries.Count == 0)
         {
             Status = "The launcher has not changed anything here yet.";

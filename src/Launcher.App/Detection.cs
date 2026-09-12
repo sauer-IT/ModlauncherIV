@@ -27,5 +27,23 @@ public static class Detection
         // Only one found? Then that is the one. With several the user decides,
         // and until then nothing is selected.
         session.Install = found.Count == 1 ? found[0] : null;
+
+        // The first three lines of any report: what was found, which version it
+        // is, and whether the catalog it is being offered is trusted. Half the
+        // questions that ever get asked about a failure are one of these.
+        Diary.Info($"Found {found.Count} installation(s).");
+
+        foreach (var install in found)
+        {
+            Diary.Info($"  {install.Path}  [{install.Platform}]  {install.Version.Raw} "
+                       + $"({install.Version.DisplayName})  via {install.FoundVia}");
+        }
+
+        var catalog = session.Catalog;
+
+        Diary.Info(catalog is null
+            ? "  No catalog loaded."
+            : $"  Catalog: {catalog.Recipes.Count} recipe(s), "
+              + $"signature {(catalog.SignatureVerified ? "verified" : "NOT verified")}.");
     });
 }

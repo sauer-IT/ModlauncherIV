@@ -143,7 +143,7 @@ public sealed class AcquireStep(Session session) : WizardStep(session)
         }
 
         var acquirer = new SourceAcquirer(
-            Http, Session.CacheRoot, new ExecutionLog(), AppPaths.BundledDirectory);
+            Http, Session.CacheRoot, new ExecutionLog(Diary.Line), AppPaths.BundledDirectory);
 
         foreach (var row in needed)
         {

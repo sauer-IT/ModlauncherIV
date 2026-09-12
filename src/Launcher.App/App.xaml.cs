@@ -9,11 +9,14 @@ public partial class App : Application
     {
         base.OnStartup(e);
 
+        Diary.Start();
+
         // The uninstall path, as "Apps & features" invokes it. Before anything
         // else is built: there is no installation to show once this has run, and
         // the main window would have nothing to say.
         if (e.Args.Any(a => string.Equals(a, Uninstall.Switch, StringComparison.OrdinalIgnoreCase)))
         {
+            Diary.Info("Started to uninstall itself.");
             Uninstall.Run();
             Shutdown();
             return;
@@ -27,10 +30,13 @@ public partial class App : Application
 
     private static void OnUnhandled(object sender, DispatcherUnhandledExceptionEventArgs e)
     {
+        Diary.Crash(e.Exception, "the window");
+
         MessageBox.Show(
             $"The wizard hit an unexpected error:\n\n{e.Exception.Message}\n\n"
             + "Nothing in the game was left half-changed — every recipe cleans up "
-            + "after itself on failure. The backups are under %LOCALAPPDATA%\\ModlauncherIV.",
+            + "after itself on failure. The backups are under %LOCALAPPDATA%\\ModlauncherIV.\n\n"
+            + $"What led up to this is written down here, and it is the useful thing to send:\n{Diary.File}",
             "Modlauncher IV",
             MessageBoxButton.OK,
             MessageBoxImage.Error);

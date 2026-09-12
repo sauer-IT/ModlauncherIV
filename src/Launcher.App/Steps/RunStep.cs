@@ -137,6 +137,8 @@ public sealed class RunStep(Session session) : WizardStep(session)
                 row.State = RunState.Done;
                 row.Detail = $"snapshot {outcome.SnapshotId}";
 
+                Diary.Info($"{step.Recipe.Id} {step.Recipe.Version} installed, snapshot {outcome.SnapshotId}.");
+
                 Session.Applied.Add(step.Recipe.Name);
 
                 if (step.Recipe.IsVersionTransition)
@@ -149,6 +151,11 @@ public sealed class RunStep(Session session) : WizardStep(session)
 
             row.State = RunState.Failed;
             row.Detail = string.Join(" ", outcome.Errors);
+
+            Diary.Error($"{step.Recipe.Id} failed: {string.Join(" ", outcome.Errors)}");
+            Diary.Info(outcome.RolledBack
+                ? "The previous state was restored from the snapshot."
+                : "Nothing had been changed yet.");
 
             foreach (var error in outcome.Errors)
             {
@@ -177,7 +184,7 @@ public sealed class RunStep(Session session) : WizardStep(session)
         var context = new RecipeContext(
             gameRoot: gameRoot,
             sourceRoot: AppPaths.Cache,
-            log: new ExecutionLog(),
+            log: new ExecutionLog(Diary.Line),
             dryRun: false);
 
         var runner = new TransactionRunner(new SnapshotStore(gameRoot), new LedgerStore(gameRoot));

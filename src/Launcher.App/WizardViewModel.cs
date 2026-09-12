@@ -139,6 +139,10 @@ public sealed class WizardViewModel : Observable
         _index = index;
         _steps[_index].IsActive = true;
 
+        // The trail through the wizard is what makes a report readable: which
+        // page somebody was on when it went wrong is otherwise guesswork.
+        Diary.Info($"Wizard step {_index + 1}/{_steps.Count}: {Current.Title}");
+
         Raise(nameof(Current));
         Raise(nameof(Position));
         Raise(nameof(ShowHomeButton));

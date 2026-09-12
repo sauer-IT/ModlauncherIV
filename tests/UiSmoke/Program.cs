@@ -81,6 +81,7 @@ internal static class Program
         CheckServerBook();
         CheckListingProtocol();
         CheckOnlineWindow();
+        CheckDiary();
 
         // Only when asked for: this one talks to somebody else's server, and a
         // test suite that fails because a stranger's host is down is a test
@@ -467,6 +468,53 @@ internal static class Program
                 Console.WriteLine($"          {line}");
             }
         }
+    }
+
+    /// <summary>
+    /// The log, which is the whole of what comes back when something goes wrong
+    /// on somebody else's machine.
+    ///
+    /// It writes into the real location - the same file the running launcher
+    /// uses - because that is what is being tested: that the path is writable
+    /// and that a line put in comes back out. The lines it adds are marked as
+    /// coming from the test.
+    /// </summary>
+    private static void CheckDiary()
+    {
+        var marker = $"ui-smoke {Guid.NewGuid():N}";
+
+        Diary.Info(marker);
+
+        var written = File.Exists(Diary.File) && File.ReadAllText(Diary.File).Contains(marker);
+        Report("log: a line reaches the file", written);
+        Report("log: which is where the handout says it is", Diary.File.EndsWith("launcher.log", StringComparison.Ordinal));
+
+        // A crash has to leave more than the sentence the user already saw.
+        try
+        {
+            throw new InvalidOperationException($"deliberate, {marker}");
+        }
+        catch (InvalidOperationException e)
+        {
+            Diary.Crash(e, "the view test");
+        }
+
+        var text = File.Exists(Diary.File) ? File.ReadAllText(Diary.File) : string.Empty;
+        Report("log: a crash is written down with its type", text.Contains("InvalidOperationException"));
+        Report("log: and with a stack", text.Contains("CheckDiary"));
+
+        // The one thing it must never do is take the program with it.
+        var ok = true;
+        try
+        {
+            Diary.Line($"ui-smoke: a long line, {new string('x', 200)}");
+        }
+        catch (Exception)
+        {
+            ok = false;
+        }
+
+        Report("log: writing never throws", ok);
     }
 
     /// <summary>Builds one ServerAdd frame the way the master list writes them.</summary>

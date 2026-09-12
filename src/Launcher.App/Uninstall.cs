@@ -124,7 +124,7 @@ public static class Uninstall
         var context = new RecipeContext(
             gameRoot: install.Path,
             sourceRoot: session.CacheRoot,
-            log: new ExecutionLog(),
+            log: new ExecutionLog(Diary.Line),
             dryRun: false);
 
         var failures = new List<string>();
