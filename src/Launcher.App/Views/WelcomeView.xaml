@@ -1,8 +1,12 @@
 <UserControl x:Class="ModlauncherIV.App.WelcomeView"
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
-             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:local="clr-namespace:ModlauncherIV.App">
 
-    <ItemsControl ItemsSource="{Binding Points}" Margin="0,4,0,20">
+    <StackPanel Margin="0,4,0,20">
+        <local:SetupBannerView DataContext="{Binding Setup}" />
+
+        <ItemsControl ItemsSource="{Binding Points}">
         <ItemsControl.ItemTemplate>
             <DataTemplate>
                 <Border Style="{StaticResource Card}">
@@ -14,5 +18,6 @@
             </DataTemplate>
         </ItemsControl.ItemTemplate>
     </ItemsControl>
+    </StackPanel>
 
 </UserControl>

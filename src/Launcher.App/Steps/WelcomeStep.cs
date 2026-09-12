@@ -21,6 +21,9 @@ public sealed class WelcomeStep(Session session) : WizardStep(session)
 
     public override bool CanGoBack => false;
 
+    /// <summary>Das Angebot, sich auf den Desktop zu legen.</summary>
+    public SetupBanner Setup { get; } = new();
+
     /// <summary>
     /// Was der Nutzer wissen muss, bevor irgendetwas passiert.
     ///

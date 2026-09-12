@@ -45,6 +45,9 @@ public sealed class HomeViewModel : Observable
 
     public ObservableCollection<InstalledMod> Mods { get; } = [];
 
+    /// <summary>Das Angebot, sich auf den Desktop zu legen. Verschwindet, sobald erledigt.</summary>
+    public SetupBanner Setup { get; } = new();
+
     public string GamePath => _session.Install?.Path ?? "keine Installation";
 
     public string Version => _session.Install is { } install

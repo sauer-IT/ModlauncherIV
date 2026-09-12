@@ -59,13 +59,29 @@ $size = (Get-Item $asi).Length
 Write-Host "  SHA-256  $hash"
 Write-Host "  Groesse  $size Bytes"
 
+# Die Rezeptfassung traegt die Pruefsumme im Namen.
+#
+# Der Grund steht sonst rot auf der Startseite: der Planer vergleicht
+# Rezeptfassungen, nicht Dateiinhalte. Bliebe die Fassung bei jedem Build
+# dieselbe, haette ein neu gebauter Trainer dieselbe Nummer wie der
+# installierte - der Planer haelt ihn fuer erledigt, und der Nutzer sieht
+# zwar "Datei veraendert", bekommt aber nichts angeboten, was es richtet.
+#
+# Mit der Pruefsumme im Namen erzeugt jeder Build eine neue Fassung, und
+# eine Aktualisierung wird genau dann angeboten, wenn sich wirklich etwas
+# geaendert hat.
+$feature = "0.4.0"
+$version = "$feature+$($hash.Substring(0, 8))"
+
+Write-Host "  Fassung  $version"
+
 # ------------------------------------------------------------------ 3. Rezept
 
 $recipe = @"
 {
   "id": "mliv-trainer",
   "name": "Modlauncher IV Trainer",
-  "version": "0.4.0",
+  "version": "$version",
   "game": "GtaIV",
   "description": "Das Trainer-Menue dieses Projekts. Im Spiel oeffnet F7; bedient wird mit dem Numblock oder den Pfeiltasten. Spieler, Waffen, Fahrzeuge und Welt. Tastenbelegung und Menuelage stehen in ModlauncherIV-Trainer.ini, die beim ersten Start angelegt wird.",
 
