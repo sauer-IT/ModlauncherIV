@@ -361,14 +361,14 @@ public sealed class HomeViewModel : Observable
     /// them once here and once there is deliberate: skipping them on the shorter
     /// path would mean the shorter path is the one that warns about nothing.
     /// </summary>
-    private void Connect(string server)
+    private void Connect(string server, string game)
     {
         if (_connected is not { } connected || !WarnBeforeOnline(connected))
         {
             return;
         }
 
-        Launch(connected, GtaConnected.ConnectArguments(server));
+        Launch(connected, GtaConnected.ConnectArguments(server, game));
     }
 
     private static void Launch(ConnectedInstall connected, string arguments)

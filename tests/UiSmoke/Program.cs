@@ -397,7 +397,19 @@ internal static class Program
         var connected = new ConnectedInstall(
             Path.Combine(Path.GetTempPath(), "mliv-ui-smoke", "Launcher.exe"),
             Path.Combine(Path.GetTempPath(), "mliv-ui-smoke", "GTAIV.exe"),
-            "1.9.0");
+            "1.9.0",
+            "sauer");
+
+        Report("online: a client with a name and a game is ready", connected.Ready);
+        Report("online: and has nothing to complain about", connected.Missing is null);
+
+        var nameless = connected with { PlayerName = string.Empty };
+        Report("online: without a name it is not ready", !nameless.Ready);
+        Report("online: and says which half is missing", nameless.Missing?.Contains("name") == true);
+
+        var gameless = connected with { GamePath = null };
+        Report("online: without a game either", !gameless.Ready);
+        Report("online: and says that too", gameless.Missing?.Contains("GTAIV.exe") == true);
 
         IReadOnlyList<LiveServer> live =
         [
@@ -407,7 +419,7 @@ internal static class Program
 
         var model = new OnlineViewModel(
             connected,
-            _ => { },
+            (_, _) => { },
             () => { },
             () => Task.FromResult((live, (string?)null)));
 
@@ -421,11 +433,31 @@ internal static class Program
         // A refusal has to leave a way forward rather than an empty page.
         var refused = new OnlineViewModel(
             connected,
-            _ => { },
+            (_, _) => { },
             () => { },
             () => Task.FromResult(((IReadOnlyList<LiveServer>)[], (string?)"nothing answered")));
 
         refused.LoadAsync().GetAwaiter().GetResult();
+
+        // What is actually handed to the client. Its own protocol handler is
+        // "Launcher.exe %1" and its own server list builds this URL, so this is
+        // the client's own spelling rather than ours.
+        Report(
+            "online: a connect is the client's own URL",
+            GtaConnected.ConnectArguments("1.2.3.4:22000") == "\"gtac://connect/1.2.3.4:22000/gta:iv\"");
+
+        Report(
+            "online: the episodes are a different game to it",
+            GtaConnected.ConnectArguments("1.2.3.4:22000", GtaConnected.Episodes).Contains("gta:iv_eflc"));
+
+        Report("online: a server listed as IVC is GTA IV", GtaConnected.GameFromListing(["IVC"]) == GtaConnected.GtaIV);
+        Report("online: one listed as EFLCC is the episodes", GtaConnected.GameFromListing(["EFLCC"]) == GtaConnected.Episodes);
+        Report("online: both means GTA IV, which is what is installed", GtaConnected.GameFromListing(["EFLCC", "IVC"]) == GtaConnected.GtaIV);
+        Report("online: nothing said means GTA IV as well", GtaConnected.GameFromListing([]) == GtaConnected.GtaIV);
+
+        Report(
+            "online: and the launcher window is no longer hidden",
+            !GtaConnected.ConnectArguments("1.2.3.4:22000").Contains("silent"));
 
         Report("online: a refusal is said out loud", refused.ListingFailed);
         Report("online: and names what went wrong", refused.ListingError.Contains("nothing answered"));

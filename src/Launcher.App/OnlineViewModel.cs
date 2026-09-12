@@ -8,12 +8,14 @@ namespace ModlauncherIV.App;
 /// <param name="Detail">Players and game mode, where they are known.</param>
 /// <param name="Origin">"up now", "saved here" or "last played".</param>
 /// <param name="Saved">In the launcher's own list - only those can be forgotten.</param>
+/// <param name="Game">Which game it serves, in the client's spelling.</param>
 public sealed record ServerRow(
     string Name,
     string Address,
     string Detail,
     string Origin,
     bool Saved,
+    string Game,
     RelayCommand ConnectCommand,
     RelayCommand KeepCommand,
     RelayCommand ForgetCommand);
@@ -34,7 +36,7 @@ public sealed record ServerRow(
 public sealed class OnlineViewModel : Observable
 {
     private readonly ConnectedInstall _connected;
-    private readonly Action<string> _connect;
+    private readonly Action<string, string> _connect;
     private readonly Action _openBrowser;
     private readonly Func<Task<(IReadOnlyList<LiveServer> Servers, string? Error)>> _listing;
 
@@ -54,7 +56,7 @@ public sealed class OnlineViewModel : Observable
     /// </param>
     public OnlineViewModel(
         ConnectedInstall connected,
-        Action<string> connect,
+        Action<string, string> connect,
         Action openBrowser,
         Func<Task<(IReadOnlyList<LiveServer> Servers, string? Error)>>? listing = null)
     {
@@ -127,8 +129,21 @@ public sealed class OnlineViewModel : Observable
         private set => Set(ref _serverError, value);
     }
 
-    /// <summary>What the client will start, so it can be checked before going.</summary>
-    public string GamePath => _connected.GamePath ?? "unknown";
+    /// <summary>
+    /// Who you will be and what will start, in one line.
+    ///
+    /// Both come out of the client's own settings, and both are worth seeing
+    /// before a server is joined: the name is what other people will see, and
+    /// the path need not be the installation this launcher looks after.
+    /// </summary>
+    public string Who =>
+        $"as {(string.IsNullOrWhiteSpace(_connected.PlayerName) ? "nobody yet" : _connected.PlayerName)}"
+        + $"  ·  starting {_connected.GamePath ?? "an unknown game"}";
+
+    /// <summary>What the client still needs before it can join anything.</summary>
+    public string Missing => _connected.Missing ?? string.Empty;
+
+    public bool NotReady => !_connected.Ready;
 
     /// <summary>Fills the list. Called when the window opens.</summary>
     public async Task LoadAsync()
@@ -198,7 +213,8 @@ public sealed class OnlineViewModel : Observable
                 server.Address,
                 detail,
                 server.Official ? "up now  ·  official" : "up now",
-                kept is not null));
+                kept is not null,
+                GtaConnected.GameFromListing(server.Games)));
         }
 
         foreach (var server in saved)
@@ -227,13 +243,16 @@ public sealed class OnlineViewModel : Observable
         }
     }
 
-    private ServerRow Row(string name, string address, string detail, string origin, bool saved) => new(
+    private ServerRow Row(
+        string name, string address, string detail, string origin, bool saved,
+        string game = GtaConnected.GtaIV) => new(
         name,
         address,
         detail,
         origin,
         saved,
-        new RelayCommand(() => _connect(address)),
+        game,
+        new RelayCommand(() => _connect(address, game)),
         new RelayCommand(() => Keep(address, name), () => !saved),
         new RelayCommand(() => Forget(address), () => saved));
 
@@ -266,7 +285,9 @@ public sealed class OnlineViewModel : Observable
 
         foreach (var row in up)
         {
-            Servers.Add(Row(row.Name, row.Address, row.Detail, row.Origin, saved.Any(s => Same(s.Address, row.Address))));
+            Servers.Add(Row(
+                row.Name, row.Address, row.Detail, row.Origin,
+                saved.Any(s => Same(s.Address, row.Address)), row.Game));
         }
 
         foreach (var server in saved.Where(s => seen.Add(s.Address)))

@@ -18,6 +18,16 @@
             <TextBlock Text="PLAY ONLINE" Style="{StaticResource Dim}" />
             <TextBlock Text="Where do you want to go?" Style="{StaticResource Title}" Margin="0,2,0,0" />
             <TextBlock Text="{Binding Status}" Style="{StaticResource Lead}" />
+            <TextBlock Text="{Binding Who}" Style="{StaticResource Mono}" Margin="0,6,0,0" TextWrapping="Wrap" />
+
+            <!-- The client needs a name and a game before it can join anything.
+                 It asks for both in its own window - which used to be hidden,
+                 and then a connect looked exactly like nothing happening. -->
+            <Border Style="{StaticResource Card}"
+                    Margin="0,12,0,0"
+                    Visibility="{Binding NotReady, Converter={StaticResource Show}}">
+                <TextBlock Text="{Binding Missing}" Style="{StaticResource Dim}" Foreground="{StaticResource Accent}" />
+            </Border>
 
             <!-- A reason on its own is bad news. Next to it stands the way the
                  client itself would have shown this list. -->

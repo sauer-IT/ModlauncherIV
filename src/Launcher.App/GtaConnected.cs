@@ -9,7 +9,34 @@ namespace ModlauncherIV.App;
 /// The GTAIV.exe it is set to start, as it recorded it - not as we detected it.
 /// </param>
 /// <param name="Version">What its uninstall entry says, or empty.</param>
-public sealed record ConnectedInstall(string LauncherPath, string? GamePath, string Version);
+/// <param name="PlayerName">
+/// The name it will appear under on a server. Empty when it has never been set -
+/// and it has to be set before anything can be joined, which is a thing the
+/// client asks for in its own window and nowhere else.
+/// </param>
+public sealed record ConnectedInstall(
+    string LauncherPath,
+    string? GamePath,
+    string Version,
+    string PlayerName = "")
+{
+    /// <summary>
+    /// Whether it has everything it needs to join a server: a name, and a game
+    /// to start. Without either, a connect ends in its launcher asking - which,
+    /// with its window hidden, looked exactly like nothing happening at all.
+    /// </summary>
+    public bool Ready =>
+        !string.IsNullOrWhiteSpace(PlayerName) && !string.IsNullOrWhiteSpace(GamePath);
+
+    /// <summary>What it is missing, in a sentence, or null when it is ready.</summary>
+    public string? Missing => Ready
+        ? null
+        : string.IsNullOrWhiteSpace(PlayerName) && string.IsNullOrWhiteSpace(GamePath)
+            ? "GTA Connected has neither a player name nor a game set. Open it once - the button below - and it will ask for both."
+            : string.IsNullOrWhiteSpace(PlayerName)
+                ? "GTA Connected has no player name yet. Open it once - the button below - and set one; a server will not take you without it."
+                : "GTA Connected does not know which game to start. Open it once - the button below - and point it at GTAIV.exe.";
+}
 
 /// <summary>
 /// GTA Connected, the multiplayer client, if it is installed.
@@ -52,7 +79,13 @@ public static class GtaConnected
             using var game = Registry.CurrentUser.OpenSubKey($@"{Root}\Grand Theft Auto IV");
             var exe = game?.GetValue("Game EXE Path") as string;
 
-            return new ConnectedInstall(launcher, exe, ReadVersion());
+            // The name it plays under, from the same key its own launcher writes
+            // it to. Not decoration: without it there is nothing to join a
+            // server as, and the client says so in a window this one may have
+            // told it not to show.
+            var name = key.GetValue("Name") as string ?? string.Empty;
+
+            return new ConnectedInstall(launcher, exe, ReadVersion(), name.Trim());
         }
         catch (Exception e) when (e is IOException or UnauthorizedAccessException or System.Security.SecurityException)
         {
@@ -118,13 +151,52 @@ public static class GtaConnected
     }
 
     /// <summary>
-    /// The arguments that connect straight to a server.
+    /// How the client says "connect to this server", in its own words.
     ///
-    /// Both switches are its own, read out of its launcher's help text rather
-    /// than guessed: /connect takes a server, /silent leaves its window out of
-    /// the way when there is nothing left to pick.
+    /// It registers a gtac: protocol whose handler is its own launcher with the
+    /// whole URL as one argument, and the server list on its own site builds
+    /// exactly this: scheme, the word connect, the address, and the game. The
+    /// URL carries the game, which the /connect switch does not - and the client
+    /// serves several games, so "connect to 1.2.3.4" without saying to what is a
+    /// question it cannot answer. That is the likeliest reason clicking Connect
+    /// did nothing at all.
+    ///
+    /// /silent is gone with it. It hides the launcher window, which is where the
+    /// client says what it wants - a name, a path to the game, an update. Hidden,
+    /// a first start looks identical to a broken one.
     /// </summary>
-    public static string ConnectArguments(string server) => $"/connect {server} /silent";
+    /// <param name="game">
+    /// Which game, in the client's spelling: gta:iv, or gta:iv_eflc for the
+    /// episodes. Anything else it would not recognise.
+    /// </param>
+    public static string ConnectArguments(string server, string game = GtaIV) =>
+        $"\"gtac://connect/{server}/{game}\"";
+
+    /// <summary>The client's name for GTA IV.</summary>
+    public const string GtaIV = "gta:iv";
+
+    /// <summary>And for the episodes, which are a separate game to it.</summary>
+    public const string Episodes = "gta:iv_eflc";
+
+    /// <summary>
+    /// Translates what the master list calls a game into what the protocol
+    /// calls it. The two spellings are the client's own, in two places.
+    /// </summary>
+    public static string GameFromListing(IEnumerable<string> games)
+    {
+        var names = games as IReadOnlyCollection<string> ?? games.ToArray();
+
+        // A server that serves both is joined as GTA IV: that is the
+        // installation this launcher looks after.
+        if (names.Any(g => string.Equals(g, "IVC", StringComparison.OrdinalIgnoreCase)))
+        {
+            return GtaIV;
+        }
+
+        return names.Any(g => string.Equals(g, "EFLCC", StringComparison.OrdinalIgnoreCase))
+            ? Episodes
+            : GtaIV;
+    }
 
     /// <summary>
     /// The version, from the same place Windows takes it for its own list of

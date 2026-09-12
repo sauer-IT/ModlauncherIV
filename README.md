@@ -135,6 +135,17 @@ opens is a list of servers with a Connect on each, out of three sources:
 Each address appears once, with the best that is known about it, and the row
 says which of the three it came from.
 
+**Connecting is the client's own URL.** It registers a gtac: protocol whose
+handler is its own launcher with the whole URL as one argument, and the server
+list on its own site builds exactly `gtac://connect/<address>/gta:iv`. The URL
+carries the game; the /connect switch does not, and the client serves six games,
+so "connect to 1.2.3.4" without saying to what is a question it cannot answer -
+which is the likeliest reason Connect used to do nothing at all. /silent went
+with it: it hides the launcher window, which is where the client asks for a
+player name or a path to the game, and hidden, a first start looks identical to
+a broken one. The page now says who you will be and what will start, and when
+either is missing it says which and points at the button that opens the client.
+
 **The master list belongs to somebody else and nobody has promised it will stay
 put.** So every failure is the same failure: an empty list, the reason, and the
 button next to it that opens the client's own server browser - which is where
@@ -226,7 +237,7 @@ because it could not write its own log would be a bad joke.
 .\tests\run-tests.ps1
 ```
 
-246 tests against fake game directories. No real installation is touched. If GTA
+259 tests against fake game directories. No real installation is touched. If GTA
 IV happens to be running, the script aborts up front - otherwise every pre-flight
 rightly blocks and four tests fail without anything being wrong with the code.
 Among the things covered:
