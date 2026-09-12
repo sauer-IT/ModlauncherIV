@@ -1,5 +1,6 @@
 using System.Diagnostics;
 using System.IO;
+using Microsoft.Win32;
 
 namespace ModlauncherIV.App;
 
@@ -160,6 +161,8 @@ public static class SelfInstall
 
             CreateShortcut(StartMenuShortcut, TargetPath);
             messages.Add("Added to the start menu");
+
+            RegisterUninstall();
         }
         catch (IOException e)
         {
@@ -177,6 +180,74 @@ public static class SelfInstall
 
         return string.Join(". ", messages) + ".";
     }
+
+    /// <summary>Where Windows keeps its own list of installed programs.</summary>
+    public const string UninstallKey =
+        @"SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\ModlauncherIV";
+
+    /// <summary>
+    /// Puts the program into "Apps &amp; features".
+    ///
+    /// Under HKCU, matching where it installs: an entry in HKLM would claim it
+    /// is there for every account on the machine, which it is not.
+    ///
+    /// The point is not tidiness. Anybody who tries this and wants it gone again
+    /// looks where they look for every other program, and finding nothing there
+    /// means deleting a folder by hand and leaving the rest - the shortcuts, the
+    /// ledger, the snapshots, and a game that is still modded.
+    /// </summary>
+    public static void RegisterUninstall()
+    {
+        try
+        {
+            using var key = Registry.CurrentUser.CreateSubKey(UninstallKey);
+            if (key is null)
+            {
+                return;
+            }
+
+            key.SetValue("DisplayName", ProgramName);
+            key.SetValue("DisplayVersion", Version);
+            key.SetValue("Publisher", ProgramName);
+            key.SetValue("DisplayIcon", TargetPath);
+            key.SetValue("InstallLocation", TargetDirectory);
+            key.SetValue("UninstallString", $"\"{TargetPath}\" --uninstall");
+            key.SetValue("NoModify", 1, RegistryValueKind.DWord);
+            key.SetValue("NoRepair", 1, RegistryValueKind.DWord);
+
+            // Rounded, in kilobytes, the way that list wants it.
+            if (File.Exists(TargetPath))
+            {
+                key.SetValue(
+                    "EstimatedSize",
+                    (int)(new FileInfo(TargetPath).Length / 1024),
+                    RegistryValueKind.DWord);
+            }
+        }
+        catch (Exception e) when (e is IOException
+                                       or UnauthorizedAccessException
+                                       or System.Security.SecurityException)
+        {
+            // Not being in that list is a nuisance, not a failure of the
+            // installation. Everything else has already been done by here.
+        }
+    }
+
+    public static void UnregisterUninstall()
+    {
+        try
+        {
+            Registry.CurrentUser.DeleteSubKeyTree(UninstallKey, throwOnMissingSubKey: false);
+        }
+        catch (Exception e) when (e is IOException
+                                       or UnauthorizedAccessException
+                                       or System.Security.SecurityException)
+        {
+        }
+    }
+
+    private static string Version =>
+        System.Reflection.Assembly.GetExecutingAssembly().GetName().Version?.ToString(3) ?? "1.0.0";
 
     /// <summary>
     /// Creates a .lnk.

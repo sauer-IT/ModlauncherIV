@@ -9,6 +9,16 @@ public partial class App : Application
     {
         base.OnStartup(e);
 
+        // The uninstall path, as "Apps & features" invokes it. Before anything
+        // else is built: there is no installation to show once this has run, and
+        // the main window would have nothing to say.
+        if (e.Args.Any(a => string.Equals(a, Uninstall.Switch, StringComparison.OrdinalIgnoreCase)))
+        {
+            Uninstall.Run();
+            Shutdown();
+            return;
+        }
+
         // A program in the middle of swapping hundreds of files in the game
         // directory must not vanish without a word. Whoever ends up here should
         // at least know where they stand — and that the backups are there.
