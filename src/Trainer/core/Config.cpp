@@ -336,7 +336,7 @@ namespace mliv
     std::string Config::DefaultText()
     {
         return
-            "# Modlauncher IV Trainer\n"
+            "# sauer - the trainer that ships with Modlauncher IV\n"
             "#\n"
             "# This file was created on the first start. Changes take effect on\n"
             "# the next game start.\n"

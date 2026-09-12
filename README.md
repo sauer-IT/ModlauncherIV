@@ -85,7 +85,7 @@ the working directory - a program started through a shortcut has an arbitrary
 one and would then not find its own recipes.
 
 **The trainer does not start separately.** It sits in the game directory as
-`plugins\ModlauncherIV-Trainer.asi` and is loaded along by the ASI loader when
+`plugins\sauer.asi` and is loaded along by the ASI loader when
 the game starts. In game, `F7` opens the menu.
 
 Commands:
@@ -249,7 +249,7 @@ anything reached the game directory.
 **After the downgrade, do not start through the Rockstar Games Launcher**, start
 `GTAIV.exe` directly - otherwise the launcher notices the changed installation.
 
-## Trainer
+## Trainer: sauer
 
 ```
 .\scripts\pack-trainer.ps1             build and make installable in the catalog
@@ -260,7 +260,7 @@ The usual route is the first: afterwards the trainer is offered in the wizard an
 installed like any other mod - with snapshot, ledger and rollback. The second
 route is for development, when you only want to see a change in game quickly.
 
-`src/Trainer` is built into `ModlauncherIV-Trainer.asi`. Two constraints are not
+`src/Trainer` is built into `sauer.asi`. Two constraints are not
 convenience but a prerequisite:
 
 - **x86.** GTA IV is 32-bit. An x64 DLL is ignored by the ASI loader without
@@ -281,7 +281,7 @@ toggles and choices react, actions run all the way through into the log file.
 | `Num 0` / `Backspace` | back |
 
 Key bindings and the menu's position and scale live in
-`ModlauncherIV-Trainer.ini`, which is written next to the game on the first
+`sauer.ini`, which is written next to the game on the first
 start. The file is plain INI with the sections `[Keys]`, `[Menu]` and `[Log]`,
 and pure ASCII: it lands next to the game and gets opened with whatever happens
 to be around.
@@ -297,18 +297,23 @@ inputs. That makes it possible to play the whole menu through without the game:
 A navigation bug shows up in milliseconds that way, instead of after a game
 start, a loading screen and a key press.
 
-**State T6.** Roughly sixty options in eight groups:
+**State T6.** Roughly sixty options. The root holds **nothing but the eight
+categories**, each of which opens its own submenu:
 
-| Group | Content |
+| Category | Content |
 |---|---|
-| Player | godmode, health, armour, wanted level, money |
-| Weapons | infinite ammo, all weapons, refill ammo |
-| Vehicles | spawn ten models, repair, indestructible |
+| Player | godmode, health, armour, invisible, jump to camera, traits |
+| Weapons | all weapons, take them away, infinite ammo, weapon skill |
+| Wanted | level, never wanted, upper limit, clear cops, no new patrols |
+| Money | amount and give |
+| Vehicles | spawn ten models, repair, indestructible, tuning, paint |
 | World | time of day, weather, traffic density, jump to five places |
-| Movement | noclip, superjump, run speed, teleport to the waypoint |
-| Vehicle tuning | top speed, grip, boost, flip back over, paint |
-| Peds and chaos | spawn companions, riot, panic, clear the area |
-| Time and physics | game speed, gravity, ragdoll |
+| Movement | fly, superjump, run speed, teleport to the waypoint |
+| Pedestrians | density, everyone ignores you, riot, panic, clear the area |
+
+It used to be a flat list that mixed about twenty single entries with a handful
+of submenus, so reaching the world settings meant scrolling past health and
+money. At sixty options a flat list stops being a list and becomes a search.
 
 Some of it is not obvious:
 
@@ -327,11 +332,25 @@ Some of it is not obvious:
   regardless of frame rate - the earlier version, which moved the ped by a fixed
   distance per frame, flew at double speed on a 120 Hz display.
 
-Sticky player flags such as godmode are **set anew every frame**, not only when
-toggled - the game takes invulnerability back on respawn, in cut scenes and at
-mission changes, and the ped handle itself changes on death or a model change. A
-switch set once would silently stop working, and you would then take the trainer
-for broken instead of the game for wilful.
+Sticky switches such as godmode are **set again when the handle changes**, not
+only when toggled - the game takes invulnerability back on respawn, in cut scenes
+and at mission changes, and the ped handle itself changes on death or a model
+change. A switch set once would silently stop working, and you would then take
+the trainer for broken instead of the game for wilful.
+
+Writing them *unconditionally* every frame, which is what this did at first, is
+worse than merely wasteful. Every switch that is off then writes its "off" value
+over the game every frame, and not all of those are what the game would have
+done by itself: with "shoot from vehicles" off it kept calling
+`SET_PLAYER_CAN_DO_DRIVE_BY(0)`, so the trainer quietly took drive-bys away from
+a player who had never touched the setting. The weapon skill had the same shape,
+and now has an "As in the game" setting that writes nothing at all.
+
+So the switches are now written **on change**, and re-asserted when the ped or
+the vehicle handle changes. Together with resolving player, ped and vehicle
+**once per tick** - `LocalPed` alone costs four natives and the per-frame path
+asked for it half a dozen times over - an idle trainer went from around thirty
+natives a frame to none.
 
 **Everything runs in `processScriptsEvent`** - input, toggles and drawing. That
 was the outcome of two bugs that only showed up in game:
@@ -365,7 +384,7 @@ Work does not happen in `DllMain` but in a thread of its own - Windows holds the
 loader lock there, and anyone doing more than the bare minimum risks a deadlock
 that presents as "hangs on game start".
 
-The log file is called `ModlauncherIV-Trainer.log` and is flushed after every
+The log file is called `sauer.log` and is flushed after every
 line; otherwise, after a crash, the one line that would have given away the
 reason is exactly the one missing.
 
@@ -378,7 +397,7 @@ log file is, when there is a problem, as mute as one that never loaded at all.
 The ASI loads, recognises 1.0.7.0 and reports for duty:
 
 ```
-[14:25:53.944] Modlauncher IV Trainer, stage T6
+[14:25:53.944] sauer, stage T6
 [14:25:53.945] Version: 1.0.7.0 (1.0.7.0)
 [14:25:53.946] Menu ready. F7 opens it, 13 key bindings active.
 ```

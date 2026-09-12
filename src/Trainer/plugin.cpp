@@ -1,4 +1,4 @@
-﻿// Modlauncher IV - Trainer, stage T6
+﻿// sauer - the trainer of Modlauncher IV, stage T6
 //
 // The only translation unit that includes the IV-SDK. That is not a
 // convenience: IVSDK.cpp defines globals and its own DllMain. Included from
@@ -27,6 +27,12 @@
 
 namespace
 {
+    /// The name in the menu title and in the log.
+    ///
+    /// The files carry it too: sauer.asi, sauer.ini, sauer.log. One name in one
+    /// place, so the title cannot drift away from the file next to the game.
+    constexpr const char* kTrainerName = "sauer";
+
     // -------------------------------------------------------------- State
 
     std::shared_ptr<mliv::Menu> g_root;
@@ -280,7 +286,7 @@ namespace
             return {};
         }
 
-        return dllPath.substr(0, slash + 1) + L"ModlauncherIV-Trainer.ini";
+        return dllPath.substr(0, slash + 1) + L"sauer.ini";
     }
 
     std::wstring ConfigPathInAppData()
@@ -299,7 +305,7 @@ namespace
         path += L"\\ModlauncherIV";
         CreateDirectoryW(path.c_str(), nullptr);
 
-        return path + L"\\ModlauncherIV-Trainer.ini";
+        return path + L"\\sauer.ini";
     }
 
     bool ReadFileText(const std::wstring& path, std::string& out)
@@ -385,7 +391,9 @@ namespace
         /// The player ped. 0 when there is none right now - in the menu, while
         /// loading or during a cutscene. Every caller has to check that: a
         /// native with an invalid handle is not a harmless no-op but a crash.
-        /// Fehlschlag.
+        ///
+        /// Four natives per call. That is fine for a menu action, which happens
+        /// once; the per-frame path takes the handles from Frame below instead.
         Scripting::Ped LocalPed()
         {
             const Scripting::Player player = LocalPlayer();
@@ -398,6 +406,53 @@ namespace
             Scripting::GET_PLAYER_CHAR(player, &ped);
 
             return Scripting::DOES_CHAR_EXIST(ped) ? ped : 0;
+        }
+
+        // ------------------------------------------------- The current frame
+
+        /// The handles for this tick, resolved once.
+        ///
+        /// LocalPed costs four natives, CurrentVehicle six, and the per-frame
+        /// path used to ask for them half a dozen times over. Nothing inside one
+        /// tick changes which ped the player is, so once is enough.
+        struct Frame
+        {
+            Scripting::Player player = 0;
+            Scripting::Ped ped = 0;
+            Scripting::Vehicle vehicle = 0;
+            bool playing = false;
+        };
+
+        Frame g_frame;
+
+        /// Resolves the handles for this tick. Everything downstream reads them
+        /// instead of asking the game again.
+        void BeginFrame()
+        {
+            g_frame = Frame{};
+
+            g_frame.player = static_cast<Scripting::Player>(Scripting::GET_PLAYER_ID());
+            g_frame.playing = Scripting::IS_PLAYER_PLAYING(g_frame.player) != 0;
+
+            if (!g_frame.playing)
+            {
+                return;
+            }
+
+            Scripting::Ped ped = 0;
+            Scripting::GET_PLAYER_CHAR(g_frame.player, &ped);
+
+            if (!Scripting::DOES_CHAR_EXIST(ped))
+            {
+                return;
+            }
+
+            g_frame.ped = ped;
+
+            if (Scripting::IS_CHAR_IN_ANY_CAR(ped))
+            {
+                Scripting::GET_CAR_CHAR_IS_USING(ped, &g_frame.vehicle);
+            }
         }
 
         void RestoreHealth()
@@ -476,7 +531,7 @@ namespace
 
         void RefillCurrentAmmo()
         {
-            const Scripting::Ped ped = LocalPed();
+            const Scripting::Ped ped = g_frame.ped;
             if (ped == 0)
             {
                 return;
@@ -662,7 +717,7 @@ namespace
         /// otherwise you fall in the gap between two key presses.
         void FlyBy(const float forward, const float side, const float up, const float speed)
         {
-            const Scripting::Ped ped = LocalPed();
+            const Scripting::Ped ped = g_frame.ped;
             if (ped == 0)
             {
                 return;
@@ -963,12 +1018,21 @@ namespace
 
         /// The switches that attach themselves to the player.
         ///
-        /// All of these are re-applied every frame, even though most of the
-        /// natives are persistent. The reason is not the game but the ped: on
-        /// death, a model change or a mission start the player gets a new ped
-        /// handle, and everything set on the old one is gone. A switch that
-        /// silently stops working after the first hospital visit is worse than
-        /// no switch at all.
+        /// These are not written every frame. They are written when they change,
+        /// and again when the ped changes - on death, a model change or a
+        /// mission start the player gets a new handle, and everything set on the
+        /// old one is gone. A switch that silently stops working after the first
+        /// hospital visit is worse than no switch at all.
+        ///
+        /// Writing them unconditionally, which is what this did before, is worse
+        /// than merely wasteful. Every switch that is off then writes its "off"
+        /// value over the game every frame, and not all of those are what the
+        /// game would have done: with "shoot from vehicles" off it kept calling
+        /// SET_PLAYER_CAN_DO_DRIVE_BY(0), so the trainer quietly took drive-bys
+        /// away from a player who had never touched the setting.
+        /// Weapon skill: leave whatever the game set.
+        constexpr int kSkillUntouched = -1;
+
         struct PlayerFlags
         {
             bool neverTired;
@@ -984,34 +1048,99 @@ namespace
             int weaponSkill;
         };
 
-        void ApplyPlayerFlags(const PlayerFlags& flags)
+        /// What was last written, and to whom.
+        PlayerFlags g_appliedPlayer{};
+        Scripting::Ped g_appliedToPed = 0;
+        Scripting::Player g_appliedToPlayer = -1;
+
+        void ApplyPlayerFlags(const PlayerFlags& want)
         {
-            const Scripting::Player player = LocalPlayer();
-            const Scripting::Ped ped = LocalPed();
+            const Scripting::Player player = g_frame.player;
+            const Scripting::Ped ped = g_frame.ped;
 
             if (ped == 0)
             {
                 return;
             }
 
-            Scripting::SET_PLAYER_NEVER_GETS_TIRED(player, flags.neverTired ? 1 : 0);
-            Scripting::SET_PLAYER_FAST_RELOAD(player, flags.fastReload ? 1 : 0);
-            Scripting::SET_PLAYER_INVISIBLE_TO_AI(flags.invisibleToAi ? 1 : 0);
+            // A ped we have not written to yet starts from the game's own
+            // defaults. So forget what we know: everything that is on gets
+            // written again, everything that is off already is what it should
+            // be. The player-level switches get rewritten with it - they would
+            // survive, but the handle changes so rarely that keeping two
+            // separate records would cost more reading than it saves calls.
+            if (ped != g_appliedToPed || player != g_appliedToPlayer)
+            {
+                g_appliedPlayer = PlayerFlags{};
+                g_appliedPlayer.weaponSkill = kSkillUntouched;
+            }
 
-            Scripting::SET_CHAR_DROWNS_IN_WATER(ped, flags.waterproof ? 0 : 1);
-            Scripting::SET_CHAR_DIES_INSTANTLY_IN_WATER(ped, flags.waterproof ? 0 : 1);
-            Scripting::SET_CHAR_MAX_TIME_UNDERWATER(ped, flags.waterproof ? 10000.0f : 10.0f);
+            const PlayerFlags& have = g_appliedPlayer;
 
-            Scripting::SET_CHAR_FIRE_DAMAGE_MULTIPLIER(ped, flags.fireproof ? 0.0f : 1.0f);
+            if (want.neverTired != have.neverTired)
+            {
+                Scripting::SET_PLAYER_NEVER_GETS_TIRED(player, want.neverTired ? 1 : 0);
+            }
 
-            Scripting::SET_CHAR_CANT_BE_DRAGGED_OUT(ped, flags.cantBeDragged ? 1 : 0);
-            Scripting::SET_CHAR_CAN_BE_KNOCKED_OFF_BIKE(ped, flags.stayOnBike ? 0 : 1);
-            Scripting::SET_CHAR_CAN_BE_SHOT_IN_VEHICLE(ped, flags.shootInCar ? 1 : 0);
-            Scripting::SET_PLAYER_CAN_DO_DRIVE_BY(player, flags.shootInCar ? 1 : 0);
+            if (want.fastReload != have.fastReload)
+            {
+                Scripting::SET_PLAYER_FAST_RELOAD(player, want.fastReload ? 1 : 0);
+            }
 
-            Scripting::SET_CHAR_DRUGGED_UP(ped, flags.drunk ? 1 : 0);
-            Scripting::SET_CHAR_SUFFERS_CRITICAL_HITS(ped, flags.noCriticalHits ? 0 : 1);
-            Scripting::SET_CHAR_WEAPON_SKILL(ped, flags.weaponSkill);
+            if (want.invisibleToAi != have.invisibleToAi)
+            {
+                Scripting::SET_PLAYER_INVISIBLE_TO_AI(want.invisibleToAi ? 1 : 0);
+            }
+
+            if (want.waterproof != have.waterproof)
+            {
+                Scripting::SET_CHAR_DROWNS_IN_WATER(ped, want.waterproof ? 0 : 1);
+                Scripting::SET_CHAR_DIES_INSTANTLY_IN_WATER(ped, want.waterproof ? 0 : 1);
+                Scripting::SET_CHAR_MAX_TIME_UNDERWATER(ped, want.waterproof ? 10000.0f : 10.0f);
+            }
+
+            if (want.fireproof != have.fireproof)
+            {
+                Scripting::SET_CHAR_FIRE_DAMAGE_MULTIPLIER(ped, want.fireproof ? 0.0f : 1.0f);
+            }
+
+            if (want.cantBeDragged != have.cantBeDragged)
+            {
+                Scripting::SET_CHAR_CANT_BE_DRAGGED_OUT(ped, want.cantBeDragged ? 1 : 0);
+            }
+
+            if (want.stayOnBike != have.stayOnBike)
+            {
+                Scripting::SET_CHAR_CAN_BE_KNOCKED_OFF_BIKE(ped, want.stayOnBike ? 0 : 1);
+            }
+
+            if (want.shootInCar != have.shootInCar)
+            {
+                Scripting::SET_CHAR_CAN_BE_SHOT_IN_VEHICLE(ped, want.shootInCar ? 1 : 0);
+                Scripting::SET_PLAYER_CAN_DO_DRIVE_BY(player, want.shootInCar ? 1 : 0);
+            }
+
+            if (want.drunk != have.drunk)
+            {
+                Scripting::SET_CHAR_DRUGGED_UP(ped, want.drunk ? 1 : 0);
+            }
+
+            if (want.noCriticalHits != have.noCriticalHits)
+            {
+                Scripting::SET_CHAR_SUFFERS_CRITICAL_HITS(ped, want.noCriticalHits ? 0 : 1);
+            }
+
+            // kSkillUntouched means the game keeps whatever it had. There is no
+            // way back to that once we have written a number, so not writing one
+            // in the first place is the only way to offer it.
+            if (want.weaponSkill != kSkillUntouched && want.weaponSkill != have.weaponSkill)
+            {
+                Scripting::SET_CHAR_WEAPON_SKILL(ped, want.weaponSkill);
+            }
+
+            g_appliedPlayer = want;
+            g_appliedToPed = ped;
+            g_appliedToPlayer = player;
         }
 
         struct VehicleFlags
@@ -1022,18 +1151,48 @@ namespace
             bool alwaysSkids;
         };
 
-        void ApplyVehicleFlags(const VehicleFlags& flags)
+        VehicleFlags g_appliedVehicleFlags{};
+        Scripting::Vehicle g_appliedToVehicle = 0;
+
+        void ApplyVehicleFlags(const VehicleFlags& want)
         {
-            const Scripting::Vehicle vehicle = CurrentVehicle();
+            const Scripting::Vehicle vehicle = g_frame.vehicle;
             if (vehicle == 0)
             {
                 return;
             }
 
-            Scripting::SET_CAR_WATERTIGHT(vehicle, flags.watertight ? 1 : 0);
-            Scripting::SET_CAR_CAN_BE_VISIBLY_DAMAGED(vehicle, flags.noVisibleDamage ? 0 : 1);
-            Scripting::SET_CAR_COLLISION(vehicle, flags.noCollision ? 0 : 1);
-            Scripting::SET_CAR_ALWAYS_CREATE_SKIDS(vehicle, flags.alwaysSkids ? 1 : 0);
+            // Same as with the ped, only this handle changes far more often -
+            // every time the player gets into a different car.
+            if (vehicle != g_appliedToVehicle)
+            {
+                g_appliedVehicleFlags = VehicleFlags{};
+            }
+
+            const VehicleFlags& have = g_appliedVehicleFlags;
+
+            if (want.watertight != have.watertight)
+            {
+                Scripting::SET_CAR_WATERTIGHT(vehicle, want.watertight ? 1 : 0);
+            }
+
+            if (want.noVisibleDamage != have.noVisibleDamage)
+            {
+                Scripting::SET_CAR_CAN_BE_VISIBLY_DAMAGED(vehicle, want.noVisibleDamage ? 0 : 1);
+            }
+
+            if (want.noCollision != have.noCollision)
+            {
+                Scripting::SET_CAR_COLLISION(vehicle, want.noCollision ? 0 : 1);
+            }
+
+            if (want.alwaysSkids != have.alwaysSkids)
+            {
+                Scripting::SET_CAR_ALWAYS_CREATE_SKIDS(vehicle, want.alwaysSkids ? 1 : 0);
+            }
+
+            g_appliedVehicleFlags = want;
+            g_appliedToVehicle = vehicle;
         }
 
         void ClearCopsNearby()
@@ -1117,7 +1276,11 @@ namespace
     int g_parkedChoice = kTrafficDefault;
 
     /// The player's weapon skill. 100 means no sway and no spread.
-    const int kSkills[] = {50, 75, 100};
+    ///
+    /// The first entry writes nothing at all. Without it the trainer would set
+    /// a number on a player who never asked for one, and there would be no way
+    /// back to whatever the game had.
+    const int kSkills[] = {game::kSkillUntouched, 50, 75, 100};
     bool g_peacefulPeds = false;
     bool g_noCops = false;
 
@@ -1177,20 +1340,20 @@ namespace
 
     void EnforceToggles()
     {
-        const Scripting::Player player = game::LocalPlayer();
-        if (!Scripting::IS_PLAYER_PLAYING(player))
+        // The handles come from the frame, resolved once in OnScript. Asking the
+        // game again here is what made the idle trainer cost around thirty
+        // natives a frame for nothing.
+        const Scripting::Player player = game::g_frame.player;
+
+        if (!game::g_frame.playing)
         {
             return;
         }
 
-        if (g_godmode)
+        if (g_godmode && game::g_frame.ped != 0)
         {
-            const Scripting::Ped ped = game::LocalPed();
-            if (ped != 0)
-            {
-                Scripting::SET_CHAR_INVINCIBLE(ped, 1);
-                Scripting::SET_PLAYER_INVINCIBLE(player, 1);
-            }
+            Scripting::SET_CHAR_INVINCIBLE(game::g_frame.ped, 1);
+            Scripting::SET_PLAYER_INVINCIBLE(player, 1);
         }
 
         if (g_neverWanted)
@@ -1203,14 +1366,10 @@ namespace
             game::RefillCurrentAmmo();
         }
 
-        if (g_strongVehicle)
+        if (g_strongVehicle && game::g_frame.vehicle != 0)
         {
-            const Scripting::Vehicle vehicle = game::CurrentVehicle();
-            if (vehicle != 0)
-            {
-                Scripting::SET_CAR_STRONG(vehicle, 1);
-                Scripting::SET_CAR_PROOFS(vehicle, 1, 1, 1, 1, 1);
-            }
+            Scripting::SET_CAR_STRONG(game::g_frame.vehicle, 1);
+            Scripting::SET_CAR_PROOFS(game::g_frame.vehicle, 1, 1, 1, 1, 1);
         }
 
         // The game resets the density multipliers to 1.0 every frame. Setting
@@ -1334,15 +1493,28 @@ namespace
 
     void BuildMenu()
     {
-        g_root = std::make_shared<mliv::Menu>("Modlauncher IV");
+        g_root = std::make_shared<mliv::Menu>(kTrainerName);
+
+        // Every category is a submenu, and the root holds nothing else.
+        //
+        // It used to mix around twenty single entries with a few submenus, which
+        // meant scrolling past health and money to reach the world settings. At
+        // sixty options a flat list stops being a list and becomes a search.
+        auto submenu = [](const char* label, std::shared_ptr<mliv::Menu> menu) {
+            mliv::MenuItem item;
+            item.label = label;
+            item.kind = mliv::ItemKind::Submenu;
+            item.submenu = std::move(menu);
+            return item;
+        };
 
         // --- Player ---
-        g_root->add({"-- Player --", mliv::ItemKind::Label});
+        auto player = std::make_shared<mliv::Menu>("Player");
 
         // Switching off has to actively take invincibility back. EnforceToggles
         // merely stops setting it - that turns nothing off, and the player would
         // stay immortal.
-        g_root->add({"Godmode", mliv::ItemKind::Toggle, [] {
+        player->add({"Godmode", mliv::ItemKind::Toggle, [] {
             if (!g_godmode)
             {
                 const Scripting::Ped ped = game::LocalPed();
@@ -1354,12 +1526,12 @@ namespace
             }
         }, &g_godmode});
 
-        g_root->add({"Refill health", mliv::ItemKind::Action, game::RestoreHealth});
-        g_root->add({"Refill armour", mliv::ItemKind::Action, game::RestoreArmour});
-        g_root->add({"Full heal", mliv::ItemKind::Action, game::Heal});
-        g_root->add({"Invisible", mliv::ItemKind::Toggle,
+        player->add({"Refill health", mliv::ItemKind::Action, game::RestoreHealth});
+        player->add({"Refill armour", mliv::ItemKind::Action, game::RestoreArmour});
+        player->add({"Full heal", mliv::ItemKind::Action, game::Heal});
+        player->add({"Invisible", mliv::ItemKind::Toggle,
                      [] { game::SetInvisible(g_invisible); }, &g_invisible});
-        g_root->add({"Jump to camera", mliv::ItemKind::Action, game::TeleportToCamera});
+        player->add({"Jump to camera", mliv::ItemKind::Action, game::TeleportToCamera});
 
         // --- Traits ---
         auto traits = std::make_shared<mliv::Menu>("Traits");
@@ -1375,27 +1547,29 @@ namespace
         traits->add({"Shoot from vehicles", mliv::ItemKind::Toggle, nullptr, &g_player.shootInCar});
         traits->add({"Drunk", mliv::ItemKind::Toggle, nullptr, &g_player.drunk});
 
+        player->add(submenu("Traits", traits));
+        g_root->add(submenu("Player", player));
+
+        // --- Weapons ---
+        auto weapons = std::make_shared<mliv::Menu>("Weapons");
+
+        weapons->add({"Give all weapons", mliv::ItemKind::Action, game::GiveAllWeapons});
+        weapons->add({"Take weapons away", mliv::ItemKind::Action, game::RemoveAllWeapons});
+        weapons->add({"Infinite ammo", mliv::ItemKind::Toggle, nullptr, &g_infiniteAmmo});
+
+        // Skill sits with the weapons, not with the traits: that is where it is
+        // looked for.
         mliv::MenuItem skill;
         skill.label = "Weapon skill";
         skill.kind = mliv::ItemKind::Choice;
-        skill.choices = {"Normal", "Good", "Perfect"};
+        skill.choices = {"As in the game", "Normal", "Good", "Perfect"};
         skill.choiceIndex = &g_skillChoice;
-        traits->add(skill);
+        weapons->add(skill);
 
-        mliv::MenuItem traitsEntry;
-        traitsEntry.label = "Traits";
-        traitsEntry.kind = mliv::ItemKind::Submenu;
-        traitsEntry.submenu = traits;
-        g_root->add(traitsEntry);
-
-        // --- Weapons ---
-        g_root->add({"-- Weapons --", mliv::ItemKind::Label});
-        g_root->add({"Give all weapons", mliv::ItemKind::Action, game::GiveAllWeapons});
-        g_root->add({"Take weapons away", mliv::ItemKind::Action, game::RemoveAllWeapons});
-        g_root->add({"Infinite ammo", mliv::ItemKind::Toggle, nullptr, &g_infiniteAmmo});
+        g_root->add(submenu("Weapons", weapons));
 
         // --- Wanted ---
-        g_root->add({"-- Wanted --", mliv::ItemKind::Label});
+        auto wantedMenu = std::make_shared<mliv::Menu>("Wanted");
 
         mliv::MenuItem wanted;
         wanted.label = "Wanted level";
@@ -1403,9 +1577,9 @@ namespace
         wanted.choices = {"0", "1", "2", "3", "4", "5", "6"};
         wanted.choiceIndex = &g_wantedChoice;
         wanted.onChoice = [](const int level) { game::SetWantedLevel(level); };
-        g_root->add(wanted);
+        wantedMenu->add(wanted);
 
-        g_root->add({"Never wanted", mliv::ItemKind::Toggle, nullptr, &g_neverWanted});
+        wantedMenu->add({"Never wanted", mliv::ItemKind::Toggle, nullptr, &g_neverWanted});
 
         mliv::MenuItem maxWanted;
         maxWanted.label = "At most";
@@ -1415,24 +1589,29 @@ namespace
         maxWanted.onChoice = [](const int level) {
             Scripting::SET_MAX_WANTED_LEVEL(static_cast<unsigned>(level));
         };
-        g_root->add(maxWanted);
+        wantedMenu->add(maxWanted);
 
-        g_root->add({"Clear cops nearby", mliv::ItemKind::Action, game::ClearCopsNearby});
+        wantedMenu->add({"Clear cops nearby", mliv::ItemKind::Action, game::ClearCopsNearby});
+        wantedMenu->add({"No new police patrols", mliv::ItemKind::Toggle, nullptr, &g_noCops});
+
+        g_root->add(submenu("Wanted", wantedMenu));
 
         // --- Money ---
-        g_root->add({"-- Money --", mliv::ItemKind::Label});
+        auto moneyMenu = std::make_shared<mliv::Menu>("Money");
 
         mliv::MenuItem money;
         money.label = "Amount";
         money.kind = mliv::ItemKind::Choice;
         money.choices = {"1.000", "10.000", "100.000", "1.000.000"};
         money.choiceIndex = &g_moneyChoice;
-        g_root->add(money);
+        moneyMenu->add(money);
 
-        g_root->add({"Give money", mliv::ItemKind::Action, [] {
+        moneyMenu->add({"Give money", mliv::ItemKind::Action, [] {
             game::AddMoney(kMoneyAmounts[g_moneyChoice]);
             mliv::LogLine("Money given: %d", kMoneyAmounts[g_moneyChoice]);
         }});
+
+        g_root->add(submenu("Money", moneyMenu));
 
         // --- Vehicles ---
         auto vehicles = std::make_shared<mliv::Menu>("Vehicles");
@@ -1521,11 +1700,7 @@ namespace
             });
         }});
 
-        mliv::MenuItem vehiclesEntry;
-        vehiclesEntry.label = "Vehicles";
-        vehiclesEntry.kind = mliv::ItemKind::Submenu;
-        vehiclesEntry.submenu = vehicles;
-        g_root->add(vehiclesEntry);
+        g_root->add(submenu("Vehicles", vehicles));
 
         // --- World ---
         auto world = std::make_shared<mliv::Menu>("World");
@@ -1602,11 +1777,7 @@ namespace
                     [] { if (!g_noVehicleLights) { Scripting::FORCE_ALL_VEHICLE_LIGHTS_OFF(0); } },
                     &g_noVehicleLights});
 
-        mliv::MenuItem worldEntry;
-        worldEntry.label = "World";
-        worldEntry.kind = mliv::ItemKind::Submenu;
-        worldEntry.submenu = world;
-        g_root->add(worldEntry);
+        g_root->add(submenu("World", world));
 
         // --- Movement ---
         auto motion = std::make_shared<mliv::Menu>("Movement");
@@ -1642,11 +1813,7 @@ namespace
             }
         }});
 
-        mliv::MenuItem motionEntry;
-        motionEntry.label = "Movement";
-        motionEntry.kind = mliv::ItemKind::Submenu;
-        motionEntry.submenu = motion;
-        g_root->add(motionEntry);
+        g_root->add(submenu("Movement", motion));
 
         // --- Pedestrians ---
         auto peds = std::make_shared<mliv::Menu>("Pedestrians");
@@ -1659,18 +1826,13 @@ namespace
         peds->add(density);
 
         peds->add({"Everyone ignores you", mliv::ItemKind::Toggle, nullptr, &g_peacefulPeds});
-        peds->add({"No new police patrols", mliv::ItemKind::Toggle, nullptr, &g_noCops});
 
         peds->add({"-- Chaos --", mliv::ItemKind::Label});
         peds->add({"Turn the nearest one on you", mliv::ItemKind::Action, game::ProvokeNearest});
         peds->add({"Explosion ahead", mliv::ItemKind::Action, game::ExplosionAhead});
         peds->add({"Kill everyone nearby", mliv::ItemKind::Action, game::KillNearby});
 
-        mliv::MenuItem pedsEntry;
-        pedsEntry.label = "Pedestrians";
-        pedsEntry.kind = mliv::ItemKind::Submenu;
-        pedsEntry.submenu = peds;
-        g_root->add(pedsEntry);
+        g_root->add(submenu("Pedestrians", peds));
 
         g_menu = std::make_unique<mliv::MenuController>(g_root);
     }
@@ -1685,6 +1847,10 @@ namespace
     void OnScript()
     {
         PollInput();
+
+        // Player, ped and vehicle once for this tick. Everything below reads
+        // them from there instead of asking the game over and over.
+        game::BeginFrame();
 
         // Even with the menu closed: the switches should take effect, not only
         // while you are looking.
@@ -1714,10 +1880,10 @@ namespace
 void plugin::gameStartupEvent()
 {
     wchar_t self[MAX_PATH]{};
-    GetModuleFileNameW(GetModuleHandleW(L"ModlauncherIV-Trainer.asi"), self, MAX_PATH);
+    GetModuleFileNameW(GetModuleHandleW(L"sauer.asi"), self, MAX_PATH);
     mliv::LogOpen(self);
 
-    mliv::LogLine("Modlauncher IV Trainer, stage T6");
+    mliv::LogLine("%s, stage T6", kTrainerName);
 
     const mliv::GameInfo game = mliv::DetectGame();
     mliv::LogLine("Version: %ls (%s)",

@@ -60,7 +60,7 @@ namespace mliv
         // is just as silent about a problem as one that never loaded at all.
         // Hence the fallback under LOCALAPPDATA, where the launcher keeps its
         // state as well.
-        if (TryOpen(DirectoryOf(dllPath) + L"\\ModlauncherIV-Trainer.log"))
+        if (TryOpen(DirectoryOf(dllPath) + L"\\sauer.log"))
         {
             return;
         }
@@ -70,7 +70,7 @@ namespace mliv
         {
             const std::wstring folder = std::wstring(appData) + L"\\ModlauncherIV";
             CreateDirectoryW(folder.c_str(), nullptr);
-            TryOpen(folder + L"\\Trainer.log");
+            TryOpen(folder + L"\\sauer.log");
         }
     }
 

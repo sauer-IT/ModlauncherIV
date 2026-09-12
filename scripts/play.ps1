@@ -58,7 +58,7 @@ if (-not $Log) { exit 0 }
 # The log lives wherever the trainer was allowed to create it - next to the DLL,
 # or under LOCALAPPDATA when the game directory was not writable.
 $candidates = @(
-    (Join-Path $GamePath "plugins\ModlauncherIV-Trainer.log"),
+    (Join-Path $GamePath "plugins\sauer.log"),
     (Join-Path $env:LOCALAPPDATA "ModlauncherIV\Trainer.log")
 )
 

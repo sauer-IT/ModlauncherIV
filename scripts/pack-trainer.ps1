@@ -50,14 +50,21 @@ Write-Host "Building the trainer ..." -ForegroundColor Cyan
 & (Join-Path $PSScriptRoot "build-trainer.ps1")
 if ($LASTEXITCODE -ne 0) { throw "The trainer build failed." }
 
-$asi = Join-Path $root "artifacts\trainer\ModlauncherIV-Trainer.asi"
+$asi = Join-Path $root "artifacts\trainer\sauer.asi"
 if (-not (Test-Path $asi)) { throw "Built ASI not found: $asi" }
 
 # ------------------------------------------------ 2. Into the shipped payload
 
 $bundled = Join-Path $root "src\Launcher.App\bundled"
 New-Item -ItemType Directory -Path $bundled -Force | Out-Null
-Copy-Item $asi (Join-Path $bundled "ModlauncherIV-Trainer.asi") -Force
+
+# The trainer used to be called ModlauncherIV-Trainer.asi. A leftover here would
+# be packed into the EXE and shipped forever; the recipe deletes the old file in
+# the game directory for the same reason. Two ASIs in plugins\ means two menus
+# on the same key.
+Remove-Item (Join-Path $bundled "ModlauncherIV-Trainer.asi") -Force -ErrorAction SilentlyContinue
+
+Copy-Item $asi (Join-Path $bundled "sauer.asi") -Force
 
 $hash = (Get-FileHash $asi -Algorithm SHA256).Hash.ToLower()
 $size = (Get-Item $asi).Length
@@ -89,7 +96,7 @@ $recipe = @"
   "name": "Modlauncher IV Trainer",
   "version": "$version",
   "game": "GtaIV",
-  "description": "The trainer menu of this project. In game F7 opens it; it is operated with the numpad or the arrow keys. Player, weapons, vehicles and world. Key bindings and menu position live in ModlauncherIV-Trainer.ini, which is created on the first start.",
+  "description": "sauer, the trainer menu of this project. In game F7 opens it; it is operated with the numpad or the arrow keys. Player, weapons, wanted level, money, vehicles, world, movement and pedestrians, each in its own submenu. Key bindings and menu position live in sauer.ini, which is created next to the game on the first start.",
 
   "appliesToVersions": [ "1.0.7.0" ],
 
@@ -98,7 +105,7 @@ $recipe = @"
   "sources": [
     {
       "id": "asi",
-      "fileName": "ModlauncherIV-Trainer.asi",
+      "fileName": "sauer.asi",
       "sha256": "$hash",
       "sizeBytes": $size,
       "urls": [],
@@ -108,7 +115,8 @@ $recipe = @"
 
   "steps": [
     { "type": "ensureDirectory", "target": "plugins" },
-    { "type": "copyFile", "source": "ModlauncherIV-Trainer.asi", "target": "plugins\\ModlauncherIV-Trainer.asi" }
+    { "type": "deleteFile", "target": "plugins\\ModlauncherIV-Trainer.asi" },
+    { "type": "copyFile", "source": "sauer.asi", "target": "plugins\\sauer.asi" }
   ]
 }
 "@

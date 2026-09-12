@@ -96,12 +96,12 @@ internal static class RemoveCommand
 
             if (outcome.Success)
             {
-                Console.WriteLine($"      Zurueckgebaut ({plan.Snapshot!.Entries.Count} Pfade).");
+                Console.WriteLine($"      Taken back ({plan.Snapshot!.Entries.Count} paths).");
             }
             else
             {
                 failed = true;
-                Console.Error.WriteLine("      MIT FEHLERN:");
+                Console.Error.WriteLine("      WITH ERRORS:");
                 foreach (var error in outcome.Errors)
                 {
                     Console.Error.WriteLine($"        {error}");

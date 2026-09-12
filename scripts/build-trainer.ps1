@@ -34,7 +34,7 @@ $root    = Split-Path -Parent $PSScriptRoot
 $source  = Join-Path $root "src\Trainer"
 $out     = Join-Path $root "artifacts\trainer"
 $obj     = Join-Path $out "obj"
-$asiName = "ModlauncherIV-Trainer.asi"
+$asiName = "sauer.asi"
 
 # ---------------------------------------------------------------- Toolchain
 
