@@ -82,13 +82,37 @@ namespace
                 Scripting::SET_TEXT_WRAP(kLeft, kLeft + kWidth - kPadding);
                 Scripting::DISPLAY_TEXT_WITH_LITERAL_STRING(
                     kLeft + kPadding, y_, "STRING", value.c_str());
+
+                // Beides sofort zuruecknehmen: sonst erbt das Label des
+                // naechsten Eintrags unsere Umbruchgrenzen und wird beschnitten.
                 Scripting::SET_TEXT_RIGHT_JUSTIFY(0);
+                Scripting::SET_TEXT_WRAP(0.0f, 1.0f);
             }
 
             y_ += kLine;
         }
 
-        void endFrame() override {}
+        /// Textzustand zuruecksetzen.
+        ///
+        /// Die SET_TEXT_*-Natives wirken global und bleiben stehen, bis jemand
+        /// sie wieder aendert. Wer danach zeichnet - Handy, HUD, Untertitel -
+        /// erbt unsere Schriftart, Skalierung, Farbe und vor allem unsere
+        /// Umbruchgrenzen. Beim Handy sah man das als verzerrte Darstellung,
+        /// solange das Menue offen war.
+        ///
+        /// Das Spiel setzt vieles davon selbst, aber eben nicht alles und nicht
+        /// zuverlaessig. Wer den Zustand anfasst, raeumt ihn auf.
+        void endFrame() override
+        {
+            Scripting::SET_TEXT_RIGHT_JUSTIFY(0);
+            Scripting::SET_TEXT_CENTRE(0);
+            Scripting::SET_TEXT_WRAP(0.0f, 1.0f);
+            Scripting::SET_TEXT_FONT(0);
+            Scripting::SET_TEXT_SCALE(1.0f, 1.0f);
+            Scripting::SET_TEXT_COLOUR(255, 255, 255, 255);
+            Scripting::SET_TEXT_DROPSHADOW(0, 0, 0, 0, 0);
+            Scripting::SET_TEXT_PROPORTIONAL(1);
+        }
 
     private:
         // Linke obere Ecke des Menues, in Bildanteilen (0..1).
@@ -248,6 +272,8 @@ namespace
 
     // -------------------------------------------------------------- Zustand
 
+
+
     bool g_godmode = false;
     bool g_neverWanted = false;
     int  g_wantedChoice = 0;
@@ -344,9 +370,6 @@ namespace
         g_menu = std::make_unique<mliv::MenuController>(g_root);
     }
 
-    /// Laeuft pro Bild. Hier wird nichts angelegt und nichts geloggt - ein
-    /// Logeintrag je Bild waere bei 60 Bildern je Sekunde eine Datei, die
-    /// schneller waechst als das Spiel laedt.
     /// Spiellogik. Laeuft nur, wenn das Spiel seine Skripte abarbeitet.
     ///
     /// Muss hier stehen und nicht im Zeichen-Event: processScriptsEvent setzt
@@ -361,12 +384,18 @@ namespace
         // Auch wenn das Menue zu ist: die Schalter sollen wirken, nicht nur
         // solange man hinsieht.
         EnforceToggles();
-    }
 
-    /// Nur zeichnen. Zeichen-Natives kommen ohne Script-Kontext aus.
-    void OnDraw()
-    {
-        g_menu->draw(g_renderer);
+        // Gezeichnet wird hier, nicht in drawingEvent.
+        //
+        // Die Skripte des Spiels zeichnen ihr HUD selbst aus dem Script-Tick;
+        // DRAW_RECT und DISPLAY_TEXT sind dafuer gemacht und landen dann in der
+        // HUD-Phase. Aus drawingEvent gerufen laufen sie mitten in einer
+        // Renderphase - und wenn dabei das Renderziel des Handys gebunden ist,
+        // zeichnen sie in dessen Bildschirm hinein. Genau so sah es aus.
+        if (Scripting::IS_PAUSE_MENU_ACTIVE() == 0)
+        {
+            g_menu->draw(g_renderer);
+        }
     }
 }
 
@@ -397,8 +426,9 @@ void plugin::gameStartupEvent()
 
     BuildMenu();
 
+    // Nur dieses eine Event: Eingabe, Schalter und Zeichnen laufen alle im
+    // Script-Kontext. Siehe OnScript.
     plugin::processScriptsEvent::Add(OnScript);
-    plugin::drawingEvent::Add(OnDraw);
 
     mliv::LogLine("Menue bereit. F7 oeffnet, Numblock oder Pfeiltasten bedienen.");
 }
@@ -410,3 +440,4 @@ void plugin::gameShutdownEvent()
     mliv::LogLine("Spiel wird beendet.");
     mliv::LogClose();
 }
+
