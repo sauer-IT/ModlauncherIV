@@ -10,6 +10,20 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
     <ApplicationManifest>app.manifest</ApplicationManifest>
+
+    <!-- Erzeugt von scripts\make-icon.ps1. Windows nimmt es fuer die EXE, den
+         Explorer, die Taskleiste und jede Verknuepfung darauf; WPF nimmt es
+         zusaetzlich als Fenstersymbol. -->
+    <ApplicationIcon>..\..\assets\ModlauncherIV.ico</ApplicationIcon>
+
+    <!-- Steht in den Dateieigenschaften und im SmartScreen-Dialog. Wer eine
+         unsignierte EXE herunterlaedt, sieht diesen Text als einzigen Hinweis
+         darauf, was das Programm ist - also gehoert er gepflegt. -->
+    <Version>1.0.0</Version>
+    <Product>Modlauncher IV</Product>
+    <AssemblyTitle>Modlauncher IV</AssemblyTitle>
+    <Description>Gefuehrter Downgrader und Mod-Installer fuer GTA IV</Description>
+    <Copyright>GPL-3.0</Copyright>
   </PropertyGroup>
 
   <ItemGroup>

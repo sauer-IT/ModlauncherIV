@@ -22,3 +22,6 @@ third_party/
 
 # Vom Packskript erzeugt: der mitgelieferte Trainer wird gebaut, nicht versioniert.
 src/Launcher.App/bundled/
+
+# Vorschaubilder aus dem Symbol-Skript
+artifacts/icon-preview.png

@@ -55,6 +55,18 @@ if (-not (Test-Path $index)) {
 Write-Host "`n== Die EXE bauen ==" -ForegroundColor Cyan
 if (Test-Path $out) { Remove-Item $out -Recurse -Force }
 
+# obj und bin mit wegraeumen.
+#
+# Der WPF-Build legt dort erzeugte Dateien ab, und nach einer Aenderung an der
+# csproj findet er seine eigenen .baml nicht mehr wieder - der Fehler lautet
+# dann "Datei wurde nicht gefunden" und zeigt auf etwas, das der Build selbst
+# haette schreiben sollen. Fuer eine Auslieferung ist ein sauberer Anfang
+# ohnehin das Richtige.
+foreach ($dir in @("obj", "bin")) {
+    $path = Join-Path $root "src\Launcher.App\$dir"
+    if (Test-Path $path) { Remove-Item $path -Recurse -Force }
+}
+
 $previous = $ErrorActionPreference
 $ErrorActionPreference = "Continue"
 try {
