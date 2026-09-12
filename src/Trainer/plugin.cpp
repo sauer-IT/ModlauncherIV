@@ -868,6 +868,26 @@ namespace
             }
         }
 
+        // ------------------------------------------------------------ Clock
+
+        /// The hour the clock is pinned to, and whether it is pinned at all.
+        int g_frozenHour = 12;
+        int g_frozenMinute = 0;
+
+        /// Remembers the time as it is right now, to hold it there.
+        void CatchTheClock()
+        {
+            Scripting::GET_TIME_OF_DAY(&g_frozenHour, &g_frozenMinute);
+            mliv::LogLine("Clock held at %02d:%02d", g_frozenHour, g_frozenMinute);
+        }
+
+        /// Pins the clock. Every frame, because the game moves it every frame.
+        void HoldTheClock()
+        {
+            Scripting::FORCE_TIME_OF_DAY(
+                static_cast<unsigned>(g_frozenHour), static_cast<unsigned>(g_frozenMinute));
+        }
+
         // ------------------------------------------------------- Companion
 
         /// The last companion spawned, so it can be given an order afterwards.
@@ -1581,6 +1601,7 @@ namespace
             bool shootInCar;
             bool drunk;
             bool noCriticalHits;
+            bool seatBelt;
             int weaponSkill;
         };
 
@@ -1664,6 +1685,13 @@ namespace
             if (want.noCriticalHits != have.noCriticalHits)
             {
                 Scripting::SET_CHAR_SUFFERS_CRITICAL_HITS(ped, want.noCriticalHits ? 0 : 1);
+            }
+
+            if (want.seatBelt != have.seatBelt)
+            {
+                // The native is the other way round: it says whether the player
+                // goes through the windscreen, so a belt means switching it off.
+                Scripting::SET_CHAR_WILL_FLY_THROUGH_WINDSCREEN(ped, want.seatBelt ? 0 : 1);
             }
 
             // kSkillUntouched means the game keeps whatever it had. There is no
@@ -1791,6 +1819,10 @@ namespace
     int g_slotChoice = 0;
     int g_weaponChoice = 0;
     int g_companionChoice = 0;
+    int g_heatChoice = 0;
+
+    /// Multipliers for how readily the police notice anything.
+    const float kHeat[] = {1.0f, 0.5f, 0.0f, 2.0f};
     int g_timeChoice = 2;
     int g_weatherChoice = 1;
     int g_placeChoice = 0;
@@ -1823,6 +1855,7 @@ namespace
     const int kSkills[] = {game::kSkillUntouched, 50, 75, 100};
     bool g_peacefulPeds = false;
     bool g_noCops = false;
+    bool g_freezeClock = false;
 
     int g_gravityChoice = 0;
     int g_timeScaleChoice = 2;
@@ -2058,6 +2091,13 @@ namespace
         {
             Scripting::FORCE_ALL_VEHICLE_LIGHTS_OFF(1);
         }
+
+        // The clock, like the density multipliers, is moved on by the game every
+        // frame. Setting it once would hold for one.
+        if (g_freezeClock)
+        {
+            game::HoldTheClock();
+        }
     }
 
     // ------------------------------------------------------------- Flying
@@ -2182,6 +2222,7 @@ namespace
         traits->add({"Stays on the bike", mliv::ItemKind::Toggle, nullptr, &g_player.stayOnBike});
         traits->add({"Shoot from vehicles", mliv::ItemKind::Toggle, nullptr, &g_player.shootInCar});
         traits->add({"Drunk", mliv::ItemKind::Toggle, nullptr, &g_player.drunk});
+        traits->add({"Seat belt", mliv::ItemKind::Toggle, nullptr, &g_player.seatBelt});
 
         // --- Skins ---
         //
@@ -2267,6 +2308,17 @@ namespace
 
         wantedMenu->add({"Clear cops nearby", mliv::ItemKind::Action, game::ClearCopsNearby});
         wantedMenu->add({"No new police patrols", mliv::ItemKind::Toggle, nullptr, &g_noCops});
+
+        // How readily the police take an interest at all - a different thing
+        // from the level itself. At zero they notice nothing; "never wanted"
+        // above clears a level that was already given.
+        mliv::MenuItem heat;
+        heat.label = "Police interest";
+        heat.kind = mliv::ItemKind::Choice;
+        heat.choices = {"Normal", "Half", "None", "Double"};
+        heat.choiceIndex = &g_heatChoice;
+        heat.onChoice = [](const int i) { Scripting::SET_WANTED_MULTIPLIER(kHeat[i]); };
+        wantedMenu->add(heat);
 
         g_root->add(submenu("Wanted", wantedMenu));
 
@@ -2391,6 +2443,16 @@ namespace
         time.choiceIndex = &g_timeChoice;
         time.onChoice = [](const int i) { game::SetTime(kTimes[i]); };
         world->add(time);
+
+        // Catches the time at the moment it is switched on, rather than jumping
+        // to a fixed hour. Whoever stops the clock wants the light they are
+        // standing in, not noon.
+        world->add({"Hold the clock", mliv::ItemKind::Toggle, [] {
+            if (g_freezeClock)
+            {
+                game::CatchTheClock();
+            }
+        }, &g_freezeClock});
 
         mliv::MenuItem weather;
         weather.label = "Weather";

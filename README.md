@@ -462,10 +462,10 @@ categories**, each of which opens its own submenu:
 |---|---|
 | Player | godmode, health, armour, invisible, jump to camera, skins, traits |
 | Weapons | pick one and get it, all weapons, take them away, infinite ammo, skill |
-| Wanted | level, never wanted, upper limit, clear cops, no new patrols |
+| Wanted | level, never wanted, upper limit, clear cops, no new patrols, police interest |
 | Money | amount and give |
 | Vehicles | spawn ten models, repair, indestructible, tuning, paint |
-| World | time of day, weather, traffic density, jump to five places |
+| World | time of day, hold the clock, weather, traffic density, jump to five places |
 | Movement | fly, superjump, run speed, map marker, three saved places |
 | Pedestrians | density, everyone ignores you, riot, panic, clear the area, armed companion |
 | Settings | lock game input while the menu is open |
