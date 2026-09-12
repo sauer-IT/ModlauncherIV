@@ -9,8 +9,18 @@ public sealed class WizardViewModel : Observable
     private int _index;
     private bool _busy;
 
-    public WizardViewModel(Session session)
+    /// <param name="canGoHome">
+    /// Whether there is a home page to go back to.
+    ///
+    /// Only when the wizard was opened from it. On a first run nothing is
+    /// configured yet and the home page has nothing to show - stranding somebody
+    /// there would be worse than the step they were on, so the way out is simply
+    /// not offered.
+    /// </param>
+    public WizardViewModel(Session session, bool canGoHome = false)
     {
+        CanGoHome = canGoHome;
+
         _steps =
         [
             new WelcomeStep(session),
@@ -24,6 +34,11 @@ public sealed class WizardViewModel : Observable
 
         NextCommand = new AsyncRelayCommand(NextAsync, () => !_busy && Current.CanGoNext);
         BackCommand = new AsyncRelayCommand(BackAsync, () => !_busy && _index > 0 && Current.CanGoBack);
+
+        // Leaving is barred while something is running, and only then. A recipe
+        // is mid-transaction at that point; walking away from it would be the
+        // one thing the whole pipeline exists to prevent.
+        HomeCommand = new RelayCommand(Finish, () => CanGoHome && !_busy);
 
         NextCommand.Faulted += (_, e) => Failed?.Invoke(this, e);
         BackCommand.Faulted += (_, e) => Failed?.Invoke(this, e);
@@ -45,6 +60,12 @@ public sealed class WizardViewModel : Observable
     public AsyncRelayCommand NextCommand { get; }
 
     public AsyncRelayCommand BackCommand { get; }
+
+    /// <summary>Out of the wizard and back to the home page.</summary>
+    public RelayCommand HomeCommand { get; }
+
+    /// <summary>Whether that way out exists at all. See the constructor.</summary>
+    public bool CanGoHome { get; }
 
     public WizardStep Current => _steps[_index];
 
@@ -150,5 +171,6 @@ public sealed class WizardViewModel : Observable
     {
         NextCommand.RaiseCanExecuteChanged();
         BackCommand.RaiseCanExecuteChanged();
+        HomeCommand.RaiseCanExecuteChanged();
     }
 }

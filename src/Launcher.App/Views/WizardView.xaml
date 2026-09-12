@@ -65,6 +65,10 @@
                     </StackPanel>
 
                     <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
+                        <Button Content="Home page"
+                                Command="{Binding HomeCommand}"
+                                Margin="0,0,10,0"
+                                Visibility="{Binding CanGoHome, Converter={StaticResource Show}}" />
                         <Button Content="Back" Command="{Binding BackCommand}" Margin="0,0,10,0" />
                         <Button Content="{Binding Current.NextLabel}" Command="{Binding NextCommand}" Style="{StaticResource Primary}" />
                     </StackPanel>

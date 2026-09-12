@@ -34,9 +34,14 @@ public sealed class ShellViewModel : Observable
         ShowWizard();
     }
 
-    private void ShowWizard()
+    /// <param name="fromHome">
+    /// Whether the home page is behind us. Only then does the wizard offer a way
+    /// back to it - at startup, with nothing configured yet, there is no home
+    /// page worth returning to.
+    /// </param>
+    private void ShowWizard(bool fromHome = false)
     {
-        var wizard = new WizardViewModel(_session);
+        var wizard = new WizardViewModel(_session, fromHome);
 
         wizard.Failed += (_, e) => Failed?.Invoke(this, e);
         wizard.Finished += async (_, _) => await ShowHomeAsync().ConfigureAwait(true);
@@ -49,7 +54,7 @@ public sealed class ShellViewModel : Observable
 
     private async Task ShowHomeAsync()
     {
-        var home = new HomeViewModel(_session, ShowWizard);
+        var home = new HomeViewModel(_session, () => ShowWizard(fromHome: true));
 
         Current = home;
         await home.EnterAsync().ConfigureAwait(true);
