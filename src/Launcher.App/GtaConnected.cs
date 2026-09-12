@@ -61,6 +61,72 @@ public static class GtaConnected
     }
 
     /// <summary>
+    /// The servers it last connected to, newest first.
+    ///
+    /// Read from its own History.xml rather than kept here: it is that file the
+    /// list in its launcher is built from, so whatever is shown matches what the
+    /// player would see there - and a server that was removed over there
+    /// disappears here too, without a second list to keep in step.
+    ///
+    /// Parsed by hand rather than with an XML reader. The file holds one kind of
+    /// element, it is written by the same program every time, and a malformed
+    /// one should cost an empty list rather than an exception on the home page.
+    /// </summary>
+    public static IReadOnlyList<string> RecentServers(this ConnectedInstall connected, int limit = 5)
+    {
+        try
+        {
+            var file = Path.Combine(
+                Path.GetDirectoryName(connected.LauncherPath) ?? string.Empty, "History.xml");
+
+            if (!File.Exists(file))
+            {
+                return [];
+            }
+
+            var servers = new List<string>();
+
+            foreach (var line in File.ReadAllLines(file))
+            {
+                var open = line.IndexOf("<Server>", StringComparison.OrdinalIgnoreCase);
+                var close = line.IndexOf("</Server>", StringComparison.OrdinalIgnoreCase);
+
+                if (open < 0 || close <= open)
+                {
+                    continue;
+                }
+
+                open += "<Server>".Length;
+                var address = line[open..close].Trim();
+
+                // Only what looks like an address. The field is free text in the
+                // file, and this ends up on a command line.
+                if (address.Length is > 0 and < 64 &&
+                    address.All(c => char.IsLetterOrDigit(c) || c is '.' or ':' or '-' or '_'))
+                {
+                    servers.Add(address);
+                }
+            }
+
+            servers.Reverse();
+            return servers.Take(limit).ToArray();
+        }
+        catch (Exception e) when (e is IOException or UnauthorizedAccessException)
+        {
+            return [];
+        }
+    }
+
+    /// <summary>
+    /// The arguments that connect straight to a server.
+    ///
+    /// Both switches are its own, read out of its launcher's help text rather
+    /// than guessed: /connect takes a server, /silent leaves its window out of
+    /// the way when there is nothing left to pick.
+    /// </summary>
+    public static string ConnectArguments(string server) => $"/connect {server} /silent";
+
+    /// <summary>
     /// The version, from the same place Windows takes it for its own list of
     /// installed programs. Empty when the entry is not there - a missing version
     /// is worth less than a wrong one.

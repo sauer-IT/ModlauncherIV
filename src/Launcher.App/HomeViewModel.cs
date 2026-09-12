@@ -32,6 +32,9 @@ public sealed record ExternalTool(
     string ActionLabel,
     RelayCommand ActionCommand);
 
+/// <summary>One server from the multiplayer client's own history.</summary>
+public sealed record OnlineServer(string Address, RelayCommand ConnectCommand);
+
 /// <summary>An installed recipe, the way it appears on the home page.</summary>
 public sealed record InstalledMod(
     string RecipeId,
@@ -85,6 +88,9 @@ public sealed class HomeViewModel : Observable
 
     /// <summary>Programs beside the game that the launcher only found.</summary>
     public ObservableCollection<ExternalTool> External { get; } = [];
+
+    /// <summary>The servers GTA Connected was last on, with a way straight back.</summary>
+    public ObservableCollection<OnlineServer> Servers { get; } = [];
 
     /// <summary>The offer to put itself on the desktop. Disappears once done.</summary>
     public SetupBanner Setup { get; } = new();
@@ -240,11 +246,17 @@ public sealed class HomeViewModel : Observable
     /// </summary>
     private void PlayOnline()
     {
-        if (_connected is not { } connected)
+        if (_connected is { } connected && WarnBeforeOnline(connected))
         {
-            return;
+            Launch(connected, string.Empty);
         }
+    }
 
+    /// <summary>
+    /// Says what is about to be invisible, and asks. False means: do not start.
+    /// </summary>
+    private bool WarnBeforeOnline(ConnectedInstall connected)
+    {
         var warnings = new List<string>();
 
         if (_session.Install is { } install && !connected.PointsAt(install.Path))
@@ -267,23 +279,42 @@ public sealed class HomeViewModel : Observable
                 + "rather play clean.");
         }
 
-        if (warnings.Count > 0)
+        if (warnings.Count == 0)
         {
-            var answer = MessageBox.Show(
-                string.Join("\n\n", warnings) + "\n\nStart anyway?",
-                SelfInstall.ProgramName,
-                MessageBoxButton.OKCancel,
-                MessageBoxImage.Warning);
-
-            if (answer != MessageBoxResult.OK)
-            {
-                return;
-            }
+            return true;
         }
 
+        return MessageBox.Show(
+            string.Join("\n\n", warnings) + "\n\nStart anyway?",
+            SelfInstall.ProgramName,
+            MessageBoxButton.OKCancel,
+            MessageBoxImage.Warning) == MessageBoxResult.OK;
+    }
+
+    /// <summary>
+    /// Straight onto one server, past its own list.
+    ///
+    /// The same warnings as the plain handover - they are about the game
+    /// directory, and that does not change because a server was named. Saying
+    /// them once here and once there is deliberate: skipping them on the shorter
+    /// path would mean the shorter path is the one that warns about nothing.
+    /// </summary>
+    private void Connect(string server)
+    {
+        if (_connected is not { } connected || !WarnBeforeOnline(connected))
+        {
+            return;
+        }
+
+        Launch(connected, GtaConnected.ConnectArguments(server));
+    }
+
+    private static void Launch(ConnectedInstall connected, string arguments)
+    {
         Process.Start(new ProcessStartInfo
         {
             FileName = connected.LauncherPath,
+            Arguments = arguments,
             WorkingDirectory = Path.GetDirectoryName(connected.LauncherPath) ?? string.Empty,
             UseShellExecute = true,
         });
@@ -358,6 +389,21 @@ public sealed class HomeViewModel : Observable
     private void FillExternal(GameInstall install)
     {
         External.Clear();
+        Servers.Clear();
+
+        // The server history belongs to GTA Connected and to nothing else, so it
+        // is filled from there rather than from the tool entry. A catalog entry
+        // describes how to find and start a program; what that program keeps in
+        // its own files is its own business, and generalising it would mean
+        // inventing a shape for something there is one of.
+        if (_connected is { } connected)
+        {
+            foreach (var server in connected.RecentServers())
+            {
+                var address = server;
+                Servers.Add(new OnlineServer(address, new RelayCommand(() => Connect(address))));
+            }
+        }
 
         foreach (var tool in ToolCatalog.LoadFrom(AppPaths.CatalogDirectory, _session.Catalog!))
         {

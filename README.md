@@ -114,13 +114,22 @@ key is as much part of "which program is this" as a checksum is. The key it read
 is the one that program's own launcher reads, and the check asks for the file
 rather than the key, because a key outlives an uninstall.
 
-Two things get said first, both invisible until they have already gone wrong.
-That key also records which `GTAIV.exe` it will start, and it need not be the
-installation this launcher looks after - in which case nothing installed here
-applies to what actually runs. And the ASI loader does not care what the game is
-being used for: everything in `plugins\` loads in multiplayer too, the trainer
-included. On a server that is a good way to be thrown off it, and a good way to
-crash.
+Under it sit the servers it was last on, each with a Connect that goes straight
+there. Both halves of that come from the client itself rather than from anything
+kept here: the list is its own `History.xml`, the same file its own server
+browser is built from, and the switches are its own - `/connect <server>` and
+`/silent`, read out of its launcher's help text rather than guessed. A server
+dropped over there disappears here too, with no second list to keep in step.
+
+Two things get said first, on both paths. That registry key also records which
+`GTAIV.exe` it will start, and it need not be the installation this launcher
+looks after - in which case nothing installed here applies to what actually
+runs. And the ASI loader does not care what the game is being used for:
+everything in `plugins\` loads in multiplayer too, the trainer included. On a
+server that is a good way to be thrown off it, and a good way to crash.
+
+Saying it on both paths is deliberate. Skipping it on the shorter one would mean
+the quick way is the way that warns about nothing.
 
 **The trainer does not start separately.** It sits in the game directory as
 `plugins\sauer.asi` and is loaded along by the ASI loader when
