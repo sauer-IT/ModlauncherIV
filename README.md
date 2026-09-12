@@ -518,6 +518,15 @@ once does not happen by accident. Directions repeat while held, after a short
 pause and then at a steady rate: on a pad you hold a direction, you do not tap it
 sixty times.
 
+**The phone stays in his pocket while the menu is open.** Up is the phone in GTA
+IV and up is also how one walks through this menu, so every scroll took the
+phone out over the top of the thing being scrolled - on the pad the same, with
+d-pad up. While the menu is open the game is told a script has the phone, which
+is what its own scripts do and what stops the button working; and if a press got
+through anyway - the frame the menu opened, say - the phone is put away again.
+Both are undone the moment the menu closes. A trainer that left the phone
+disabled behind it would look exactly like a broken save.
+
 XInput is loaded at run time rather than linked. Which `xinput` DLL exists
 depends on the Windows version, and linking one would make the trainer refuse to
 load where it is absent - which the ASI loader reports as nothing happening at

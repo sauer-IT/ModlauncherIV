@@ -456,6 +456,7 @@ namespace
 
     bool g_lockInput = false;
     bool g_controlTaken = false;
+    bool g_phoneHeld = false;
 
     /// Removes what earlier versions of this trainer left lying around.
     ///
@@ -2000,6 +2001,49 @@ namespace
         g_controlTaken = want;
     }
 
+    /// Keeps the phone in Niko's pocket while the menu is open.
+    ///
+    /// Up on the keyboard is the phone in GTA IV, and up is also how one walks
+    /// through this menu - so every scroll took the phone out, over the top of
+    /// the thing being scrolled. On a pad it is d-pad up, with the same result.
+    ///
+    /// Two halves, because one is not enough. SCRIPT_IS_USING_MOBILE_PHONE is
+    /// what the game's own scripts set while they have the phone: the player's
+    /// own button stops working for as long as it is on. And if one press got
+    /// through anyway - the frame the menu opened, say - the phone is already
+    /// out, and only putting it away helps. Both are undone the moment the menu
+    /// closes; a trainer that leaves the phone disabled behind it would look
+    /// exactly like a broken save.
+    void HoldThePhone()
+    {
+        const bool want = g_menu->visible();
+
+        if (!game::g_frame.playing)
+        {
+            return;
+        }
+
+        if (want != g_phoneHeld)
+        {
+            Scripting::SCRIPT_IS_USING_MOBILE_PHONE(want ? 1 : 0);
+            g_phoneHeld = want;
+        }
+
+        if (!want || game::g_frame.ped == 0)
+        {
+            return;
+        }
+
+        // Out already? Then put it away - once per frame is harmless, the task
+        // simply ends, and doing it unconditionally spares asking the game a
+        // second question about a state it changes underneath us anyway.
+        int subTask = 0;
+        if (Scripting::GET_MOBILE_PHONE_TASK_SUB_TASK(game::g_frame.ped, &subTask) != 0)
+        {
+            Scripting::TASK_USE_MOBILE_PHONE(game::g_frame.ped, 0);
+        }
+    }
+
     /// Runs every frame.
     ///
     /// Godmode and "never wanted" get set again and again here, not just when
@@ -2655,6 +2699,7 @@ namespace
         EnforceToggles();
         ApplyNoclip();
         ApplyInputLock();
+        HoldThePhone();
 
         // Drawing happens here, not in drawingEvent.
         //
