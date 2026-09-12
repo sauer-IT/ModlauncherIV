@@ -115,12 +115,30 @@ key is as much part of "which program is this" as a checksum is. The key it read
 is the one that program's own launcher reads, and the check asks for the file
 rather than the key, because a key outlives an uninstall.
 
-Under it sit the servers it was last on, each with a Connect that goes straight
-there. Both halves of that come from the client itself rather than from anything
-kept here: the list is its own `History.xml`, the same file its own server
-browser is built from, and the switches are its own - `/connect <server>` and
-`/silent`, read out of its launcher's help text rather than guessed. A server
-dropped over there disappears here too, with no second list to keep in step.
+Under it sits a **list of servers to pick from**, each with a Connect that goes
+straight there. It has two halves. The client's own `History.xml` - where it was
+last, newest first, the same file its own browser is built from, so a server
+dropped over there disappears here too. And a list the launcher keeps itself, in
+`%LOCALAPPDATA%\ModlauncherIV\servers.json`, because a history is not a choice:
+it forgets, it is ordered by accident, and a server nobody has been on yet is
+never in it. An address typed in once is in the list from then on, with a name
+if it was given one; anything out of the history can be *kept* with one click,
+and what was kept can be forgotten again. The rows say which half they came
+from.
+
+What is deliberately not here is a server browser. There is no list of live
+servers to be had without guessing at somebody's undocumented endpoint - the
+project's own site refuses plain requests - and a browser that quietly goes
+stale in the launcher, next to a client that has a real one, would be worse than
+not having it.
+
+An address is checked before it is stored, not when it is used: it ends up on a
+command line, so what may be in it is what may be in a host name and a port and
+nothing else. That check runs again on load, because a file this program wrote
+is still a file somebody can edit.
+
+The switches are the client's own - `/connect <server>` and `/silent`, read out
+of its launcher's help text rather than guessed.
 
 Two things get said first, on both paths. That registry key also records which
 `GTAIV.exe` it will start, and it need not be the installation this launcher
@@ -165,7 +183,7 @@ Exit codes: `0` success - `1` nothing found - `2` wrong invocation -
 .\tests\run-tests.ps1
 ```
 
-196 tests against fake game directories. No real installation is touched. If GTA
+211 tests against fake game directories. No real installation is touched. If GTA
 IV happens to be running, the script aborts up front - otherwise every pre-flight
 rightly blocks and four tests fail without anything being wrong with the code.
 Among the things covered:

@@ -37,6 +37,13 @@ internal static class Program
         var app = new ModlauncherIV.App.App();
         app.InitializeComponent();
 
+        // Anything that goes wrong off this thread - a view model that starts
+        // work of its own - would otherwise take the process down with no line
+        // saying why, and a test that dies silently reads like a test that
+        // never ran.
+        AppDomain.CurrentDomain.UnhandledException += (_, e) =>
+            Console.WriteLine($"  UNHANDLED  {e.ExceptionObject}");
+
         PresentationTraceSources.Refresh();
         PresentationTraceSources.DataBindingSource.Listeners.Add(Trace);
         PresentationTraceSources.DataBindingSource.Switch.Level = SourceLevels.Warning;
@@ -50,7 +57,12 @@ internal static class Program
         // The home page and the wizard frame. Everything else is a step, and
         // which view belongs to a step is decided by the DataTemplates in
         // App.xaml - so going through the steps tests that mapping as well.
-        Check("home", new HomeViewModel(session, () => { }));
+        // Entered, not merely constructed: the lists on it - installed mods,
+        // external tools, servers - are filled there, and an empty page tests
+        // none of the templates that draw them.
+        var home = new HomeViewModel(session, () => { });
+        home.EnterAsync().GetAwaiter().GetResult();
+        Check("home", home);
         Check("wizard frame", new WizardViewModel(session, canGoHome: true));
 
         Check("welcome", new WelcomeStep(session));
@@ -66,6 +78,7 @@ internal static class Program
         // filter that matches nothing are states a person will produce.
         CheckChoiceList(session);
         CheckVersions(session);
+        CheckServerBook();
 
         Console.WriteLine();
         Console.WriteLine(Failures.Count == 0
@@ -242,6 +255,69 @@ internal static class Program
         {
             var mark = version.Reachable ? " " : "-";
             Console.WriteLine($"    {mark} {version.Label,-28} {version.Reason}");
+        }
+    }
+
+    /// <summary>
+    /// The list of servers the launcher keeps.
+    ///
+    /// The address is handed to another program on a command line, so what may
+    /// be stored matters more here than anywhere else on the page - including
+    /// what a hand-edited file may put back in.
+    /// </summary>
+    private static void CheckServerBook()
+    {
+        var file = Path.Combine(Path.GetTempPath(), $"mliv-servers-{Guid.NewGuid():N}.json");
+
+        try
+        {
+            Report("servers: an empty list to start with", ServerBook.Load(file).Count == 0);
+
+            ServerBook.Add("Jacob's", "192.99.32.215:22000", file);
+            var saved = ServerBook.Load(file);
+            Report("servers: one is kept", saved.Count == 1 && saved[0].Address == "192.99.32.215:22000");
+            Report("servers: with its name", saved[0].Name == "Jacob's");
+
+            // The same address twice is one server with a new name, not two.
+            ServerBook.Add("Jacob", "192.99.32.215:22000", file);
+            Report("servers: the same address does not double up", ServerBook.Load(file).Count == 1);
+            Report("servers: but takes the new name", ServerBook.Load(file)[0].Name == "Jacob");
+
+            ServerBook.Add("", "play.example.org:22005", file);
+            Report("servers: a second one is added", ServerBook.Load(file).Count == 2);
+
+            Report("servers: a host name with a port is an address", ServerBook.IsAddress("play.example.org:22005"));
+            Report("servers: an empty one is not", !ServerBook.IsAddress("  "));
+            Report("servers: and neither is one with a space", !ServerBook.IsAddress("1.2.3.4 --do-something"));
+            Report("servers: nor one with quotes", !ServerBook.IsAddress("\"1.2.3.4\""));
+            Report("servers: nor one longer than the limit", !ServerBook.IsAddress(new string('a', 65)));
+
+            // What a hand-edited file puts back in is foreign data, even though
+            // we wrote the file.
+            File.WriteAllText(file, """
+                [
+                  { "Name": "fine", "Address": "10.0.0.5:22000" },
+                  { "Name": "smuggled", "Address": "10.0.0.6:22000 --flag" }
+                ]
+                """);
+
+            var loaded = ServerBook.Load(file);
+            Report("servers: a tampered file keeps what is an address", loaded.Count == 1);
+            Report("servers: and drops what is not", loaded.All(s => !s.Address.Contains(' ')));
+
+            File.WriteAllText(file, "this is not json");
+            Report("servers: a broken file costs the list, not the page", ServerBook.Load(file).Count == 0);
+
+            ServerBook.Add("back", "10.0.0.5:22000", file);
+            ServerBook.Remove("10.0.0.5:22000", file);
+            Report("servers: one can be forgotten again", ServerBook.Load(file).Count == 0);
+        }
+        finally
+        {
+            if (File.Exists(file))
+            {
+                File.Delete(file);
+            }
         }
     }
 
