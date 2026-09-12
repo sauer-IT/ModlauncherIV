@@ -58,6 +58,69 @@ public sealed class LedgerStore(string gameRoot)
 
     public string FilePath => _file;
 
+    /// <summary>
+    /// Every installation the launcher has ever written to, read from the
+    /// ledgers rather than from detection.
+    ///
+    /// The difference matters exactly once, and badly: at uninstall time.
+    /// Detection answers "which installations are on this machine now" and goes
+    /// quiet when there are two of them or when a disk is not plugged in. The
+    /// ledgers answer "which installations are owed something", which is the
+    /// question that decides whether the snapshots may be thrown away.
+    /// </summary>
+    /// <param name="root">
+    /// Where to look. Defaults to the launcher's own state folder; a test
+    /// points it somewhere else.
+    /// </param>
+    public static IReadOnlyList<InstallLedger> All(string? root = null)
+    {
+        var installs = Path.Combine(root ?? AppPaths.Root, "installs");
+
+        if (!Directory.Exists(installs))
+        {
+            return [];
+        }
+
+        var ledgers = new List<InstallLedger>();
+
+        foreach (var file in SafeDirectories(installs).Select(d => Path.Combine(d, "ledger.json")))
+        {
+            if (!File.Exists(file))
+            {
+                continue;
+            }
+
+            try
+            {
+                var ledger = JsonSerializer.Deserialize<InstallLedger>(File.ReadAllText(file), JsonOptions);
+
+                if (ledger is not null && !string.IsNullOrWhiteSpace(ledger.GameRoot))
+                {
+                    ledgers.Add(ledger);
+                }
+            }
+            catch (Exception e) when (e is IOException or JsonException or UnauthorizedAccessException)
+            {
+                // One unreadable ledger is one installation this cannot speak
+                // for. Reporting nothing at all because of it would be worse.
+            }
+        }
+
+        return ledgers;
+    }
+
+    private static IEnumerable<string> SafeDirectories(string path)
+    {
+        try
+        {
+            return Directory.EnumerateDirectories(path);
+        }
+        catch (Exception e) when (e is IOException or UnauthorizedAccessException)
+        {
+            return [];
+        }
+    }
+
     public InstallLedger Load()
     {
         if (!File.Exists(_file))

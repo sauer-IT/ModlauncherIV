@@ -226,7 +226,7 @@ because it could not write its own log would be a bad joke.
 .\tests\run-tests.ps1
 ```
 
-239 tests against fake game directories. No real installation is touched. If GTA
+246 tests against fake game directories. No real installation is touched. If GTA
 IV happens to be running, the script aborts up front - otherwise every pre-flight
 rightly blocks and four tests fail without anything being wrong with the code.
 Among the things covered:
@@ -788,13 +788,36 @@ as well.
   T2a player ✔ · T2b weapons ✔ · T2c vehicles and world ✔ ·
   home page, self-install, icon, one-file release ✔ ·
   T3 configuration ✔ · T4-T6 movement, tuning, peds, time and physics ✔ ← *here*
-- **M6** profiles, catalog update · uninstaller · mirrors for third-party sources
+- **M6** uninstaller ✔ · server list and log ✔ · profiles, catalog update ·
+  mirrors for third-party sources
 
 Open before a public release: SmartScreen without a real code-signing
 certificate, third-party download sources that can vanish (the Dropbox already
-did) with no mirrors of our own, only ever tested on one machine, and no
-uninstaller yet. The `vc80-runtime` step, which used to be the hard blocker
-because a stranger could not supply the file, now comes from Microsoft.
+did) with no mirrors of our own, and only ever tested on one machine. The
+`vc80-runtime` step, which used to be the hard blocker because a stranger could
+not supply the file, now comes from Microsoft.
+
+## Taking it off again
+
+"Apps & features", *Modlauncher IV*, Uninstall - which starts the same EXE with
+`--uninstall`. The order is the whole design: the mods come out of the game
+first, the snapshots are offered for deletion second, and everything else after.
+An uninstaller that cleaned up its own backups first would leave a modded game
+with no way back and no program left to do it with.
+
+**What decides whether anything is still owed is the ledgers, not detection.**
+That distinction was a bug worth finding before somebody else did: detection
+answers "which installations are on this machine now", and it deliberately
+returns nothing when it finds two of them, because with two the user has to
+choose. The uninstaller read that as "nothing is installed" and went straight on
+to offering the snapshots for deletion - on a machine with two copies of GTA IV,
+that meant throwing away the backups of a game still full of mods. The same held
+for a game on a disk that was not plugged in.
+
+The ledgers answer the question that actually matters: which folders is the
+launcher still holding the earlier state of. Each one names its own game folder,
+so a folder that is not reachable keeps its snapshots and says so, and the
+offer to delete only comes when every installation came out clean.
 
 The full project plan with architecture, risks and open questions exists as a
 separate document.

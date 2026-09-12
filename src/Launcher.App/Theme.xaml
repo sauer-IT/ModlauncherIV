@@ -166,6 +166,50 @@
         </Setter>
     </Style>
 
+    <!--
+        Tooltips.
+
+        Without this a tooltip is a single unbroken line: the default template
+        does not wrap, so a mod description ran the full width of the screen -
+        two and a half thousand pixels of unreadable grey. Hence a width it may
+        not exceed, wrapping inside it, and the same colours as everything else
+        rather than the system's pale yellow on a dark window.
+    -->
+    <Style TargetType="ToolTip">
+        <Setter Property="Background" Value="{StaticResource Panel}" />
+        <Setter Property="Foreground" Value="{StaticResource Text}" />
+        <Setter Property="BorderBrush" Value="{StaticResource Line}" />
+        <Setter Property="BorderThickness" Value="1" />
+        <Setter Property="Padding" Value="12,9" />
+        <Setter Property="MaxWidth" Value="420" />
+        <Setter Property="HasDropShadow" Value="False" />
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="ToolTip">
+                    <Border Background="{TemplateBinding Background}"
+                            BorderBrush="{TemplateBinding BorderBrush}"
+                            BorderThickness="{TemplateBinding BorderThickness}"
+                            CornerRadius="4"
+                            Padding="{TemplateBinding Padding}">
+                        <ContentPresenter />
+                    </Border>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+        <Setter Property="ContentTemplate">
+            <Setter.Value>
+                <DataTemplate>
+                    <TextBlock Text="{Binding}"
+                               TextWrapping="Wrap"
+                               MaxWidth="396"
+                               FontFamily="Segoe UI"
+                               FontSize="12"
+                               Foreground="{StaticResource Text}" />
+                </DataTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
     <!-- A short label on a piece of content: installed, by hand, wrong version.
          Small enough to be read after the name rather than instead of it. -->
     <Style x:Key="Chip" TargetType="Border">

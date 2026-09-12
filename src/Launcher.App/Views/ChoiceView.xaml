@@ -154,10 +154,16 @@
                                                           Content="{Binding Name}"
                                                           FontWeight="SemiBold" />
 
+                                                <!-- The whole description on hover, and long
+                                                     enough to read it: five seconds is the
+                                                     default, and FusionFix's runs to a
+                                                     paragraph explaining its own crash. -->
                                                 <TextBlock Text="{Binding ShortDescription}"
                                                            Style="{StaticResource Dim}"
                                                            Margin="24,4,0,0"
                                                            ToolTip="{Binding Description}"
+                                                           ToolTipService.ShowDuration="60000"
+                                                           ToolTipService.InitialShowDelay="400"
                                                            Visibility="{Binding ShortDescription, Converter={StaticResource HasContent}}" />
 
                                                 <StackPanel Orientation="Horizontal" Margin="24,7,0,0">

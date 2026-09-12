@@ -84,6 +84,8 @@ internal static class Program
         CheckOnlineWindow();
         CheckDiary();
         CheckOutdatedMod(session);
+        CheckKnownInstallations();
+        CheckTooltip(session);
 
         // Only when asked for: this one talks to somebody else's server, and a
         // test suite that fails because a stranger's host is down is a test
@@ -586,6 +588,98 @@ internal static class Program
         {
             store.Save(InstallLedger.Empty(session.Install.Path));
         }
+    }
+
+    /// <summary>
+    /// Which installations are owed something, read from the ledgers.
+    ///
+    /// This is what the uninstaller asks before it offers to throw the
+    /// snapshots away, and it used to ask detection instead. Detection returns
+    /// nothing when it finds two installations and nothing when a disk is not
+    /// plugged in, and "nothing found" was taken to mean "nothing is owed" -
+    /// which offered to delete the backups of a game still full of mods.
+    /// </summary>
+    private static void CheckKnownInstallations()
+    {
+        var root = Path.Combine(Path.GetTempPath(), $"mliv-ledgers-{Guid.NewGuid():N}");
+
+        try
+        {
+            Report("installations: nothing to find in an empty folder", LedgerStore.All(root).Count == 0);
+
+            WriteLedger(root, "first", @"D:\Games\GTA IV", 3);
+            WriteLedger(root, "second", @"E:\Steam\common\GTAIV", 1);
+            WriteLedger(root, "third", @"C:\somewhere\else", 0);
+
+            var all = LedgerStore.All(root);
+
+            Report("installations: every ledger is found", all.Count == 3);
+            Report(
+                "installations: two of them are owed something",
+                all.Count(l => l.Entries.Count > 0) == 2);
+
+            Report(
+                "installations: each knows its own game folder",
+                all.Any(l => l.GameRoot == @"D:\Games\GTA IV") && all.Any(l => l.GameRoot == @"E:\Steam\common\GTAIV"));
+
+            // A ledger that cannot be read is one installation this cannot speak
+            // for - it must not silence the others.
+            Directory.CreateDirectory(Path.Combine(root, "installs", "broken"));
+            File.WriteAllText(Path.Combine(root, "installs", "broken", "ledger.json"), "{ not json");
+
+            Report("installations: a broken ledger does not hide the rest", LedgerStore.All(root).Count == 3);
+        }
+        finally
+        {
+            if (Directory.Exists(root))
+            {
+                Directory.Delete(root, recursive: true);
+            }
+        }
+    }
+
+    private static void WriteLedger(string root, string key, string gameRoot, int entries)
+    {
+        var folder = Path.Combine(root, "installs", key);
+        Directory.CreateDirectory(folder);
+
+        var ledger = InstallLedger.Empty(gameRoot) with
+        {
+            Entries = Enumerable.Range(0, entries)
+                .Select(i => new LedgerEntry($"recipe-{i}", $"Recipe {i}", "1.0.0", DateTimeOffset.Now, $"snap-{i}", []))
+                .ToArray(),
+        };
+
+        File.WriteAllText(
+            Path.Combine(folder, "ledger.json"),
+            System.Text.Json.JsonSerializer.Serialize(ledger, new System.Text.Json.JsonSerializerOptions { WriteIndented = true }));
+    }
+
+    /// <summary>
+    /// A tooltip has to stay a box.
+    ///
+    /// The default template does not wrap, so the full description of a mod -
+    /// FusionFix's runs to a paragraph - came out as one unbroken line the width
+    /// of the screen. Measured here rather than looked at, because looking at it
+    /// is what this whole test exists to avoid.
+    /// </summary>
+    private static void CheckTooltip(Session session)
+    {
+        // The real worst case: whichever description in the catalog is longest.
+        var longest = session.Catalog?.Recipes
+            .Select(r => r.Description ?? string.Empty)
+            .OrderByDescending(d => d.Length)
+            .FirstOrDefault();
+
+        var text = string.IsNullOrWhiteSpace(longest)
+            ? string.Join(" ", Enumerable.Repeat("word", 200))
+            : longest;
+
+        var tip = new ToolTip { Content = text };
+        tip.Measure(new Size(double.PositiveInfinity, double.PositiveInfinity));
+
+        Report($"tooltip: {text.Length} characters stay inside a box", tip.DesiredSize.Width <= 440);
+        Report("tooltip: and wrap rather than run off the screen", tip.DesiredSize.Height > 40);
     }
 
     /// <summary>Builds one ServerAdd frame the way the master list writes them.</summary>

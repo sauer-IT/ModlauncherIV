@@ -2,6 +2,7 @@ using System.Diagnostics;
 using System.IO;
 using System.Windows;
 using ModlauncherIV.Core.Backup;
+using ModlauncherIV.Core.Catalog;
 using ModlauncherIV.Core.Execution;
 
 namespace ModlauncherIV.App;
@@ -89,25 +90,25 @@ public static class Uninstall
     /// </summary>
     private static bool OfferToRestoreGame(List<string> done)
     {
-        var session = new Session();
-        Detection.FillAsync(session).GetAwaiter().GetResult();
+        // From the ledgers, not from detection. Detection answers "what is on
+        // this machine now" and says nothing when it finds two installations -
+        // and "nothing found" used to mean "nothing is owed", which then offered
+        // to delete the snapshots of a game that was still full of mods. That is
+        // precisely the thing the order of steps here exists to prevent.
+        var owing = LedgerStore.All().Where(l => l.Entries.Count > 0).ToArray();
 
-        if (session.Install is not { } install)
+        if (owing.Length == 0)
         {
             return true;
         }
 
-        var ledgerStore = new LedgerStore(install.Path);
-        var installed = ledgerStore.Load().Entries.Count;
-
-        if (installed == 0)
-        {
-            return true;
-        }
+        var what = string.Join("\n", owing.Select(l =>
+            $"  {l.Entries.Count} recipe(s) in {l.GameRoot}"));
 
         var answer = MessageBox.Show(
-            $"{installed} recipe(s) are installed in\n  {install.Path}\n\n"
-            + "Take them back out and leave the game as it was found?\n\n"
+            $"The launcher has changed {(owing.Length == 1 ? "an installation" : $"{owing.Length} installations")}:\n\n"
+            + what
+            + "\n\nTake it all back out and leave the game as it was found?\n\n"
             + "No keeps the mods. They then stay without anything left that knows "
             + "how to remove them.",
             SelfInstall.ProgramName,
@@ -116,45 +117,76 @@ public static class Uninstall
 
         if (answer != MessageBoxResult.Yes)
         {
+            Diary.Info("Uninstall: the mods were left in place at the user's request.");
             return false;
         }
 
-        var uninstaller = new Uninstaller(new SnapshotStore(install.Path), ledgerStore);
+        var catalog = RecipeCatalog.LoadFrom(AppPaths.CatalogDirectory, CatalogTrust.RequireSignature);
+        var clean = true;
+        var taken = 0;
+
+        foreach (var ledger in owing)
+        {
+            // A folder that is not there cannot be put back - an external disk,
+            // or a game uninstalled in the meantime. Its snapshots are then the
+            // only record of what was changed, and they stay.
+            if (!Directory.Exists(ledger.GameRoot))
+            {
+                done.Add($"Not reachable, left alone: {ledger.GameRoot}");
+                Diary.Warn($"Uninstall: {ledger.GameRoot} does not exist; its snapshots are kept.");
+                clean = false;
+                continue;
+            }
+
+            var failures = Restore(ledger.GameRoot, catalog.Recipes);
+
+            if (failures.Count > 0)
+            {
+                done.Add($"{ledger.GameRoot} restored, except: {string.Join(", ", failures)}");
+                clean = false;
+                continue;
+            }
+
+            taken += ledger.Entries.Count;
+        }
+
+        if (taken > 0)
+        {
+            done.Add($"{taken} recipe(s) taken back out of the game");
+        }
+
+        return clean;
+    }
+
+    /// <summary>
+    /// Takes everything back out of one installation. Returns what would not
+    /// come out - newest first, which is the order that makes dependencies come
+    /// apart by themselves, the same order "remove --all" uses.
+    /// </summary>
+    private static List<string> Restore(string gameRoot, IReadOnlyList<Recipe> recipes)
+    {
+        var ledgerStore = new LedgerStore(gameRoot);
+        var uninstaller = new Uninstaller(new SnapshotStore(gameRoot), ledgerStore);
 
         var context = new RecipeContext(
-            gameRoot: install.Path,
-            sourceRoot: session.CacheRoot,
+            gameRoot: gameRoot,
+            sourceRoot: AppPaths.Cache,
             log: new ExecutionLog(Diary.Line),
             dryRun: false);
 
         var failures = new List<string>();
 
-        // Newest first, which is the order that makes dependencies come apart by
-        // themselves - the same order "remove --all" uses.
         foreach (var id in uninstaller.InstalledNewestFirst())
         {
-            var plan = uninstaller.Plan(id, context, session.Catalog?.Recipes ?? []);
+            var plan = uninstaller.Plan(id, context, recipes);
 
-            if (plan is null || !plan.CanRun)
-            {
-                failures.Add(id);
-                continue;
-            }
-
-            if (!uninstaller.Remove(plan, context).Success)
+            if (plan is null || !plan.CanRun || !uninstaller.Remove(plan, context).Success)
             {
                 failures.Add(id);
             }
         }
 
-        if (failures.Count > 0)
-        {
-            done.Add($"Game restored, except: {string.Join(", ", failures)}");
-            return false;
-        }
-
-        done.Add($"{installed} recipe(s) taken back out of the game");
-        return true;
+        return failures;
     }
 
     /// <summary>
