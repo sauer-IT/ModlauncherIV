@@ -3,11 +3,12 @@
 Ein geführter Downgrader und Mod-Installer für GTA IV — und ein selbstgebauter
 Trainer, den er am Ende ausliefert.
 
-**Stand: M3 abgeschlossen, Trainer bis T1** — Rezept-Engine mit Snapshot,
+**Stand: M3 abgeschlossen, Trainer bis T2a** — Rezept-Engine mit Snapshot,
 Rollback und Rückbau,
 Beschaffung mit Hash-Prüfung und Mirror-Kette, signierter Katalog. Der Downgrade
 ist an einer echten Installation gelaufen: 1.2.0.59 → 1.0.7.0, das Spiel startet,
-und der selbstgebaute Trainer zeigt sein Menü darin.
+und der selbstgebaute Trainer bietet darin Godmode, Leben, Panzerung,
+Fahndungslevel und Geld.
 Einziger Befehl, der das Spiel verändert, ist `apply` — nach Rückfrage und mit
 vorherigem Snapshot.
 
@@ -18,7 +19,7 @@ vorherigem Snapshot.
 | `src/Launcher.Core` | Domäne und Pipeline. Keine UI-Abhängigkeit, damit gegen Fixtures testbar. |
 | `src/Launcher.Cli` | Headless-Frontend (`mliv`). Dry-Runs, Diagnose, CI. |
 | `src/Launcher.App` | WPF-Wizard. Kommt mit M5. |
-| `src/Trainer` | C++ ASI-Plugin, x86, IV-SDK. Menü läuft im Spiel (T1). |
+| `src/Trainer` | C++ ASI-Plugin, x86, IV-SDK. Spieler-Funktionen im Spiel (T2a). |
 | `catalog/` | Die deklarativen Rezepte. Fünf Stück, vier davon erprobt. |
 | `tests/` | Fixtures und Testskript. |
 
@@ -171,6 +172,26 @@ Eingaben. Dadurch lässt sich das Menü vollständig ohne Spiel durchspielen:
 Ein Navigationsfehler fällt so in Millisekunden auf statt nach Spielstart,
 Ladebildschirm und Tastendruck.
 
+**Stufe T2a** bringt die Spieler-Funktionen: Godmode, Leben, Panzerung,
+Fahndungslevel und Geld.
+
+Godmode wird **jeden Frame neu gesetzt**, nicht nur beim Umschalten — das Spiel
+nimmt Unverwundbarkeit bei Respawn, Zwischensequenzen und Missionswechseln
+zurück. Ein einmal gesetzter Schalter hörte still auf zu wirken, und man hält
+dann den Trainer für kaputt statt das Spiel für eigenwillig.
+
+**Alles läuft in `processScriptsEvent`** — Eingabe, Schalter und Zeichnen. Das
+war der Ausgang von zwei Fehlern, die erst im Spiel auffielen:
+
+- Spiel-Natives aus `drawingEvent` **beenden das Spiel im Ladebildschirm.** Nur
+  `processScriptsEvent` setzt vorher `CTheScripts::m_pCurrentThread`, den
+  Kontext den Natives brauchen; und `drawingEvent` läuft laut SDK auch im Menü
+  und beim Laden, wo es noch keine Skript-Maschine gibt.
+- Zeichnen aus `drawingEvent` landet **im Bildschirm des Handys**, sobald dessen
+  Renderziel gebunden ist. Die Skripte des Spiels zeichnen ihr HUD ebenfalls aus
+  dem Script-Tick — von dort landen `DRAW_RECT` und `DISPLAY_TEXT` in der
+  HUD-Phase, wo sie hingehören.
+
 **Zwei Fallen beim Zeichnen**, beide erst im Spiel sichtbar:
 
 - `DRAW_RECT` nimmt in GTA IV **Mittelpunkt und Größe**, nicht zwei Ecken — die
@@ -301,7 +322,7 @@ Endnutzer mit aktivem Smart App Control.
 - **M2** Beschaffung, Hash-Prüfung, Mirror, Katalogsignatur ✔
 - **M3** Downgrade-Rezepte, Versionsgraph, Update-Sperre, Gegenprobe, Rückbau ✔
 - **M4** Basis-Stack ✔ · Trainer T0 ✔ · T1 Menügerüst ✔
-- **M5** WPF-Wizard und Dev-Modus · Trainer T2: Features ← *hier*
+- **M5** WPF-Wizard und Dev-Modus · Trainer T2a ✔ · T2b Waffen ← *hier*
 - **M6** Profile, Katalog-Update · Trainer T3: Config und Politur
 
 Der vollständige Projektplan mit Architektur, Risiken und offenen Fragen liegt
