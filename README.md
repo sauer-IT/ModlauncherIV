@@ -3,25 +3,49 @@
 Ein geführter Downgrader und Mod-Installer für GTA IV — und ein selbstgebauter
 Trainer, den er am Ende ausliefert.
 
-**Stand: M3 abgeschlossen, Trainer bis T2a** — Rezept-Engine mit Snapshot,
-Rollback und Rückbau,
-Beschaffung mit Hash-Prüfung und Mirror-Kette, signierter Katalog. Der Downgrade
-ist an einer echten Installation gelaufen: 1.2.0.59 → 1.0.7.0, das Spiel startet,
-und der selbstgebaute Trainer bietet darin Godmode, Leben, Panzerung,
-Fahndungslevel und Geld.
-Einziger Befehl, der das Spiel verändert, ist `apply` — nach Rückfrage und mit
-vorherigem Snapshot.
+**Stand: M5 abgeschlossen, Trainer bis T2c** — der Assistent führt vom
+unveränderten Spiel bis zum laufenden Trainer durch, ohne dass man eine
+Befehlszeile anfassen muss.
+
+Der vollständige Weg ist an einer echten Installation gelaufen: Complete Edition
+1.2.0.59 über den Rockstar Games Launcher, heruntergestuft auf 1.0.7.0, dazu
+ASI-Loader, GFWL-Stub, Visual-C++-2005-Laufzeit und der selbstgebaute Trainer —
+197 Dateien unter Verwaltung, alle per Gegenprobe unverändert.
+
+Einziges, was das Spiel verändert, ist der Schritt „Einbauen" im Assistenten
+beziehungsweise `apply` in der CLI — beides nach Rückfrage und mit vorherigem
+Snapshot.
 
 ## Aufbau
 
 | Projekt | Zweck |
 |---|---|
-| `src/Launcher.Core` | Domäne und Pipeline. Keine UI-Abhängigkeit, damit gegen Fixtures testbar. |
+| `src/Launcher.Core` | Domäne, Pipeline und Wegplanung. Keine UI-Abhängigkeit, damit gegen Fixtures testbar. |
 | `src/Launcher.Cli` | Headless-Frontend (`mliv`). Dry-Runs, Diagnose, CI. |
-| `src/Launcher.App` | WPF-Wizard. Kommt mit M5. |
-| `src/Trainer` | C++ ASI-Plugin, x86, IV-SDK. Spieler-Funktionen im Spiel (T2a). |
-| `catalog/` | Die deklarativen Rezepte. Fünf Stück, vier davon erprobt. |
+| `src/Launcher.App` | Der Assistent (WPF). Das Programm, das man startet. |
+| `src/Trainer` | C++ ASI-Plugin, x86, IV-SDK. Spieler, Waffen, Fahrzeuge, Welt (T2c). |
+| `catalog/` | Die deklarativen Rezepte. Sechs Stück, fünf davon erprobt. |
 | `tests/` | Fixtures und Testskript. |
+
+Die **Wegplanung** (`Core/Planning`) ist der Unterschied zwischen der CLI und
+dem Assistenten. Die CLI führt ein Rezept aus, das man ihr nennt. Der Planer
+leitet aus „ich will den Trainer" selbst ab, dass davor ein Downgrade, ein
+ASI-Loader und eine Laufzeit stehen — und überspringt, was schon installiert ist.
+
+Der Punkt, an dem es sich entscheidet: Rezepte werden gegen die Version geprüft,
+die das Spiel **nach** dem Versionswechsel hat, nicht gegen die aktuelle. Sonst
+wäre jedes 1.0.7.0-Rezept für jeden Nutzer auf der Complete Edition „ungeeignet"
+— obwohl es genau das ist, was er am Ende haben will. Ein Rezept ist dort nicht
+unpassend, sondern noch nicht an der Reihe.
+
+Der Versionswechsel steht deshalb immer vorn: ein Downgrade tauscht hunderte
+Dateien, alles vorher Eingebaute wäre danach überschrieben oder halb
+überschrieben.
+
+Die Logik liegt in Core und nicht im Fenster, weil sich ein Fenster nicht gegen
+Fixtures testen lässt — und weil genau hier die Fehler liegen, die ein Nutzer als
+„der Launcher hat mir das Spiel zerlegt" erlebt. Zu erreichen ist sie ohne
+Oberfläche über `mliv journey`.
 
 ## Voraussetzungen
 
@@ -32,10 +56,24 @@ vorherigem Snapshot.
 ## Bauen und ausführen
 
 ```
-.\scripts\run.ps1 detect               Launcher aufrufen
+dotnet publish src\Launcher.App -c Release -o artifacts\app
+.\artifacts\app\ModlauncherIV.exe      der Assistent
+
+.\scripts\run.ps1 detect               die CLI aufrufen
 .\scripts\play.ps1                     GTA IV starten, am Rockstar-Launcher vorbei
-.\scripts\build-trainer.ps1 -Deploy    Trainer bauen und ins Spiel legen
+.\scripts\pack-trainer.ps1             Trainer bauen und im Katalog installierbar machen
+.\scripts\build-trainer.ps1 -Deploy    Trainer bauen und von Hand ins Spiel legen
 ```
+
+Der Assistent verlangt **Administratorrechte**, und zwar von vornherein. GTA IV
+liegt bei Steam wie bei Rockstar unter `C:\Program Files`; dorthin schreiben
+heißt erhöhte Rechte, und das gilt auch für den Snapshot, ohne den es keinen
+Rückbau gibt. Sich erst beim Schreiben neu zu starten hieße: Assistent von vorn,
+Auswahl weg, und im schlimmsten Fall eine Erhöhung mitten in einer Transaktion.
+
+Er nimmt Katalog und Lieferumfang aus seinem **eigenen Ordner**, nicht aus dem
+Arbeitsverzeichnis — ein über eine Verknüpfung gestartetes Programm hat ein
+beliebiges, und fände dann seine eigenen Rezepte nicht.
 
 **Der Trainer startet nicht separat.** Er liegt als
 `plugins\ModlauncherIV-Trainer.asi` im Spielverzeichnis und wird vom ASI-Loader
@@ -52,6 +90,7 @@ apply  <rezept-id>     Rezept ausführen, nach Rückfrage und mit Snapshot
 remove <rezept-id>     Rezept zurückbauen. --all für alles, neueste zuerst
 status                 was der Launcher an dieser Installation verändert hat
 route  [version]       welcher Weg zu einer anderen Spielversion führt
+journey <id,id,...>    voller Weg zum Wunschzustand, mit Abhängigkeiten
 guard                  ob die Plattform das Spiel zurückpatchen kann
 verify                 ob noch alles so liegt, wie der Launcher es einbaute
 
@@ -69,8 +108,10 @@ Rückgabewerte: `0` erfolgreich · `1` nichts gefunden · `2` falscher Aufruf ·
 .\tests\run-tests.ps1
 ```
 
-100 Tests gegen gefälschte Spielverzeichnisse. Keine echte Installation wird
-angefasst. Abgedeckt sind unter anderem:
+131 Tests gegen gefälschte Spielverzeichnisse. Keine echte Installation wird
+angefasst. Läuft GTA IV gerade, bricht das Skript vorn ab — sonst blockiert jeder
+Pre-Flight zu Recht, und vier Tests schlagen fehl, ohne dass am Code etwas falsch
+wäre. Abgedeckt sind unter anderem:
 
 - Prüfsummenschutz und Pfadausbruch aus dem Spielverzeichnis
 - dass der Dry-Run wirklich nichts verändert
@@ -78,6 +119,11 @@ angefasst. Abgedeckt sind unter anderem:
 - Download über eine Mirror-Kette gegen einen lokalen HTTP-Server: erste Quelle
   404, zweite liefert falschen Inhalt, dritte ist korrekt
 - Versionsgraph: Wegsuche über mehrere Downgrade-Kanten hinweg
+- Wegplanung: dass ein Rezept für 1.0.7.0 auf einer Complete Edition angenommen
+  wird, sobald das Downgrade im selben Weg davor steht — und abgelehnt, wenn
+  nicht. Dazu Ringabhängigkeiten, Konflikte und unbekannte Ausgangsversionen
+- Lieferumfang: dass eine mitgelieferte Datei mit falscher Prüfsumme abgelehnt
+  wird und nicht einmal ins Arbeitsverzeichnis gelangt
 - Update-Sperre: offene Steam-Installation erkennen, Schalter setzen, Sicherung anlegen
 - Gegenprobe: veränderte und gelöschte Dateien werden dem Rezept zugeordnet
 - Rückbau: neu angelegte Dateien verschwinden, überschriebene bekommen ihren
@@ -91,7 +137,7 @@ als String-Begrenzer. Der Parser verrutscht dann still ab dieser Stelle.
 
 ## Der Katalog — Stand und Vorbehalte
 
-Fünf Rezepte mit **echten, selbst gebildeten SHA-256-Prüfsummen**. Vier davon
+Sechs Rezepte mit **echten, selbst gebildeten SHA-256-Prüfsummen**. Fünf davon
 sind **an einer echten Installation gelaufen** — Complete Edition 1.2.0.59 über
 den Rockstar Games Launcher, heruntergestuft auf 1.0.7.0. Das Spiel startet.
 
@@ -101,7 +147,26 @@ den Rockstar Games Launcher, heruntergestuft auf 1.0.7.0. Das Spiel startet.
 | `ultimate-asi-loader` | ThirteenAG, GitHub-Release | 928 KB | gelaufen |
 | `gfwl-stub` | FusionFix Legacy Addon, GitHub-Release | 4,0 MB | gelaufen |
 | `vc80-runtime` | vom Nutzer beigestellt | 7,1 MB | gelaufen |
+| `mliv-trainer` | mitgeliefert, selbst gebaut | 205 KB | gelaufen |
 | `scripthook-dotnet` | ClonkAndre, GitHub-Release | 647 KB | ungetestet |
+
+**Der Trainer wird mitgeliefert, nicht heruntergeladen.** Er ist die einzige
+Datei im Katalog, die dieses Projekt selbst herstellt; ihn irgendwo abzulegen,
+damit der eigene Launcher ihn wieder holt, wäre ein Umweg mit einer
+zusätzlichen Fehlerquelle. Er liegt in `bundled\` neben dem Programm und wird
+von dort übernommen.
+
+Geprüft wird er trotzdem gegen die Prüfsumme im Rezept. **Der Lieferumfang ist
+kein Vertrauensbonus:** der Ordner liegt neben einem Programm, in den jeder
+schreiben kann, der dort Rechte hat.
+
+Sein Rezept wird **erzeugt, nicht gepflegt**. Prüfsumme und Größe ändern sich
+bei jedem Build — ein von Hand geschriebenes Rezept lehnte nach dem nächsten
+Build genau die Datei ab, die es installieren soll. `scripts\pack-trainer.ps1`
+baut, misst, schreibt das Rezept und signiert den Katalog neu. Ohne den letzten
+Schritt lädt der Launcher anschließend gar nichts mehr, und zwar zu Recht: eine
+Rezeptdatei, die nicht zum signierten Index passt, ist aus seiner Sicht nicht
+von einer manipulierten zu unterscheiden.
 
 **Ohne `vc80-runtime` startet nichts.** 1.0.7.0 wurde gegen die
 Visual-C++-2005-Laufzeit gebaut; auf heutigen Systemen fehlt sie, und das
@@ -141,12 +206,17 @@ direkt über `GTAIV.exe` — sonst bemerkt der Launcher die veränderte Installa
 ## Trainer
 
 ```
-.\scripts\build-trainer.ps1 -Deploy
+.\scripts\pack-trainer.ps1             bauen und im Katalog installierbar machen
+.\scripts\build-trainer.ps1 -Deploy    bauen und von Hand ins Spiel legen
 ```
 
-Baut `src/Trainer` zu `ModlauncherIV-Trainer.asi` und legt es in
-`<Spiel>\plugins\`. Zwei Randbedingungen sind keine Bequemlichkeit, sondern
-Voraussetzung:
+Der übliche Weg ist der erste: danach steht der Trainer im Assistenten zur
+Auswahl und wird wie jede andere Mod installiert — mit Snapshot, Ledger und
+Rückbau. Der zweite Weg bleibt für die Entwicklung, wenn man nur schnell eine
+Änderung im Spiel sehen will.
+
+Gebaut wird `src/Trainer` zu `ModlauncherIV-Trainer.asi`. Zwei Randbedingungen
+sind keine Bequemlichkeit, sondern Voraussetzung:
 
 - **x86.** GTA IV ist 32-bit. Eine x64-DLL wird vom ASI-Loader kommentarlos
   ignoriert — der Fehler äußert sich als „nichts passiert".
@@ -176,10 +246,28 @@ Eingaben. Dadurch lässt sich das Menü vollständig ohne Spiel durchspielen:
 Ein Navigationsfehler fällt so in Millisekunden auf statt nach Spielstart,
 Ladebildschirm und Tastendruck.
 
-**Stufe T2a** bringt die Spieler-Funktionen: Godmode, Leben, Panzerung,
-Fahndungslevel und Geld.
+**Stand T2c.** Vier Gruppen:
 
-Godmode wird **jeden Frame neu gesetzt**, nicht nur beim Umschalten — das Spiel
+| Gruppe | Inhalt |
+|---|---|
+| Spieler | Godmode, Leben, Panzerung, Fahndungslevel, Geld |
+| Waffen | unendlich Munition, alle Waffen, Munition auffüllen |
+| Fahrzeuge | zehn Modelle spawnen, reparieren, unkaputtbar |
+| Welt | Uhrzeit, Wetter, Verkehrsdichte, fünf Orte anspringen |
+
+Drei Stellen davon sind nicht offensichtlich:
+
+- Gespawnte Modelle gehen über `CStreaming::ScriptRequestModel`, nicht über
+  `REQUEST_MODEL` — das ist im SDK auskommentiert. `CREATE_CAR` mit einem nicht
+  geladenen Modell erzeugt kein Fahrzeug, sondern **beendet das Spiel**; deshalb
+  wird vorher geprüft und im Zweifel nur geloggt.
+- Die **Verkehrsdichte wird jeden Frame neu gesetzt**. Das Spiel dreht die
+  Multiplikatoren jeden Frame auf `1.0` zurück, ein einmaliges Setzen wäre
+  wirkungslos. Die Stufe „normal" ist der Standardwert und fasst nichts an.
+- Wetter wechselt mit `FORCE_WEATHER_NOW` statt `FORCE_WEATHER`: letzteres
+  blendet über Minuten über und sieht aus dem Menü heraus schlicht kaputt aus.
+
+Godmode wird aus demselben Grund **jeden Frame neu gesetzt**, nicht nur beim Umschalten — das Spiel
 nimmt Unverwundbarkeit bei Respawn, Zwischensequenzen und Missionswechseln
 zurück. Ein einmal gesetzter Schalter hörte still auf zu wirken, und man hält
 dann den Trainer für kaputt statt das Spiel für eigenwillig.
@@ -223,13 +311,12 @@ weicht es nach `%LOCALAPPDATA%\ModlauncherIV\Trainer.log` aus. **Auf dieser
 Installation greift genau der Ausweichpfad.** Ein Trainer ohne Logfile ist bei
 einem Problem so stumm wie einer, der gar nicht geladen hat.
 
-**T0 ist gelaufen.** Das ASI lädt, erkennt 1.0.7.0 und meldet sich:
+Das ASI lädt, erkennt 1.0.7.0 und meldet sich:
 
 ```
-[13:20:38.978] Modlauncher IV Trainer, Stufe T0
-[13:20:38.980] Geladen aus: ...\Grand Theft Auto IV\plugins\ModlauncherIV-Trainer.asi
-[13:20:38.981] Version:     1.0.7.0 (1.0.7.0)
-[13:20:38.981] Version wird unterstuetzt.
+[14:25:53.944] Modlauncher IV Trainer, Stufe T2c
+[14:25:53.945] Version: 1.0.7.0 (1.0.7.0)
+[14:25:53.946] Menue bereit. F7 oeffnet, Numblock oder Pfeiltasten bedienen.
 ```
 
 ## Katalogsignatur
@@ -250,9 +337,18 @@ mliv catalog-sign --catalog .\catalog --key C:\keys\catalog.pem
 ```
 
 Der öffentliche Teil gehört in `CatalogSignature.EmbeddedPublicKey`, der private
-**nicht ins Repository**. Solange dort kein Schlüssel steht, lehnt der Launcher
-jeden Katalog ab; für die Entwicklung gibt es `--allow-unsigned`, was laut warnt,
-und `--public-key <Base64>` für einen abweichenden Signierer.
+**nicht ins Repository** — er liegt hier unter
+`%LOCALAPPDATA%\ModlauncherIV\keys\`. Solange kein Schlüssel eingebaut ist, lehnt
+der Launcher jeden Katalog ab; für die Entwicklung gibt es `--allow-unsigned`,
+was laut warnt, und `--public-key <Base64>` für einen abweichenden Signierer.
+
+Ein Wechsel des eingebauten Schlüssels macht **jeden bisher signierten Katalog
+ungültig**. Das ist gewollt — es ist derselbe Vorgang wie ein Rückruf.
+
+**Wer den Katalog anfasst, muss neu signieren.** Jede Änderung an einer
+Rezeptdatei bricht den Index, und der Launcher lädt dann nichts mehr. Das ist
+kein Ärgernis, sondern der Sinn der Sache: eine geänderte Rezeptdatei ist von
+außen nicht von einer manipulierten zu unterscheiden.
 
 ## Smart App Control
 
@@ -326,8 +422,13 @@ Endnutzer mit aktivem Smart App Control.
 - **M2** Beschaffung, Hash-Prüfung, Mirror, Katalogsignatur ✔
 - **M3** Downgrade-Rezepte, Versionsgraph, Update-Sperre, Gegenprobe, Rückbau ✔
 - **M4** Basis-Stack ✔ · Trainer T0 ✔ · T1 Menügerüst ✔
-- **M5** WPF-Wizard und Dev-Modus · Trainer T2a ✔ · T2b Waffen ← *hier*
+- **M5** Assistent ✔ · Wegplanung ✔ · Trainer im Katalog ✔ ·
+  T2a Spieler ✔ · T2b Waffen ✔ · T2c Fahrzeuge und Welt ✔ ← *hier*
 - **M6** Profile, Katalog-Update · Trainer T3: Config und Politur
+
+Offen und bewusst zurückgestellt: **Noclip** braucht einen eigenen Tick-Modus,
+und der Trainer hat noch **keine Konfigurationsdatei** — Tastenbelegung steht im
+Code.
 
 Der vollständige Projektplan mit Architektur, Risiken und offenen Fragen liegt
 als eigenes Dokument vor.
