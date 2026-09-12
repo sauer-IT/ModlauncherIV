@@ -411,13 +411,13 @@ categories**, each of which opens its own submenu:
 
 | Category | Content |
 |---|---|
-| Player | godmode, health, armour, invisible, jump to camera, traits |
+| Player | godmode, health, armour, invisible, jump to camera, skins, traits |
 | Weapons | all weapons, take them away, infinite ammo, weapon skill |
 | Wanted | level, never wanted, upper limit, clear cops, no new patrols |
 | Money | amount and give |
 | Vehicles | spawn ten models, repair, indestructible, tuning, paint |
 | World | time of day, weather, traffic density, jump to five places |
-| Movement | fly, superjump, run speed, teleport to the waypoint |
+| Movement | fly, superjump, run speed, teleport to the map marker |
 | Pedestrians | density, everyone ignores you, riot, panic, clear the area |
 | Settings | lock game input while the menu is open |
 
@@ -441,6 +441,17 @@ Some of it is not obvious:
   every frame. Velocity is in units per second, so the speed is the same
   regardless of frame rate - the earlier version, which moved the ped by a fixed
   distance per frame, flew at double speed on a 120 Hz display.
+- **Teleporting** does three things in an order that matters. It asks the
+  streamer for the target area and waits, because a ground query against a world
+  that is not loaded answers `0.0` - which is sea level, and below most of the
+  city. It looks the ground up from 1200 units above rather than from where the
+  player is. And it moves the *vehicle* when there is one: moving the ped out of
+  a moving car leaves the car behind and the player rolling down the street.
+- **Changing skin** takes the same streaming detour as a vehicle, for the same
+  reason, and afterwards releases the model again - otherwise every skin tried
+  stays in memory. The new ped is a new handle, so the sticky switches are gone;
+  nothing special is needed for that, because re-asserting on a changed handle is
+  what they already do.
 
 Sticky switches such as godmode are **set again when the handle changes**, not
 only when toggled - the game takes invulnerability back on respawn, in cut scenes

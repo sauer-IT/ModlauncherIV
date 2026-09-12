@@ -801,6 +801,43 @@ namespace
             }
         }
 
+        /// Swaps the player's model.
+        ///
+        /// Same streaming detour as the vehicles, and for the same reason: a
+        /// model that is not loaded does not give a wrong-looking Niko, it ends
+        /// the game.
+        ///
+        /// Two things afterwards are not optional. The ped handle changes with
+        /// the model, so anything the trainer had set on the old one is gone -
+        /// ApplyPlayerFlags notices that by itself and writes the switches
+        /// again, which is exactly what it re-asserts on a handle change for.
+        /// And the model has to be released again, or every skin you try stays
+        /// in memory until the game runs out.
+        void ChangePlayerModel(const char* modelName)
+        {
+            const Scripting::Player player = LocalPlayer();
+            if (!Scripting::IS_PLAYER_PLAYING(player))
+            {
+                return;
+            }
+
+            const unsigned hash = Scripting::GET_HASH_KEY(modelName);
+
+            CStreaming::ScriptRequestModel(static_cast<int32_t>(hash));
+            CStreaming::LoadAllRequestedModels(false);
+
+            if (!Scripting::HAS_MODEL_LOADED(hash))
+            {
+                mliv::LogLine("Model not loaded: %s", modelName);
+                return;
+            }
+
+            Scripting::CHANGE_PLAYER_MODEL(player, hash);
+            Scripting::MARK_MODEL_AS_NO_LONGER_NEEDED(hash);
+
+            mliv::LogLine("Player model: %s", modelName);
+        }
+
         /// Spawns a vehicle in front of the player and puts them inside.
         ///
         /// The detour through streaming is mandatory: CREATE_CAR with a model
@@ -863,7 +900,19 @@ namespace
         /// Without the ground height you either fall through the world or stand
         /// in mid-air. GET_GROUND_Z_FOR_3D_COORD does need loaded geometry
         /// though - so put them there roughly first, then correct.
-        void Teleport(const float x, const float y, const float z)
+        /// Puts the player down at x/y, on the ground, with their vehicle.
+        ///
+        /// Three things have to happen in order, and getting the order wrong is
+        /// what makes a teleport drop you under the map:
+        ///
+        ///   1. Ask the streamer for that area and wait for it. Without this the
+        ///      ground query runs against a world that is not loaded yet and
+        ///      answers 0.0 - which is sea level, and below most of the city.
+        ///   2. Look the ground up from well above, not from where we are.
+        ///   3. Move the vehicle, not the ped, when there is one. Moving the ped
+        ///      out of a moving car leaves the car behind and the player rolling
+        ///      down the street.
+        void Teleport(const float x, const float y, float z)
         {
             const Scripting::Ped ped = LocalPed();
             if (ped == 0)
@@ -871,18 +920,31 @@ namespace
                 return;
             }
 
-            Scripting::SET_CHAR_COORDINATES(ped, x, y, z);
+            Scripting::REQUEST_COLLISION_AT_POSN(x, y, z);
+            Scripting::LOAD_SCENE(x, y, z);
 
             float ground = 0.0f;
-            Scripting::GET_GROUND_Z_FOR_3D_COORD(x, y, z + 50.0f, &ground);
+            Scripting::GET_GROUND_Z_FOR_3D_COORD(x, y, 1200.0f, &ground);
 
+            // 0.0 is the answer for "nothing found", and it is also sea level.
+            // Taking it would put the player under the city rather than on it.
             if (ground > 0.0f)
             {
-                Scripting::SET_CHAR_COORDINATES(ped, x, y, ground + 1.0f);
+                z = ground + 1.5f;
             }
+
+            const Scripting::Vehicle vehicle = CurrentVehicle();
+
+            if (vehicle != 0)
+            {
+                Scripting::SET_CAR_COORDINATES(vehicle, x, y, z);
+                return;
+            }
+
+            Scripting::SET_CHAR_COORDINATES(ped, x, y, z);
         }
 
-        // ------------------------------------------------------- Bewegung
+        // ------------------------------------------------------- Movement
 
         /// The game camera's view direction as a unit vector.
         ///
@@ -1474,6 +1536,7 @@ namespace
     bool g_strongVehicle = false;
 
     int g_vehicleChoice = 0;
+    int g_skinChoice = 0;
     int g_timeChoice = 2;
     int g_weatherChoice = 1;
     int g_placeChoice = 0;
@@ -1533,6 +1596,35 @@ namespace
     const char* const kVehicles[] = {
         "infernus", "comet", "banshee", "turismo", "sultanrs",
         "nrg900",   "sanchez", "patriot", "annihilator", "maverick",
+    };
+
+    /// Player models, with the name the game knows them by.
+    ///
+    /// "player" first, because it is the way back. Changing model is the one
+    /// thing in here with no undo of its own: once you are a police officer,
+    /// nothing tells you what you were before.
+    struct Skin
+    {
+        const char* label;
+        const char* model;
+    };
+
+    const Skin kSkins[] = {
+        { "Niko (back to normal)", "player"          },
+        { "Roman",                 "IG_ROMAN"        },
+        { "Brucie",                "IG_BRUCIE"       },
+        { "Little Jacob",          "IG_LILJACOB"     },
+        { "Packie",                "IG_PACKIE_MC"    },
+        { "Dwayne",                "IG_DWAYNE"       },
+        { "Michelle",              "IG_MICHELLE"     },
+        { "Police officer",        "M_Y_COP"         },
+        { "SWAT",                  "M_Y_SWAT"        },
+        { "Paramedic",             "M_Y_PMEDIC"      },
+        { "Fireman",               "M_Y_FIREMAN"     },
+        { "Businessman",           "M_M_BUSINESS_02" },
+        { "Construction worker",   "M_Y_CONSTRUCT_01"},
+        { "Playboy X",             "IG_PLAYBOY_X"    },
+        { "Vlad",                  "IG_VLAD"         },
     };
 
     /// A few places in Liberty City. Coordinates taken from the game.
@@ -1797,6 +1889,28 @@ namespace
         traits->add({"Shoot from vehicles", mliv::ItemKind::Toggle, nullptr, &g_player.shootInCar});
         traits->add({"Drunk", mliv::ItemKind::Toggle, nullptr, &g_player.drunk});
 
+        // --- Skins ---
+        //
+        // A choice plus a separate "Apply", not a choice that acts on every
+        // press. Scrolling through the list would otherwise swap the model on
+        // each keystroke, and every one of those is a streaming request.
+        auto skins = std::make_shared<mliv::Menu>("Skins");
+
+        mliv::MenuItem skin;
+        skin.label = "Model";
+        skin.kind = mliv::ItemKind::Choice;
+        skin.choiceIndex = &g_skinChoice;
+        for (const Skin& entry : kSkins)
+        {
+            skin.choices.emplace_back(entry.label);
+        }
+        skins->add(skin);
+
+        skins->add({"Apply", mliv::ItemKind::Action, [] {
+            game::ChangePlayerModel(kSkins[g_skinChoice].model);
+        }});
+
+        player->add(submenu("Skins", skins));
         player->add(submenu("Traits", traits));
         g_root->add(submenu("Player", player));
 
