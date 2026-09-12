@@ -88,6 +88,7 @@ public sealed class TransactionRunner(SnapshotStore snapshots, LedgerStore ledge
         }
 
         CheckDiskSpace(recipe, context, steps, issues);
+        CheckWritable(context, issues);
 
         return new ExecutionPlan(recipe, context.GameRoot, steps, issues, missingSources);
     }
@@ -421,6 +422,47 @@ public sealed class TransactionRunner(SnapshotStore snapshots, LedgerStore ledge
         string? snapshotId,
         bool rolledBack) =>
         new(false, snapshotId, rolledBack, errors, LogLines(context));
+
+    /// <summary>
+    /// Stellt fest, ob wir überhaupt ins Spielverzeichnis schreiben dürfen.
+    ///
+    /// Bewusst ohne Schreibprobe: der Plan darf nichts verändern, auch keine
+    /// Testdatei. Stattdessen die beiden Tatsachen, die den Fall ausmachen —
+    /// geschützter Pfad und fehlende erhöhte Rechte. Ohne diese Prüfung würde
+    /// apply mitten im Entpacken scheitern und zurückrollen: das funktioniert,
+    /// ist aber die unnötig teure Art, es herauszufinden.
+    /// </summary>
+    private static void CheckWritable(RecipeContext context, List<PreflightIssue> issues)
+    {
+        string[] protectedRoots =
+        [
+            Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles),
+            Environment.GetFolderPath(Environment.SpecialFolder.ProgramFilesX86),
+            Environment.GetFolderPath(Environment.SpecialFolder.Windows),
+        ];
+
+        var inProtected = protectedRoots
+            .Where(r => !string.IsNullOrEmpty(r))
+            .Any(r => context.GameRoot.StartsWith(
+                r.TrimEnd(Path.DirectorySeparatorChar) + Path.DirectorySeparatorChar,
+                StringComparison.OrdinalIgnoreCase));
+
+        if (!inProtected)
+        {
+            return;
+        }
+
+        var environment = Detection.SystemEnvironmentProbe.Probe();
+        if (environment.IsElevated)
+        {
+            return;
+        }
+
+        issues.Add(new PreflightIssue(
+            IssueSeverity.Fatal,
+            "Das Spiel liegt in einem geschützten Verzeichnis, der Launcher läuft ohne Administratorrechte.",
+            "Schreiben würde mitten im Lauf scheitern. Den Launcher als Administrator starten."));
+    }
 
     /// <summary>Liest die Spielversion aus der EXE. Null, wenn sie nicht lesbar ist.</summary>
     public static string? ReadGameVersion(string gameRoot)
