@@ -191,13 +191,54 @@ Copy-Item (Join-Path $cache "xliveless.dll") (Join-Path $fetchCache "xliveless.d
 }
 "@ | Set-Content -Path (Join-Path $catalog "test-fetch-missing.json") -Encoding utf8
 
+# Zwei Kanten im Versionsgraphen: 1.2.0.59 -> 1.0.8.0 -> 1.0.7.0.
+@"
+{
+  "id": "test-down-ce-108",
+  "name": "Testrezept, CE auf 1.0.8.0",
+  "version": "1.0.0",
+  "game": "GtaIV",
+  "appliesToVersions": [ "1.2.0.59", "1.2.0.43" ],
+  "producesVersion": "1.0.8.0",
+  "steps": [ { "type": "ensureDirectory", "target": "downgrade-marker" } ]
+}
+"@ | Set-Content -Path (Join-Path $catalog "test-down-ce-108.json") -Encoding utf8
+
+@"
+{
+  "id": "test-down-108-107",
+  "name": "Testrezept, 1.0.8.0 auf 1.0.7.0",
+  "version": "1.0.0",
+  "game": "GtaIV",
+  "appliesToVersions": [ "1.0.8.0" ],
+  "producesVersion": "1.0.7.0",
+  "steps": [ { "type": "ensureDirectory", "target": "downgrade-marker-2" } ]
+}
+"@ | Set-Content -Path (Join-Path $catalog "test-down-108-107.json") -Encoding utf8
+
+# Ein gefaelschtes Steam-Layout: Spiel in steamapps/common, Manifest daneben.
+$steamRoot = Join-Path $work "steam"
+$steamGame = Join-Path $steamRoot "steamapps\common\Grand Theft Auto IV"
+New-Item -ItemType Directory -Path $steamGame -Force | Out-Null
+Set-Content -Path (Join-Path $steamGame "GTAIV.exe") -Value "vorgetaeuschte Spieldatei" -NoNewline -Encoding utf8
+$acf = Join-Path $steamRoot "steamapps\appmanifest_12210.acf"
+@'
+"AppState"
+{
+	"appid"		"12210"
+	"name"		"Grand Theft Auto IV"
+	"AutoUpdateBehavior"		"0"
+	"installdir"		"Grand Theft Auto IV"
+}
+'@ | Set-Content -Path $acf -Encoding utf8
+
 # ------------------------------------------------------------------- Tests
 
 Write-Host "`n== Katalog ==" -ForegroundColor Cyan
 $r = Invoke-Mliv @("catalog", "--catalog", $catalog, "--allow-unsigned")
 Assert ($r.ExitCode -eq 0) "catalog: Exitcode 0"
 Assert ($r.Output -match "test-ok") "catalog: listet test-ok"
-Assert ($r.Output -match "6 Rezept") "catalog: findet alle sechs"
+Assert ($r.Output -match "8 Rezept") "catalog: findet alle acht"
 Assert ($r.Output -match "NICHT auf eine Signatur") "catalog: warnt vor fehlender Signaturpruefung"
 
 Write-Host "`n== Pruefsummenschutz ==" -ForegroundColor Cyan
@@ -242,6 +283,68 @@ Assert ($originalContent -eq $restoredContent) "rollback: vorhandene Datei hat i
 
 $statusAfter = Invoke-Mliv (@("status") + $common)
 Assert (-not ($statusAfter.Output -match "test-rollback")) "rollback: kein Ledger-Eintrag fuer den Fehlschlag"
+
+# ------------------------------------------------------------------ verify
+
+Write-Host "`n== Gegenprobe ==" -ForegroundColor Cyan
+
+$r = Invoke-Mliv (@("verify") + $common)
+Assert ($r.ExitCode -eq 0) "verify: unveraenderte Installation ist in Ordnung"
+Assert ($r.Output -match "Alles unver") "verify: meldet alles unveraendert"
+
+# Eine eingebaute Datei veraendern - genau das tut ein Store-Update.
+Set-Content -Path (Join-Path $game "xlive.dll") -Value "vom Store ueberschrieben" -NoNewline -Encoding utf8
+$r = Invoke-Mliv (@("verify") + $common)
+Assert ($r.ExitCode -eq 3) "verify: veraenderte Datei wird erkannt"
+Assert ($r.Output -match "ver.ndert\s+xlive\.dll") "verify: nennt die betroffene Datei"
+Assert ($r.Output -match "test-ok") "verify: nennt das zugehoerige Rezept"
+
+# Und eine loeschen.
+Remove-Item (Join-Path $game "dsound.dll") -Force
+$r = Invoke-Mliv (@("verify") + $common)
+Assert ($r.Output -match "fehlt\s+dsound\.dll") "verify: fehlende Datei wird erkannt"
+
+# ------------------------------------------------------------------- route
+
+Write-Host "`n== Versionsgraph ==" -ForegroundColor Cyan
+$routeArgs = @("--path", $game, "--catalog", $catalog, "--allow-unsigned", "--assume-version", "1.2.0.59")
+
+$r = Invoke-Mliv (@("route") + $routeArgs)
+Assert ($r.ExitCode -eq 0) "route: Exitcode 0"
+Assert ($r.Output -match "1\.0\.8\.0") "route: 1.0.8.0 ist erreichbar"
+Assert ($r.Output -match "1\.0\.7\.0") "route: 1.0.7.0 ist erreichbar"
+
+$r = Invoke-Mliv (@("route", "1.0.7.0") + $routeArgs)
+Assert ($r.ExitCode -eq 0) "route: Weg nach 1.0.7.0 gefunden"
+Assert ($r.Output -match "test-down-ce-108") "route: erster Schritt ist die CE-Kante"
+Assert ($r.Output -match "test-down-108-107") "route: zweiter Schritt ist die 1.0.8.0-Kante"
+Assert ($r.Output -match "2 Rezept") "route: zwei Schritte"
+
+$r = Invoke-Mliv (@("route", "9.9.9.9") + $routeArgs)
+Assert ($r.ExitCode -eq 1) "route: unerreichbare Version meldet Fehlschlag"
+Assert ($r.Output -match "Kein Weg") "route: sagt, dass es keinen Weg gibt"
+
+# ------------------------------------------------------------------- guard
+
+Write-Host "`n== Update-Sperre ==" -ForegroundColor Cyan
+
+$r = Invoke-Mliv @("guard", "--path", $steamGame)
+Assert ($r.ExitCode -eq 3) "guard: offene Steam-Installation wird beanstandet"
+Assert ($r.Output -match "Steam") "guard: erkennt Steam am Manifest oberhalb des Ordners"
+Assert ($r.Output -match "jederzeit aktualisieren") "guard: nennt den offenen Zustand"
+
+$r = Invoke-Mliv @("guard", "--path", $steamGame, "--apply")
+Assert ($r.ExitCode -eq 0) "guard --apply: Exitcode 0"
+Assert (Test-Path "$acf.mliv-backup") "guard --apply: Sicherung des Manifests angelegt"
+Assert ((Get-Content $acf -Raw) -match '"AutoUpdateBehavior"\s*"1"') "guard --apply: Schalter gesetzt"
+
+$r = Invoke-Mliv @("guard", "--path", $steamGame)
+Assert ($r.ExitCode -eq 0) "guard: gesperrte Installation ist in Ordnung"
+Assert ($r.Output -match "nur beim Starten") "guard: meldet die Sperre"
+
+$r = Invoke-Mliv (@("guard") + $common)
+Assert ($r.Output -match "Herkunft der Installation unbekannt") "guard: unbekannte Herkunft wird als solche gemeldet"
+Assert (-not ($r.Output -match "AutoUpdateBehavior")) "guard: kein Steam-Schalter bei unbekannter Herkunft"
 
 # ------------------------------------------------------------- Beschaffung
 
@@ -393,7 +496,7 @@ Assert (Test-Path (Join-Path $catalog "index.json.sig")) "catalog-sign: Signatur
 
 $r = Invoke-Mliv @("catalog", "--catalog", $catalog, "--public-key", $publicKey)
 Assert ($r.ExitCode -eq 0) "signatur: signierter Katalog wird akzeptiert"
-Assert ($r.Output -match "6 Rezept") "signatur: laedt alle Rezepte aus dem Index"
+Assert ($r.Output -match "8 Rezept") "signatur: laedt alle Rezepte aus dem Index"
 Assert (-not ($r.Output -match "NICHT auf eine Signatur")) "signatur: keine Unsigniert-Warnung"
 
 # Eine Rezeptdatei nach dem Signieren aendern. Der Index ist signiert, also muss

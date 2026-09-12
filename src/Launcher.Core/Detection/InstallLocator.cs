@@ -259,6 +259,59 @@ public sealed class InstallLocator
 
     // ------------------------------------------------------------------ Helfer
 
+    /// <summary>
+    /// Bestimmt die Herkunft eines von Hand angegebenen Ordners.
+    ///
+    /// Zeigt jemand mit --path auf seine Steam-Installation, soll sie auch als
+    /// Steam erkannt werden — sonst wüsste der Launcher nicht, dass es dort einen
+    /// Schalter gegen Updates gibt.
+    /// </summary>
+    public GamePlatform InferPlatform(string path)
+    {
+        var normalised = NormalisePath(path);
+
+        var known = Locate().FirstOrDefault(c =>
+            string.Equals(NormalisePath(c.Path), normalised, StringComparison.OrdinalIgnoreCase));
+
+        if (known is not null && known.Platform != GamePlatform.Unknown)
+        {
+            return known.Platform;
+        }
+
+        // Auch eine Installation, die wir nicht gefunden haben, verrät sich über
+        // das Steam-Manifest oberhalb des Spielordners.
+        return FindSteamManifest(path) is not null ? GamePlatform.Steam : GamePlatform.Unknown;
+    }
+
+    /// <summary>
+    /// Das Manifest liegt in steamapps, das Spiel in steamapps/common/&lt;Name&gt;.
+    /// Wir gehen also aufwärts, statt Steam erneut zu befragen.
+    /// </summary>
+    public static string? FindSteamManifest(string gamePath)
+    {
+        try
+        {
+            var directory = new DirectoryInfo(gamePath);
+
+            for (var i = 0; i < 4 && directory is not null; i++)
+            {
+                var candidate = Path.Combine(directory.FullName, $"appmanifest_{SteamAppId}.acf");
+                if (File.Exists(candidate))
+                {
+                    return candidate;
+                }
+
+                directory = directory.Parent;
+            }
+        }
+        catch (Exception e) when (e is IOException or UnauthorizedAccessException or ArgumentException)
+        {
+            return null;
+        }
+
+        return null;
+    }
+
     /// <summary>Ein Ordner zählt nur als Fund, wenn die Haupt-EXE darin liegt.</summary>
     private static bool LooksLikeGameFolder(string path)
     {

@@ -3,7 +3,7 @@
 Ein geführter Downgrader und Mod-Installer für GTA IV — und ein selbstgebauter
 Trainer, den er am Ende ausliefert.
 
-**Stand: M2** — Rezept-Engine mit Snapshot und Rollback, Beschaffung mit
+**Stand: M3 (Maschinerie)** — Rezept-Engine mit Snapshot und Rollback, Beschaffung mit
 Hash-Prüfung und Mirror-Kette, signierter Katalog.
 Einziger Befehl, der das Spiel verändert, ist `apply` — nach Rückfrage und mit
 vorherigem Snapshot.
@@ -39,6 +39,9 @@ plan   <rezept-id>     zeigen, was ein Rezept tun würde — ändert nichts
 fetch  <rezept-id>     benötigte Dateien laden und per SHA-256 prüfen
 apply  <rezept-id>     Rezept ausführen, nach Rückfrage und mit Snapshot
 status                 was der Launcher an dieser Installation verändert hat
+route  [version]       welcher Weg zu einer anderen Spielversion führt
+guard                  ob die Plattform das Spiel zurückpatchen kann
+verify                 ob noch alles so liegt, wie der Launcher es einbaute
 
 catalog-key            Signierschlüsselpaar erzeugen
 catalog-sign           Katalog indizieren und signieren
@@ -54,7 +57,7 @@ Rückgabewerte: `0` erfolgreich · `1` nichts gefunden · `2` falscher Aufruf ·
 .\tests\run-tests.ps1
 ```
 
-60 Tests gegen gefälschte Spielverzeichnisse. Keine echte Installation wird
+85 Tests gegen gefälschte Spielverzeichnisse. Keine echte Installation wird
 angefasst. Abgedeckt sind unter anderem:
 
 - Prüfsummenschutz und Pfadausbruch aus dem Spielverzeichnis
@@ -62,6 +65,9 @@ angefasst. Abgedeckt sind unter anderem:
 - Rollback nach einem Fehlschlag mitten im Rezept
 - Download über eine Mirror-Kette gegen einen lokalen HTTP-Server: erste Quelle
   404, zweite liefert falschen Inhalt, dritte ist korrekt
+- Versionsgraph: Wegsuche über mehrere Downgrade-Kanten hinweg
+- Update-Sperre: offene Steam-Installation erkennen, Schalter setzen, Sicherung anlegen
+- Gegenprobe: veränderte und gelöschte Dateien werden dem Rezept zugeordnet
 - Katalogsignatur: unsigniert wird abgelehnt, nachträglich veränderte
   Rezeptdatei fällt auf, gefälschte Signatur wird erkannt
 
@@ -138,8 +144,8 @@ Endnutzer mit aktivem Smart App Control.
 
 - **M0** Erkennung und Diagnosebericht ✔
 - **M1** Rezept-Engine, Snapshot, Rollback, Ledger, Dry-Run ✔
-- **M2** Beschaffung, Hash-Prüfung, Mirror, Katalogsignatur ← *hier*
-- **M3** Downgrade-Rezepte und Update-Sperre
+- **M2** Beschaffung, Hash-Prüfung, Mirror, Katalogsignatur ✔
+- **M3** Versionsgraph, Update-Sperre, Gegenprobe ✔ · Downgrade-Rezepte offen ← *hier*
 - **M4** Basis-Stack (ASI-Loader, xliveless, ScriptHook) · Trainer T0
 - **M5** WPF-Wizard und Dev-Modus · Trainer T1
 - **M6** Profile, Deinstallation, Katalog-Update · Trainer T2/T3

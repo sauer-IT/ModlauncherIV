@@ -205,7 +205,7 @@ internal static class RecipeCommands
         return (install, recipe, context, runner);
     }
 
-    private static GameInstall? FindInstall(CliOptions options)
+    public static GameInstall? FindInstall(CliOptions options)
     {
         var installs = DetectCommand.Collect(options.GamePath, out _);
 
@@ -216,7 +216,7 @@ internal static class RecipeCommands
                 return null;
 
             case 1:
-                return installs[0];
+                return WithAssumedVersion(installs[0], options);
 
             default:
                 Console.Error.WriteLine("Mehrere Installationen gefunden — bitte mit --path eine auswählen:");
@@ -229,6 +229,25 @@ internal static class RecipeCommands
         }
     }
 
+    /// <summary>
+    /// Ersetzt die gemessene Version durch eine vorgegebene. Gedacht für den Fall,
+    /// dass die EXE ausgetauscht wurde und ihre Versionsangabe nicht mehr stimmt —
+    /// der Nutzer übernimmt damit aber die Verantwortung, deshalb der Hinweis.
+    /// </summary>
+    private static GameInstall WithAssumedVersion(GameInstall install, CliOptions options)
+    {
+        if (options.AssumeVersion is null)
+        {
+            return install;
+        }
+
+        Console.Error.WriteLine(
+            $"Achtung: Version {options.AssumeVersion} wurde vorgegeben, nicht gemessen "
+            + $"(gemessen wurde {install.Version.Raw}).");
+
+        return install with { Version = KnownVersions.Resolve(options.AssumeVersion) };
+    }
+
     private static string ResolveCatalogPath(CliOptions options) =>
         options.CatalogPath ?? Path.Combine(Directory.GetCurrentDirectory(), "catalog");
 
@@ -236,7 +255,7 @@ internal static class RecipeCommands
     /// Lädt den Katalog und meldet Warnungen und Fehler auf stderr. Ohne
     /// --allow-unsigned muss die Signatur stimmen.
     /// </summary>
-    private static CatalogLoadResult LoadCatalog(CliOptions options)
+    public static CatalogLoadResult LoadCatalog(CliOptions options)
     {
         var result = RecipeCatalog.LoadFrom(
             ResolveCatalogPath(options),

@@ -13,7 +13,10 @@ public sealed record LedgerEntry(
     string RecipeVersion,
     DateTimeOffset InstalledAt,
     string SnapshotId,
-    IReadOnlyList<OwnedFile> Files);
+    IReadOnlyList<OwnedFile> Files,
+
+    /// <summary>Spielversion nach dem Lauf. Verraet spaeter, ob der Store zurueckgepatcht hat.</summary>
+    string? GameVersionAfter = null);
 
 /// <summary>
 /// Was der Launcher an dieser Installation verändert hat.

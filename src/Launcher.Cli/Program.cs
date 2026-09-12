@@ -1,5 +1,6 @@
 using System.Text;
 using ModlauncherIV.Core.Catalog;
+using Detection = ModlauncherIV.Core.Detection;
 
 namespace ModlauncherIV.Cli;
 
@@ -35,6 +36,10 @@ internal static class Program
                 "apply" => RecipeCommands.Apply(options),
                 "status" => RecipeCommands.Status(options),
                 "fetch" => await Fetch(options).ConfigureAwait(false),
+                "route" => WithInstall(options, i => StateCommands.Route(
+                    options, i, RecipeCommands.LoadCatalog(options))),
+                "guard" => WithInstall(options, i => StateCommands.Guard(options, i)),
+                "verify" => WithInstall(options, StateCommands.Verify),
                 "catalog-key" => CatalogTools.CreateKey(options),
                 "catalog-sign" => CatalogTools.Sign(options),
                 _ => Unknown(options.Command),
@@ -46,6 +51,13 @@ internal static class Program
             Console.Error.WriteLine($"Abgebrochen: {e.Message}");
             return ExitCode.Failed;
         }
+    }
+
+    /// <summary>Führt einen Befehl aus, der eine gefundene Installation braucht.</summary>
+    private static int WithInstall(CliOptions options, Func<Detection.GameInstall, int> command)
+    {
+        var install = RecipeCommands.FindInstall(options);
+        return install is null ? ExitCode.NothingFound : command(install);
     }
 
     private static async Task<int> Fetch(CliOptions options)

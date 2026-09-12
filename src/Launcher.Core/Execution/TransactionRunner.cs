@@ -393,7 +393,10 @@ public sealed class TransactionRunner(SnapshotStore snapshots, LedgerStore ledge
                 RecipeVersion: plan.Recipe.Version,
                 InstalledAt: DateTimeOffset.Now,
                 SnapshotId: snapshot.Id,
-                Files: owned)));
+                Files: owned,
+                // Die Version wird neu ausgelesen, nicht aus dem Rezept uebernommen:
+                // was tatsaechlich im Verzeichnis liegt, ist die Wahrheit.
+                GameVersionAfter: ReadGameVersion(context.GameRoot))));
 
             log.Info($"{plan.Recipe.Id} eingetragen ({owned.Length} Datei(en)).");
         }
@@ -418,6 +421,22 @@ public sealed class TransactionRunner(SnapshotStore snapshots, LedgerStore ledge
         string? snapshotId,
         bool rolledBack) =>
         new(false, snapshotId, rolledBack, errors, LogLines(context));
+
+    /// <summary>Liest die Spielversion aus der EXE. Null, wenn sie nicht lesbar ist.</summary>
+    public static string? ReadGameVersion(string gameRoot)
+    {
+        try
+        {
+            var exe = Path.Combine(gameRoot, Detection.InstallInspector.ExecutableName);
+            return File.Exists(exe)
+                ? FileVersionInfo.GetVersionInfo(exe).FileVersion
+                : null;
+        }
+        catch (Exception e) when (e is IOException or UnauthorizedAccessException)
+        {
+            return null;
+        }
+    }
 
     private static IReadOnlyList<string> LogLines(RecipeContext context) =>
         context.Log is ExecutionLog log ? log.Lines : [];

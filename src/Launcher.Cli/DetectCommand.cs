@@ -103,7 +103,14 @@ internal static class DetectCommand
             return null;
         }
 
-        return new InstallCandidate(path, GamePlatform.Unknown, "manuell angegeben");
+        // Auch ein von Hand genannter Ordner verraet seine Herkunft — sonst wuessten
+        // wir nicht, ob es dort einen Schalter gegen Updates gibt.
+        var platform = new InstallLocator().InferPlatform(path);
+        var via = platform == GamePlatform.Unknown
+            ? "manuell angegeben"
+            : $"manuell angegeben, erkannt als {platform}";
+
+        return new InstallCandidate(path, platform, via);
     }
 
     private static bool TryWrite(string file, string content)

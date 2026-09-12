@@ -18,8 +18,10 @@ internal sealed record CliOptions(
     bool AsJson = false,
     bool Yes = false,
     bool AllowUnsigned = false,
+    bool Apply = false,
     string? KeyPath = null,
     string? PublicKey = null,
+    string? AssumeVersion = null,
     string? GamePath = null,
     string? CatalogPath = null,
     string? CachePath = null,
@@ -30,7 +32,8 @@ internal sealed record CliOptions(
 internal static class CommandLine
 {
     private static readonly string[] Commands =
-        ["detect", "catalog", "plan", "apply", "status", "fetch", "catalog-key", "catalog-sign"];
+        ["detect", "catalog", "plan", "apply", "status", "fetch", "route", "guard", "verify",
+         "catalog-key", "catalog-sign"];
 
     public const string HelpText = """
         mliv -- Modlauncher IV
@@ -45,6 +48,9 @@ internal static class CommandLine
           fetch  <rezept-id>     Benötigte Dateien laden und per SHA-256 prüfen.
           apply  <rezept-id>     Rezept ausführen. Fragt vorher nach.
           status                 Was der Launcher an dieser Installation verändert hat.
+          route  [version]       Welcher Weg zu einer anderen Spielversion führt.
+          guard                  Ob die Plattform das Spiel zurückpatchen kann.
+          verify                 Ob noch alles so liegt, wie der Launcher es einbaute.
 
         Werkzeuge für die Katalogpflege:
           catalog-key            Neues Signierschlüsselpaar erzeugen.
@@ -57,9 +63,11 @@ internal static class CommandLine
           --key <Datei>          Privater Schlüssel für catalog-sign.
           --public-key <Base64>  Abweichender Signierschlüssel, dem vertraut wird.
           --allow-unsigned       Unsignierten Katalog zulassen. Nur zum Entwickeln.
+          --assume-version <v>   Spielversion vorgeben, wenn sie nicht lesbar ist.
           --json                 Maschinenlesbare Ausgabe (nur detect).
           --out <Datei>          Ausgabe in eine Datei schreiben.
           --yes                  Rückfrage bei apply überspringen.
+          --apply                Bei guard: die Sperre wirklich setzen.
           -h, --help             Diese Hilfe.
 
         Rückgabewerte:
@@ -116,8 +124,21 @@ internal static class CommandLine
                     options = options with { Yes = true };
                     break;
 
+                case "--apply":
+                    options = options with { Apply = true };
+                    break;
+
                 case "--allow-unsigned":
                     options = options with { AllowUnsigned = true };
+                    break;
+
+                case "--assume-version":
+                    if (!TryValue(args, ref i, out var assumed))
+                    {
+                        return options with { Error = "--assume-version erwartet eine Versionsnummer." };
+                    }
+
+                    options = options with { AssumeVersion = assumed };
                     break;
 
                 case "--public-key":
