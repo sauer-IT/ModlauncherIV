@@ -144,6 +144,27 @@ public sealed class TransactionRunner(SnapshotStore snapshots, LedgerStore ledge
             .SelectMany(s => s.AffectedPaths)
             .ToHashSet(StringComparer.OrdinalIgnoreCase);
 
+        // Anything another recipe owns as well is not ours to delete. Mods do
+        // overwrite each other's files - FusionFix ships its own dinput8.dll
+        // over the one the ASI loader installed - and dropping it on an update
+        // would quietly take the other mod apart.
+        foreach (var other in ledger.Entries.Where(e => !string.Equals(
+                     e.RecipeId, recipe.Id, StringComparison.OrdinalIgnoreCase)))
+        {
+            foreach (var file in other.Files)
+            {
+                try
+                {
+                    keeps.Add(context.ResolveGamePath(file.RelativePath));
+                }
+                catch (RecipeSecurityException)
+                {
+                    // Not a path in the game directory, so not a path we would
+                    // have deleted either.
+                }
+            }
+        }
+
         var orphans = new List<string>();
 
         foreach (var owned in previous.Files)

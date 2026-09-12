@@ -848,7 +848,68 @@ Assert ($r.ExitCode -eq 0) "leftovers: applying the same release twice works"
 Assert (Test-Path (Join-Path $game "plugins\new-name.asi")) "leftovers: and does not delete its own file"
 
 $r = Invoke-Mliv (@("remove", "test-rename", "--yes") + $common)
-Remove-Item (Join-Path $catalog "test-rename.json") -Force
+
+# A file a second recipe owns as well must not be deleted as a leftover. Mods do
+# overwrite each other - FusionFix ships its own dinput8.dll over the one the ASI
+# loader installed - and dropping it on an update would take the other apart.
+
+@"
+{
+  "id": "test-shared",
+  "name": "Test recipe, shares a file",
+  "version": "1.0.0",
+  "game": "GtaIV",
+  "sources": [
+    { "id": "loader", "fileName": "loader.dll", "sha256": "$loaderHash", "sizeBytes": $loaderSize, "urls": [] }
+  ],
+  "steps": [ { "type": "copyFile", "source": "loader.dll", "target": "plugins\\shared.dll" } ]
+}
+"@ | Set-Content -Path (Join-Path $catalog "test-shared.json") -Encoding utf8
+
+@"
+{
+  "id": "test-rename",
+  "name": "Test recipe, renames its file",
+  "version": "3.0.0",
+  "game": "GtaIV",
+  "sources": [
+    { "id": "loader", "fileName": "loader.dll", "sha256": "$loaderHash", "sizeBytes": $loaderSize, "urls": [] }
+  ],
+  "steps": [ { "type": "copyFile", "source": "loader.dll", "target": "plugins\\shared.dll" } ]
+}
+"@ | Set-Content -Path (Join-Path $catalog "test-rename.json") -Encoding utf8
+
+$r = Invoke-Mliv (@("apply", "test-rename", "--yes") + $common)
+$r = Invoke-Mliv (@("apply", "test-shared", "--yes") + $common)
+Assert ($r.ExitCode -eq 0) "shared: the second recipe installed over the same file"
+
+# Release four writes somewhere else, so shared.dll becomes a leftover of
+# test-rename - but test-shared still owns it.
+@"
+{
+  "id": "test-rename",
+  "name": "Test recipe, renames its file",
+  "version": "4.0.0",
+  "game": "GtaIV",
+  "sources": [
+    { "id": "loader", "fileName": "loader.dll", "sha256": "$loaderHash", "sizeBytes": $loaderSize, "urls": [] }
+  ],
+  "steps": [ { "type": "copyFile", "source": "loader.dll", "target": "plugins\\own.dll" } ]
+}
+"@ | Set-Content -Path (Join-Path $catalog "test-rename.json") -Encoding utf8
+
+$r = Invoke-Mliv (@("apply", "test-rename", "--yes") + $common)
+Assert ($r.ExitCode -eq 0) "shared: the update ran"
+Assert (Test-Path (Join-Path $game "plugins\shared.dll")) "shared: the file another recipe owns was kept"
+Assert (-not ($r.Output -match "shared\.dll")) "shared: and was not even offered for deletion"
+
+# The counter-check must not report the shared file as changed either: the
+# newest owner describes what is on disk, the older record does not.
+$r = Invoke-Mliv (@("verify") + $common)
+Assert ($r.ExitCode -eq 0) "shared: the counter-check stays quiet about a shared file"
+
+$r = Invoke-Mliv (@("remove", "--all", "--yes") + $common)
+Remove-Item (Join-Path $catalog "test-rename.json"), (Join-Path $catalog "test-shared.json") -Force
 
 # ------------------------------------------------------------------- Result
 

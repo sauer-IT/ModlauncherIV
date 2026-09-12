@@ -23,7 +23,7 @@ The only thing that changes the game is the "Install" step in the wizard, or
 | `src/Launcher.Cli` | Headless front end (`mliv`). Dry runs, diagnostics, CI. |
 | `src/Launcher.App` | The program you start (WPF): home page and wizard. |
 | `src/Trainer` | C++ ASI plugin, x86, IV-SDK. Player, weapons, vehicles, world, movement, peds, time and physics. |
-| `catalog/` | The declarative recipes. Six of them, five proven. |
+| `catalog/` | The declarative recipes. Seven of them, five proven. |
 | `tests/` | Fixtures and the test script. |
 
 **Journey planning** (`Core/Planning`) is the difference between the CLI and the
@@ -117,7 +117,7 @@ Exit codes: `0` success - `1` nothing found - `2` wrong invocation -
 .\tests\run-tests.ps1
 ```
 
-151 tests against fake game directories. No real installation is touched. If GTA
+156 tests against fake game directories. No real installation is touched. If GTA
 IV happens to be running, the script aborts up front - otherwise every pre-flight
 rightly blocks and four tests fail without anything being wrong with the code.
 Among the things covered:
@@ -142,6 +142,8 @@ Among the things covered:
   noticed, a forged signature is detected
 - leftovers: a recipe that renames its file on an update gets the old one
   removed, says so in the dry run first, and a rollback brings it back
+- shared files: a file a second recipe owns as well is neither deleted as a
+  leftover nor reported as changed by the counter-check
 
 **The script is deliberately pure ASCII.** PowerShell 5.1 reads a `.ps1` without
 a BOM as CP1252; a UTF-8 em dash becomes, among other things, `”`, and that
@@ -150,7 +152,7 @@ from that point on.
 
 ## The catalog - state and caveats
 
-Six recipes with **real, self-computed SHA-256 checksums**. Five of them have
+Seven recipes with **real, self-computed SHA-256 checksums**. Five of them have
 **run against a real installation** - Complete Edition 1.2.0.59 through the
 Rockstar Games Launcher, downgraded to 1.0.7.0. The game starts.
 
@@ -162,6 +164,25 @@ Rockstar Games Launcher, downgraded to 1.0.7.0. The game starts.
 | `vc80-runtime` | Microsoft, signed redistributable | 1.8 MB | run |
 | `mliv-trainer` | shipped, self-built | 205 KB | run |
 | `scripthook-dotnet` | ClonkAndre, GitHub release | 647 KB | untested |
+| `fusionfix` | ThirteenAG, GitHub release | 197 MB | planned, not yet installed |
+
+**FusionFix** is the largest mod in here and the one that shows what the
+dependency chain is for. Its own readme is explicit: *only The Complete Edition
+is fully supported; legacy versions such as 1.0.7.0 additionally require the
+Legacy Addon*. That addon is already in the catalog as `gfwl-stub` - it is where
+the GFWL replacement comes from - so `fusionfix` simply requires it, and both
+halves come from the same GitHub release, which keeps them in step.
+
+It also shows why shared files needed handling. FusionFix ships its own
+`dinput8.dll` over the one `ultimate-asi-loader` installed. Two recipes then own
+the same path, and without the two rules above the launcher would report that
+file as changed on every single run and delete it the next time either recipe
+was updated.
+
+Its download is not offered by [the page most people find it
+on](https://www.nexusmods.com/gta4/mods/716): Nexus refuses plain requests and
+hands out links that expire with a session, so no recipe could fetch it. The
+project publishes the same files on GitHub, and that is where ours come from.
 
 **The trainer is shipped, not downloaded.** It is the only file in the catalog
 this project produces itself; putting it somewhere so that our own launcher can

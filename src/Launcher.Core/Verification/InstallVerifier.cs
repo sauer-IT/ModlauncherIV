@@ -61,15 +61,27 @@ public static class InstallVerifier
         var files = new List<VerifiedFile>();
         var notes = new List<Note>();
 
-        foreach (var entry in ledger.Entries)
+        // A path can be owned by more than one recipe. FusionFix ships its own
+        // dinput8.dll over the one the ASI loader installed, and both entries
+        // are honest about what they wrote - but only the newer one still
+        // describes what is on disk.
+        //
+        // Checking the older record as well would report a change the launcher
+        // made itself, knowingly, on every single run. The warning that matters
+        // here - the platform quietly resetting the game - would then sit in the
+        // middle of noise nobody reads any more.
+        var owners = ledger.Entries
+            .OrderBy(e => e.InstalledAt)
+            .SelectMany(e => e.Files.Select(f => (Entry: e, File: f)))
+            .GroupBy(x => x.File.RelativePath, StringComparer.OrdinalIgnoreCase)
+            .Select(g => g.Last());
+
+        foreach (var (entry, owned) in owners)
         {
-            foreach (var owned in entry.Files)
-            {
-                files.Add(new VerifiedFile(
-                    entry.RecipeId,
-                    owned.RelativePath,
-                    Inspect(install.Path, owned)));
-            }
+            files.Add(new VerifiedFile(
+                entry.RecipeId,
+                owned.RelativePath,
+                Inspect(install.Path, owned)));
         }
 
         // The version recorded last is the one we expect. If the actual one differs,
