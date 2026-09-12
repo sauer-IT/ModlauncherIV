@@ -23,7 +23,7 @@ The only thing that changes the game is the "Install" step in the wizard, or
 | `src/Launcher.Cli` | Headless front end (`mliv`). Dry runs, diagnostics, CI. |
 | `src/Launcher.App` | The program you start (WPF): home page and wizard. |
 | `src/Trainer` | C++ ASI plugin, x86, IV-SDK. Player, weapons, vehicles, world, movement, peds, time and physics. |
-| `catalog/` | The declarative recipes. Seven of them, five proven. |
+| `catalog/` | The declarative recipes. Nine of them, six proven. |
 | `tests/` | Fixtures and the test script. |
 
 **Journey planning** (`Core/Planning`) is the difference between the CLI and the
@@ -152,7 +152,7 @@ from that point on.
 
 ## The catalog - state and caveats
 
-Seven recipes with **real, self-computed SHA-256 checksums**. Five of them have
+Nine recipes with **real, self-computed SHA-256 checksums**. Six of them have
 **run against a real installation** - Complete Edition 1.2.0.59 through the
 Rockstar Games Launcher, downgraded to 1.0.7.0. The game starts.
 
@@ -164,7 +164,9 @@ Rockstar Games Launcher, downgraded to 1.0.7.0. The game starts.
 | `vc80-runtime` | Microsoft, signed redistributable | 1.8 MB | run |
 | `mliv-trainer` | shipped, self-built | 205 KB | run |
 | `scripthook-dotnet` | ClonkAndre, GitHub release | 647 KB | untested |
-| `fusionfix` | ThirteenAG, GitHub release | 197 MB | planned, not yet installed |
+| `fusionfix` | ThirteenAG, GitHub release | 197 MB | run |
+| `xbox-rain-droplets` | ThirteenAG, GitHub release | 365 KB | untested |
+| `various-fixes` | valentyn-l, GitHub release | 1.7 GB | untested |
 
 **FusionFix** is the largest mod in here and the one that shows what the
 dependency chain is for. Its own readme is explicit: *only The Complete Edition
@@ -175,9 +177,17 @@ halves come from the same GitHub release, which keeps them in step.
 
 It also shows why shared files needed handling. FusionFix ships its own
 `dinput8.dll` over the one `ultimate-asi-loader` installed. Two recipes then own
-the same path, and without the two rules above the launcher would report that
-file as changed on every single run and delete it the next time either recipe
-was updated.
+the same path, with different checksums, and the one on disk is FusionFix's.
+Without the two rules above the launcher would report that file as changed on
+every single run and delete it the next time either recipe was updated. With
+them, the counter-check on the real installation reads: *352 files from 6
+recipes, everything unchanged.*
+
+**`various-fixes` builds on it.** It installs through FusionFix's overloader,
+which is why it requires `fusionfix` rather than merely suggesting it: everything
+lands in `update\`, where the overloader reads it, so not one original game file
+is touched. The project also offers a manual variant that replaces files in
+place - that one is deliberately not what this recipe uses.
 
 Its download is not offered by [the page most people find it
 on](https://www.nexusmods.com/gta4/mods/716): Nexus refuses plain requests and

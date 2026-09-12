@@ -1,0 +1,28 @@
+{
+  "id": "various-fixes",
+  "name": "Various Fixes",
+  "version": "2.2",
+  "game": "GtaIV",
+  "description": "Repairs a great many small things in Liberty City that were never patched: wrong materials on power lines and buildings, broken collisions, misspelled signs, missing textures. Also restores content that was cut. Covers GTA IV and both episodes. 1.7 GB, almost all of it textures and models.",
+
+  "appliesToVersions": [ "1.0.7.0", "1.0.8.0" ],
+
+  "requires": [ "fusionfix" ],
+
+  "sources": [
+    {
+      "id": "overloader",
+      "fileName": "Installation.through.Fusion.Overloader.zip",
+      "sha256": "a4b99704ebe5ccf32920d231348ef7192464549c6b6b49011e704db9fb0fb8e6",
+      "sizeBytes": 1700487130,
+      "urls": [
+        "https://github.com/valentyn-l/GTAIV.EFLC.Various.Fixes/releases/download/verified_2.2/Installation.through.Fusion.Overloader.zip"
+      ],
+      "note": "By valentyn-l. Of the two ways the project offers this is the one it recommends, and the one that fits here: everything lands in update\\, which FusionFix's overloader reads, so no original game file is overwritten. The manual variant would replace files in place."
+    }
+  ],
+
+  "steps": [
+    { "type": "extractArchive", "archive": "Installation.through.Fusion.Overloader.zip", "from": "Installation through Fusion Overloader", "target": "" }
+  ]
+}

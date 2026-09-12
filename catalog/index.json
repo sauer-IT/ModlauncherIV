@@ -1,6 +1,6 @@
 {
   "FormatVersion": 1,
-  "GeneratedAt": "2026-09-12T19:25:03.8023117+02:00",
+  "GeneratedAt": "2026-09-12T19:33:03.4616294+02:00",
   "Entries": [
     {
       "File": "downgrade-ce-1070.json",
@@ -16,7 +16,7 @@
     },
     {
       "File": "mliv-trainer.json",
-      "Sha256": "e965ceb925a368bb14c44ea31942f51d2b3172c17de8da5d8334c9d4c924c87a"
+      "Sha256": "2f287cd1f722f6c24d7905f81404244c5080e26a097f1be24ff94821ce996c48"
     },
     {
       "File": "scripthook-dotnet.json",
@@ -27,8 +27,16 @@
       "Sha256": "c76cd0b94f2064a3435da4ac5ae9206274e4521361b7252656cbdbf5c7890a02"
     },
     {
+      "File": "various-fixes.json",
+      "Sha256": "49e50e2e199cfa2aba017bc76e304b26d01c76b2dffdf97fce9e69e5f2027863"
+    },
+    {
       "File": "vc80-runtime.json",
       "Sha256": "6557e4e19890c4c084f268eacd9952f739dd73bfec798ac53415deac60cca2fc"
+    },
+    {
+      "File": "xbox-rain-droplets.json",
+      "Sha256": "2597c26616778aa32c7e32adcf7fb6337a24af7370be39afc0bb1a6696f18dfb"
     }
   ]
 }
