@@ -1,0 +1,27 @@
+{
+  "id": "gta-connected",
+  "name": "GTA Connected",
+  "version": "1.9.0",
+  "description": "Multiplayer for GTA IV. Its own client, its own servers, and it starts the game itself - so it is not a mod for the installation this launcher looks after, but a second program aimed at the same one. It installs outside the game directory, which is why the launcher can fetch and start its installer but can never take it back again.",
+
+  "installer": {
+    "id": "client",
+    "fileName": "GTAC-1.9.0.zip",
+    "sha256": "5460659b6163b368a3a76719b966558fc35ba34b99b2d57f0d7879c88fdbf950",
+    "sizeBytes": 28784224,
+    "urls": [
+      "https://gtaconnected.com/downloads/client/GTAC-1.9.0.zip"
+    ],
+    "note": "From the project's own download page. The archive holds nothing but the installer."
+  },
+
+  "installerEntry": "GTAC-1.9.0.exe",
+
+  "detect": {
+    "registryKey": "SOFTWARE\\Jack's Mini Network\\Grand Theft Auto Connected",
+    "registryValue": "Installation Directory",
+    "executable": "Launcher.exe"
+  },
+
+  "note": "Plugins in plugins\\ load in multiplayer too, the trainer included. On a server that is a good way to be thrown off it, and a good way to crash."
+}

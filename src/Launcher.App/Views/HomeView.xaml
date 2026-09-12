@@ -85,8 +85,8 @@
                                                        Style="{StaticResource Dim}" FontSize="11" Margin="0,3,0,0" />
                                         </StackPanel>
 
-                                        <Button Grid.Column="1" Content="Start"
-                                                Command="{Binding StartCommand}"
+                                        <Button Grid.Column="1" Content="{Binding ActionLabel}"
+                                                Command="{Binding ActionCommand}"
                                                 VerticalAlignment="Center" Margin="14,0,0,0" />
                                     </Grid>
                                 </Border>

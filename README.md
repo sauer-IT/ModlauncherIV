@@ -23,7 +23,7 @@ The only thing that changes the game is the "Install" step in the wizard, or
 | `src/Launcher.Cli` | Headless front end (`mliv`). Dry runs, diagnostics, CI. |
 | `src/Launcher.App` | The program you start (WPF): home page and wizard. |
 | `src/Trainer` | C++ ASI plugin, x86, IV-SDK. Player, weapons, vehicles, world, movement, peds, time and physics. |
-| `catalog/` | The declarative recipes. Twelve of them, six proven. |
+| `catalog/` | The declarative recipes, twelve of them, six proven - and in `tools/` the programs the launcher can fetch but not undo. |
 | `tests/` | Fixtures and the test script. |
 
 **Journey planning** (`Core/Planning`) is the difference between the CLI and the
@@ -84,23 +84,33 @@ It takes the catalog and the shipped payload from **its own folder**, not from
 the working directory - a program started through a shortcut has an arbitrary
 one and would then not find its own recipes.
 
-**Multiplayer through GTA Connected**, under its own heading on the home page:
-*ALSO ON THIS PC - found, not installed by the launcher*. It is deliberately not
-in the catalog, and the reason is worth stating because it is the same rule that
-keeps the rest safe.
+**Multiplayer through GTA Connected**, and it can be installed from here - but
+not as a recipe. The catalog has a second kind of entry for it, in
+`catalog/tools/`, and the difference between the two kinds is the whole point.
 
-A recipe is something written **into the game directory**, with a snapshot behind
-it and a way back out. GTA Connected is neither: it installs itself under
-`%LOCALAPPDATA%`, which every recipe step is forbidden from touching by the same
-containment check that rejects `..\..\somewhere.dll`, and it ships as an
-installer, which no recipe step may run. Listing it as a mod would make the list
-claim something untrue about what the launcher can take back again. So it gets a
-section of its own that says exactly what it is - and a Start button, because
-the two are aimed at the same installation and switching by hand means going
-through two start menus.
+A **recipe** is a change to the game directory. Every path it names goes through
+the containment check, everything it writes is in a snapshot first, and it can be
+taken back file by file. A **tool** is a program that installs itself somewhere
+else entirely - under `%LOCALAPPDATA%` in this case - and ships as an installer.
+The launcher fetches it and checks it against its checksum, exactly as it does
+every recipe source, because that part is the same problem. Then it hands over,
+and from that point it is somebody else's program writing where it likes. The
+launcher cannot undo that, and says so before starting anything.
 
-Found through its own registry key rather than by guessing at paths, because
-that key is what its launcher reads.
+Listing it among the mods would have made that list claim something untrue about
+what can be taken back again, so it has its own heading on the home page - *ALSO
+ON THIS PC* - with Install when it is absent and Start when it is there.
+
+Both kinds live under `catalog/` and are covered by the same signature: the index
+spans every `.json` below that directory, so a tool cannot be added or its URL
+changed without breaking it. That matters more here than for a recipe, because
+this one ends in an executable being started - which is also why a tool is
+offered only when the signature actually verified.
+
+Detection comes out of the signed catalog too, not out of the code: a registry
+key is as much part of "which program is this" as a checksum is. The key it reads
+is the one that program's own launcher reads, and the check asks for the file
+rather than the key, because a key outlives an uninstall.
 
 Two things get said first, both invisible until they have already gone wrong.
 That key also records which `GTAIV.exe` it will start, and it need not be the

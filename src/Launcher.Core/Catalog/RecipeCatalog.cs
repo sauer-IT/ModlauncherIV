@@ -93,6 +93,15 @@ public static class RecipeCatalog
                 continue;
             }
 
+            // The tools folder holds a different kind of entry - see ToolCatalog.
+            // Its checksum has just been verified along with everything else,
+            // which is the point of keeping it in the same signed directory; it
+            // is only the parsing that differs.
+            if (InToolsFolder(entry.File))
+            {
+                continue;
+            }
+
             Read(file, recipes, errors);
         }
 
@@ -109,6 +118,7 @@ public static class RecipeCatalog
             .EnumerateFiles(directory, "*.json", SearchOption.AllDirectories)
             .Where(f => !string.Equals(
                 Path.GetFileName(f), CatalogSignature.IndexFileName, StringComparison.OrdinalIgnoreCase))
+            .Where(f => !InToolsFolder(Path.GetRelativePath(directory, f)))
             .Order();
 
         foreach (var file in files)
@@ -124,6 +134,11 @@ public static class RecipeCatalog
             ["The catalog was NOT checked against a signature. For development only."],
             SignatureVerified: false);
     }
+
+    /// <summary>Whether a catalog-relative path sits in the tools folder.</summary>
+    private static bool InToolsFolder(string relative) =>
+        relative.Replace('\\', '/')
+                .StartsWith(ToolCatalog.FolderName + "/", StringComparison.OrdinalIgnoreCase);
 
     /// <summary>A broken file leaves the others alone and gets reported.</summary>
     private static void Read(string file, List<Recipe> recipes, List<string> errors)

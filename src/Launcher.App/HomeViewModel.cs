@@ -2,6 +2,8 @@ using System.Collections.ObjectModel;
 using System.Diagnostics;
 using System.IO;
 using System.Windows;
+using System.Net.Http;
+using ModlauncherIV.Core.Acquisition;
 using ModlauncherIV.Core.Backup;
 using ModlauncherIV.Core.Catalog;
 using ModlauncherIV.Core.Detection;
@@ -21,7 +23,14 @@ namespace ModlauncherIV.App;
 /// worth knowing about. Calling it a mod would make the list say something
 /// untrue about what the launcher can take back.
 /// </summary>
-public sealed record ExternalTool(string Name, string Version, string State, bool Fine, RelayCommand StartCommand);
+public sealed record ExternalTool(
+    string Name,
+    string Version,
+    string State,
+    bool Fine,
+    bool Installed,
+    string ActionLabel,
+    RelayCommand ActionCommand);
 
 /// <summary>An installed recipe, the way it appears on the home page.</summary>
 public sealed record InstalledMod(
@@ -350,19 +359,131 @@ public sealed class HomeViewModel : Observable
     {
         External.Clear();
 
-        if (_connected is not { } connected)
+        foreach (var tool in ToolCatalog.LoadFrom(AppPaths.CatalogDirectory, _session.Catalog!))
+        {
+            var found = Tools.Find(tool);
+
+            if (found.Installed)
+            {
+                var fine = tool.Id != "gta-connected" || GtaConnected.Find() is not { } c
+                           || c.PointsAt(install.Path);
+
+                External.Add(new ExternalTool(
+                    tool.Name,
+                    tool.Version,
+                    fine ? "installed - starts this installation" : "installed, but aimed elsewhere",
+                    fine,
+                    true,
+                    "Start",
+                    new RelayCommand(() => Start(found), () => !_busy)));
+
+                continue;
+            }
+
+            External.Add(new ExternalTool(
+                tool.Name,
+                tool.Version,
+                "not installed",
+                true,
+                false,
+                "Install",
+                new RelayCommand(() => InstallTool(tool), () => !_busy)));
+        }
+    }
+
+    private void Start(FoundTool found)
+    {
+        if (found.ExecutablePath is not { } exe)
         {
             return;
         }
 
-        var fine = connected.PointsAt(install.Path);
+        if (found.Tool.Id == "gta-connected")
+        {
+            PlayOnline();
+            return;
+        }
 
-        External.Add(new ExternalTool(
-            "GTA Connected",
-            connected.Version.Length > 0 ? connected.Version : "version unknown",
-            fine ? "starts this installation" : $"starts {connected.GamePath}",
-            fine,
-            OnlineCommand));
+        Process.Start(new ProcessStartInfo
+        {
+            FileName = exe,
+            WorkingDirectory = Path.GetDirectoryName(exe) ?? string.Empty,
+            UseShellExecute = true,
+        });
+    }
+
+    /// <summary>
+    /// Fetches a tool's installer and hands it over.
+    ///
+    /// The download is checked against the checksum in the signed catalog, the
+    /// same way every recipe source is - that part is the same problem and uses
+    /// the same code. What is different comes after: the installer is somebody
+    /// else's program, it writes where it likes, and nothing here can take that
+    /// back. So it is said plainly first, once, and then it is the user's call.
+    /// </summary>
+    private async void InstallTool(CatalogTool tool)
+    {
+        var answer = MessageBox.Show(
+            $"{tool.Name} {tool.Version}\n\n{tool.Description}\n\n"
+            + $"The launcher downloads the installer ({tool.Installer.SizeBytes / 1024 / 1024} MB), "
+            + "checks it against the checksum in the signed catalog, and then starts it.\n\n"
+            + "From that point it is that installer's own program: it writes where it likes, "
+            + "outside the game directory, and the launcher cannot undo it. Uninstalling it "
+            + "later is done through Windows, not here.\n\nGo ahead?",
+            SelfInstall.ProgramName,
+            MessageBoxButton.OKCancel,
+            MessageBoxImage.Question);
+
+        if (answer != MessageBoxResult.OK)
+        {
+            return;
+        }
+
+        _busy = true;
+        Status = $"Fetching {tool.Name} ...";
+
+        try
+        {
+            using var http = new HttpClient();
+            var acquirer = new SourceAcquirer(http, _session.CacheRoot, new ExecutionLog());
+
+            var result = await acquirer.AcquireAsync(tool.Installer).ConfigureAwait(true);
+
+            if (!result.Ok)
+            {
+                MessageBox.Show(
+                    $"{tool.Name} could not be fetched:\n\n{result.Error}",
+                    SelfInstall.ProgramName, MessageBoxButton.OK, MessageBoxImage.Error);
+
+                return;
+            }
+
+            var installer = Tools.Unpack(tool, _session.CacheRoot);
+
+            Process.Start(new ProcessStartInfo
+            {
+                FileName = installer,
+                WorkingDirectory = _session.CacheRoot,
+                UseShellExecute = true,
+            });
+
+            Status = $"{tool.Name}: the installer is running. Check again when it is done.";
+        }
+        catch (Exception e) when (e is IOException
+                                       or UnauthorizedAccessException
+                                       or HttpRequestException
+                                       or InvalidDataException
+                                       or FileNotFoundException)
+        {
+            MessageBox.Show(
+                $"{tool.Name} could not be installed:\n\n{e.Message}",
+                SelfInstall.ProgramName, MessageBoxButton.OK, MessageBoxImage.Error);
+        }
+        finally
+        {
+            _busy = false;
+            VerifyCommand.RaiseCanExecuteChanged();
+        }
     }
 
     private void Describe(VerificationResult result, InstallLedger ledger)

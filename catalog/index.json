@@ -1,6 +1,6 @@
 {
   "FormatVersion": 1,
-  "GeneratedAt": "2026-09-12T20:43:52.4165318+02:00",
+  "GeneratedAt": "2026-09-12T21:00:52.8443275+02:00",
   "Entries": [
     {
       "File": "downgrade-ce-1070.json",
@@ -33,6 +33,10 @@
     {
       "File": "mliv-trainer.json",
       "Sha256": "ce9be12f41bc5700bc565f8ca4bf999197b02614c3cabc9c1288ee14b00f86c0"
+    },
+    {
+      "File": "tools/gta-connected.json",
+      "Sha256": "b4daae6da0ac9a595170440769774e8049f651ab917a03fd821335e61d5f26c3"
     },
     {
       "File": "ultimate-asi-loader.json",
