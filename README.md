@@ -84,6 +84,20 @@ It takes the catalog and the shipped payload from **its own folder**, not from
 the working directory - a program started through a shortcut has an arbitrary
 one and would then not find its own recipes.
 
+**Multiplayer through GTA Connected.** If it is installed, a second button
+appears next to Play. It is not a recipe and nothing installs it: it lives
+elsewhere, brings its own client and its own `xlive.dll`, and starts the game
+itself - so this is a handover, not a launch. Found through its own registry key
+rather than by guessing at paths, because that key is what its launcher reads.
+
+Two things get said first, both invisible until they have already gone wrong.
+That key also records which `GTAIV.exe` it will start, and it need not be the
+installation this launcher looks after - in which case nothing installed here
+applies to what actually runs. And the ASI loader does not care what the game is
+being used for: everything in `plugins\` loads in multiplayer too, the trainer
+included. On a server that is a good way to be thrown off it, and a good way to
+crash.
+
 **The trainer does not start separately.** It sits in the game directory as
 `plugins\sauer.asi` and is loaded along by the ASI loader when
 the game starts. In game, `F7` opens the menu.

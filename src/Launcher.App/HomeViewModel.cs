@@ -39,12 +39,20 @@ public sealed class HomeViewModel : Observable
         _session = session;
 
         PlayCommand = new RelayCommand(Play, () => CanPlay);
+        OnlineCommand = new RelayCommand(PlayOnline, () => _connected is not null);
         WizardCommand = new RelayCommand(openWizard);
         VerifyCommand = new AsyncRelayCommand(VerifyAsync, () => !_busy);
         FolderCommand = new RelayCommand(OpenFolder, () => _session.Install is not null);
     }
 
+    private readonly ConnectedInstall? _connected = GtaConnected.Find();
+
     public RelayCommand PlayCommand { get; }
+
+    /// <summary>Starts GTA Connected. Only there when it is installed.</summary>
+    public RelayCommand OnlineCommand { get; }
+
+    public bool HasOnline => _connected is not null;
 
     public RelayCommand WizardCommand { get; }
 
@@ -190,6 +198,71 @@ public sealed class HomeViewModel : Observable
 
         // Either way: the page has to show what is actually there now.
         _ = VerifyAsync();
+    }
+
+    /// <summary>
+    /// Hands over to GTA Connected.
+    ///
+    /// It starts the game itself, so this is a handover rather than a launch:
+    /// nothing of ours runs afterwards.
+    ///
+    /// Two things get said first, because both are invisible until they have
+    /// already gone wrong. Its own registry key records which GTAIV.exe it will
+    /// start, and that need not be the installation this launcher looks after.
+    /// And the ASI loader does not care what the game is being used for - every
+    /// plugin in plugins\ loads in multiplayer too, the trainer included. A
+    /// trainer on a server is both a good way to be thrown off it and a good way
+    /// to crash.
+    /// </summary>
+    private void PlayOnline()
+    {
+        if (_connected is not { } connected)
+        {
+            return;
+        }
+
+        var warnings = new List<string>();
+
+        if (_session.Install is { } install && !connected.PointsAt(install.Path))
+        {
+            warnings.Add(
+                $"GTA Connected is set to start\n  {connected.GamePath}\n\n"
+                + $"This launcher looks after\n  {install.Path}\n\n"
+                + "Nothing installed here applies to what actually starts.");
+        }
+
+        var plugins = _session.Install is { } i ? Path.Combine(i.Path, "plugins") : null;
+
+        if (plugins is not null && Directory.Exists(plugins) &&
+            Directory.EnumerateFiles(plugins, "*.asi").Any())
+        {
+            warnings.Add(
+                "Plugins from plugins\\ load in multiplayer as well - the trainer "
+                + "among them. On a server that is a good way to be thrown off it, "
+                + "and a good way to crash. Remove them here first if you would "
+                + "rather play clean.");
+        }
+
+        if (warnings.Count > 0)
+        {
+            var answer = MessageBox.Show(
+                string.Join("\n\n", warnings) + "\n\nStart anyway?",
+                SelfInstall.ProgramName,
+                MessageBoxButton.OKCancel,
+                MessageBoxImage.Warning);
+
+            if (answer != MessageBoxResult.OK)
+            {
+                return;
+            }
+        }
+
+        Process.Start(new ProcessStartInfo
+        {
+            FileName = connected.LauncherPath,
+            WorkingDirectory = Path.GetDirectoryName(connected.LauncherPath) ?? string.Empty,
+            UseShellExecute = true,
+        });
     }
 
     private void OpenFolder()

@@ -106,12 +106,20 @@
                     <Button Content="Check" Command="{Binding VerifyCommand}" MinWidth="0" />
                 </StackPanel>
 
-                <Button Content="Play GTA IV"
-                        Command="{Binding PlayCommand}"
-                        Style="{StaticResource Primary}"
-                        HorizontalAlignment="Right"
-                        Padding="34,12"
-                        FontSize="15" />
+                <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
+                    <Button Content="Play online"
+                            Command="{Binding OnlineCommand}"
+                            Margin="0,0,10,0"
+                            Padding="20,12"
+                            FontSize="15"
+                            Visibility="{Binding HasOnline, Converter={StaticResource Show}}" />
+
+                    <Button Content="Play GTA IV"
+                            Command="{Binding PlayCommand}"
+                            Style="{StaticResource Primary}"
+                            Padding="34,12"
+                            FontSize="15" />
+                </StackPanel>
             </Grid>
         </Border>
 
