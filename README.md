@@ -165,7 +165,7 @@ Exit codes: `0` success - `1` nothing found - `2` wrong invocation -
 .\tests\run-tests.ps1
 ```
 
-189 tests against fake game directories. No real installation is touched. If GTA
+196 tests against fake game directories. No real installation is touched. If GTA
 IV happens to be running, the script aborts up front - otherwise every pre-flight
 rightly blocks and four tests fail without anything being wrong with the code.
 Among the things covered:
@@ -286,6 +286,16 @@ There is deliberately no edge between 1.0.7.0 and 1.0.8.0. Both come from the
 Complete Edition, and going from one to the other means restoring the Complete
 Edition first - which `remove downgrade-ce-1070` does from its snapshot, since
 that is what a snapshot is for.
+
+**The wizard offers both, and offers them out of the catalog** rather than out
+of a list of versions that exist. What can be picked is what some recipe
+produces, so 1.0.4.0 - a modding target with no recipe behind it - is no longer
+on the list at all, and 1.0.8.0, which had been marked "not for modding" while
+four recipes wanted nothing else, now is. A version the game cannot reach from
+where it stands stays visible and says why: somebody on 1.0.7.0 looking at four
+mods that ask for 1.0.8.0 is told that the way there is to remove the 1.0.7.0
+downgrade on the home page first. Leaving it off the list would answer the
+question on the screen by not mentioning it.
 
 **Three recipes have no URL at all** - the two texture packs and Liberty's
 Legacy live only on Nexus. They are in the catalog anyway, with the checksum of

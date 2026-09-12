@@ -3,6 +3,7 @@
   "name": "Visual C++ 2005 runtime (next to the EXE)",
   "version": "6195.0.0+id8050727762",
   "game": "GtaIV",
+  "category": "Foundation",
   "description": "GTA IV 1.0.7.0 was built against the Visual C++ 2005 runtime and does not start without it - Windows then only reports that the side-by-side configuration is incorrect. It is missing on todays systems, and the downgrade package does not bring it. The files come from Microsofts signed redistributable and are placed next to the EXE rather than installed system-wide: that stays inside the game directory, is reversible, and needs no recipe step allowed to run foreign installers.",
 
   "appliesToVersions": [ "1.0.7.0", "1.0.8.0", "1.0.4.0" ],

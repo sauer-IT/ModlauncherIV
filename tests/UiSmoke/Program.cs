@@ -65,6 +65,7 @@ internal static class Program
         // built rather than bound straight through, and empty groups or a
         // filter that matches nothing are states a person will produce.
         CheckChoiceList(session);
+        CheckVersions(session);
 
         Console.WriteLine();
         Console.WriteLine(Failures.Count == 0
@@ -196,6 +197,63 @@ internal static class Program
 
         Console.WriteLine();
     }
+
+    /// <summary>
+    /// Which versions the page offers, from two places the game can stand in.
+    ///
+    /// The one that matters is somebody already on 1.0.7.0 looking at four mods
+    /// that want 1.0.8.0: it has to be in the list, and it has to say what to do
+    /// rather than simply not be there.
+    /// </summary>
+    private static void CheckVersions(Session session)
+    {
+        // With the version in place unreadable, both downgrade targets are
+        // offered: nothing can be said about what is reachable, and greying
+        // everything out would strand the user on this page.
+        var unknown = new ChoiceStep(session);
+        unknown.EnterAsync().GetAwaiter().GetResult();
+
+        Report("versions: 1.0.7.0 is offered", unknown.Versions.Any(v => v.Raw == "1.0.7.0"));
+        Report("versions: 1.0.8.0 is offered", unknown.Versions.Any(v => v.Raw == "1.0.8.0"));
+
+        Report(
+            "versions: nothing is offered that no recipe produces",
+            unknown.Versions.All(v => v.IsCurrent || v.Raw is "1.0.7.0" or "1.0.8.0"));
+
+        // And now the case this was written for: the game is on 1.0.7.0, four
+        // mods want 1.0.8.0, and there is no edge between the two downgrades.
+        var step = new ChoiceStep(On(session, "1.0.7.0"));
+        step.EnterAsync().GetAwaiter().GetResult();
+
+        var eight = step.Versions.FirstOrDefault(v => v.Raw == "1.0.8.0");
+
+        Report("versions: on 1.0.7.0 the 1.0.8.0 entry is still shown", eight is not null);
+        Report("versions: and is not silently selectable", eight is { Reachable: false });
+        Report(
+            "versions: and says what stands in the way",
+            eight is not null && eight.Reason.Contains("1.0.8.0") && eight.Reason.Contains("1.0.7.0"));
+
+        Report("versions: keeping what is there stays the preselection", step.Target?.Raw == "1.0.7.0");
+
+        Console.WriteLine();
+        Console.WriteLine("  the version list on a 1.0.7.0 installation:");
+
+        foreach (var version in step.Versions)
+        {
+            var mark = version.Reachable ? " " : "-";
+            Console.WriteLine($"    {mark} {version.Label,-28} {version.Reason}");
+        }
+    }
+
+    /// <summary>The same session, with the game standing on another version.</summary>
+    private static Session On(Session session, string version) => new()
+    {
+        Install = session.Install! with { Version = KnownVersions.Resolve(version) },
+        Found = session.Found,
+        Environment = session.Environment,
+        Catalog = session.Catalog,
+        CacheRoot = session.CacheRoot,
+    };
 
     private static void Report(string label, bool ok)
     {

@@ -50,7 +50,7 @@
                 <TextBlock Text="{Binding Current.Lead}" Style="{StaticResource Lead}" />
             </StackPanel>
 
-            <ScrollViewer Grid.Row="1" Margin="30,0,22,0" Padding="0,0,8,0">
+            <ScrollViewer x:Name="Page" Grid.Row="1" Margin="30,0,22,0" Padding="0,0,8,0">
                 <ContentControl Content="{Binding Current}" />
             </ScrollViewer>
 

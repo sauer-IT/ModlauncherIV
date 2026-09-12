@@ -18,7 +18,10 @@ public static class KnownVersions
         Ce("1.2.0.30", "Complete Edition, older"),
 
         // --- The classic builds ---
-        Classic("1.0.8.0", "Patch 8 — last build before the Complete Edition", moddingTarget: false),
+        // A target since the FusionFix chain turned out to be 1.0.8.0 only. It
+        // was listed as "not for modding" while four recipes in the catalog
+        // wanted nothing else, which left those four permanently out of reach.
+        Classic("1.0.8.0", "Patch 8 — last build before the Complete Edition, and what FusionFix needs", moddingTarget: true),
         Classic("1.0.7.0", "Patch 7 — the standard target for modding", moddingTarget: true),
         Classic("1.0.6.0", "Patch 6", moddingTarget: false),
         Classic("1.0.4.0", "Patch 4 — the alternative modding target", moddingTarget: true),

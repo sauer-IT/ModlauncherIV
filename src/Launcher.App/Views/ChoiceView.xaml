@@ -30,6 +30,12 @@
                     <Setter Property="Padding" Value="0" />
                     <Setter Property="Margin" Value="0,0,0,6" />
                     <Setter Property="Cursor" Value="Hand" />
+
+                    <!-- A version no recipe leads to from here cannot be picked,
+                         but is shown: it is the one the mods below keep asking
+                         for, and the row says how to get to it. -->
+                    <Setter Property="IsEnabled" Value="{Binding Reachable}" />
+
                     <Setter Property="Template">
                         <Setter.Value>
                             <ControlTemplate TargetType="ListBoxItem">
@@ -50,6 +56,13 @@
                             </ControlTemplate>
                         </Setter.Value>
                     </Setter>
+
+                    <Style.Triggers>
+                        <DataTrigger Binding="{Binding Reachable}" Value="False">
+                            <Setter Property="Opacity" Value="0.5" />
+                            <Setter Property="Cursor" Value="Arrow" />
+                        </DataTrigger>
+                    </Style.Triggers>
                 </Style>
             </ListBox.ItemContainerStyle>
 

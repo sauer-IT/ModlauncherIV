@@ -8,7 +8,12 @@ using ModlauncherIV.Core.Detection;
 namespace ModlauncherIV.App;
 
 /// <summary>A target version to pick from.</summary>
-public sealed class VersionChoice(string raw, string label, string reason, bool isCurrent)
+public sealed class VersionChoice(
+    string raw,
+    string label,
+    string reason,
+    bool isCurrent,
+    bool reachable = true)
 {
     public string Raw { get; } = raw;
 
@@ -17,6 +22,15 @@ public sealed class VersionChoice(string raw, string label, string reason, bool 
     public string Reason { get; } = reason;
 
     public bool IsCurrent { get; } = isCurrent;
+
+    /// <summary>
+    /// False when no recipe leads there from where the game is now.
+    ///
+    /// Such a version is shown rather than left out: it is the one the mods
+    /// underneath keep asking for, and a list that silently lacks the answer
+    /// to the question on the screen is worse than one that says why.
+    /// </summary>
+    public bool Reachable { get; } = reachable;
 }
 
 /// <summary>A recipe with a tick box.</summary>
@@ -284,23 +298,69 @@ public sealed class ChoiceStep(Session session) : WizardStep(session)
                 : "The version in place could not be recognised.",
             isCurrent: true));
 
-        foreach (var version in KnownVersions.ModdingTargets)
+        // What is on offer comes from the catalog, not from a list of versions
+        // that exist: a version no recipe produces is not a choice, it is a
+        // dead end with a nice name. 1.0.4.0 is exactly that today.
+        var recipes = Session.Catalog?.Recipes ?? [];
+        var graph = VersionGraph.Build(recipes);
+        var reachable = graph.ReachableFrom(current.Raw);
+
+        var produced = recipes
+            .Where(r => r.IsVersionTransition && r.Game == GameTitle.GtaIV)
+            .Select(r => r.ProducesVersion!)
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .Where(v => !string.Equals(v, current.Raw, StringComparison.OrdinalIgnoreCase))
+            .OrderByDescending(v => KnownVersions.Resolve(v).Parsed);
+
+        foreach (var version in produced)
         {
-            if (string.Equals(version.Raw, current.Raw, StringComparison.OrdinalIgnoreCase))
-            {
-                continue;
-            }
+            var info = KnownVersions.Resolve(version);
+
+            // With an unrecognised version in place, nothing can be said about
+            // what is reachable - and greying everything out would strand the
+            // user here. The planner says it properly one page on, where the
+            // unknown version is its own finding rather than a consequence.
+            var canGetThere = !current.IsKnown
+                              || reachable.Contains(version, StringComparer.OrdinalIgnoreCase);
 
             Versions.Add(new VersionChoice(
-                version.Raw,
-                $"switch to {version.Raw}",
-                version.DisplayName,
-                isCurrent: false));
+                version,
+                canGetThere ? $"switch to {version}" : $"{version} - not from here",
+                canGetThere ? info.DisplayName : WhyNot(version, current.Raw),
+                isCurrent: false,
+                reachable: canGetThere));
         }
 
         // Preselected is the usual wish: the version with the most mods for it.
         // Anyone wanting something else clicks elsewhere.
-        Target = Versions.FirstOrDefault(v => v.Raw == "1.0.7.0") ?? Versions.FirstOrDefault();
+        Target = Versions.FirstOrDefault(v => v is { Raw: "1.0.7.0", Reachable: true })
+                 ?? Versions.FirstOrDefault(v => v.Reachable);
+    }
+
+    /// <summary>
+    /// Why a version cannot be had from where the game stands - and, where
+    /// there is one, the way to it anyway.
+    ///
+    /// The usual case is somebody on 1.0.7.0 looking at four mods that want
+    /// 1.0.8.0. There is no edge between the two downgrades and there should
+    /// not be one: both start from the Complete Edition, and the way back to it
+    /// is the snapshot the downgrade took. That is one click on the home page,
+    /// so it is worth naming rather than leaving as "no path".
+    /// </summary>
+    private string WhyNot(string wanted, string current)
+    {
+        var back = Session.Catalog?.Recipes.FirstOrDefault(r =>
+            r.IsVersionTransition
+            && string.Equals(r.ProducesVersion, current, StringComparison.OrdinalIgnoreCase)
+            && Session.Ledger.IsInstalled(r.Id));
+
+        if (back is not null)
+        {
+            return $"The game is on {current} through \"{back.Name}\". Remove that on the home page - "
+                   + $"it puts the original version back from its snapshot - and {wanted} is one step from there.";
+        }
+
+        return $"No recipe leads from {current} to {wanted}.";
     }
 
     private void BuildRecipes()
@@ -388,7 +448,8 @@ public sealed class ChoiceStep(Session session) : WizardStep(session)
         {
             Groups.Add(new RecipeGroup(
                 $"NOT FOR {Target?.Raw}",
-                "These need a different game version. Change it above and they come back.",
+                "These need a different game version. It is picked at the top of this page, which "
+                + "also says whether the game can get there from where it stands.",
                 unavailable));
         }
 

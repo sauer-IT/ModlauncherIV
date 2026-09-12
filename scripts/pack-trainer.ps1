@@ -107,6 +107,7 @@ $recipe = @"
   "name": "sauer IV Trainer",
   "version": "$version",
   "game": "GtaIV",
+  "category": "Trainers",
   "description": "The trainer menu of this project. In game F7 opens it, on a controller L3+R3; it is operated with the numpad or the arrow keys. Player, weapons, wanted level, money, vehicles, world, movement and pedestrians, each in its own submenu. Key bindings and menu position live in sauer.ini, which is created next to the game on the first start.",
 
   "appliesToVersions": [ "1.0.7.0", "1.0.8.0" ],
