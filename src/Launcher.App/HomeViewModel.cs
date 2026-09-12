@@ -394,6 +394,15 @@ public sealed class HomeViewModel : Observable
 
     private async Task VerifyAsync()
     {
+        // Read the game again first. This page is shown after every removal and
+        // after every run of the wizard, and the version line on it was the one
+        // from startup - so taking a downgrade back left the page claiming a
+        // version the game no longer had.
+        _session.Reinspect();
+        Raise(nameof(Version));
+        Raise(nameof(Platform));
+        Raise(nameof(GamePath));
+
         if (_session.Install is not { } install)
         {
             Status = "No installation found.";

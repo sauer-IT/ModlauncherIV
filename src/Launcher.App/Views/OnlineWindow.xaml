@@ -18,7 +18,44 @@
             <TextBlock Text="PLAY ONLINE" Style="{StaticResource Dim}" />
             <TextBlock Text="Where do you want to go?" Style="{StaticResource Title}" Margin="0,2,0,0" />
             <TextBlock Text="{Binding Status}" Style="{StaticResource Lead}" />
-            <TextBlock Text="{Binding Who}" Style="{StaticResource Mono}" Margin="0,6,0,0" TextWrapping="Wrap" />
+
+            <!-- The name comes first because nothing below works without it. It
+                 is written straight into the client's own setting, so it is
+                 there the next time as well - and every Connect stays off until
+                 it is something a server can call you. -->
+            <Grid Margin="0,12,0,0">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto" />
+                    <ColumnDefinition Width="220" />
+                    <ColumnDefinition Width="*" />
+                </Grid.ColumnDefinitions>
+
+                <TextBlock Text="You play as" Style="{StaticResource Dim}"
+                           VerticalAlignment="Center" Margin="0,0,10,0" />
+
+                <Grid Grid.Column="1">
+                    <TextBox Text="{Binding PlayerName, UpdateSourceTrigger=PropertyChanged, Delay=300}"
+                             MaxLength="24" />
+                    <TextBlock Text="a name is required"
+                               Style="{StaticResource Dim}"
+                               Foreground="{StaticResource Accent}"
+                               Margin="11,0,0,0"
+                               VerticalAlignment="Center"
+                               IsHitTestVisible="False"
+                               Visibility="{Binding PlayerName, Converter={StaticResource Hide}}" />
+                </Grid>
+
+                <TextBlock Grid.Column="2" Text="{Binding Who}"
+                           Style="{StaticResource Mono}" Margin="12,0,0,0"
+                           VerticalAlignment="Center" TextTrimming="CharacterEllipsis"
+                           ToolTip="{Binding Who}" />
+            </Grid>
+
+            <TextBlock Text="{Binding NameError}"
+                       Style="{StaticResource Dim}"
+                       Foreground="{StaticResource Bad}"
+                       Margin="0,6,0,0"
+                       Visibility="{Binding NameError, Converter={StaticResource HasContent}}" />
 
             <!-- The client needs a name and a game before it can join anything.
                  It asks for both in its own window - which used to be hidden,

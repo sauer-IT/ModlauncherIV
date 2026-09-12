@@ -86,6 +86,7 @@ internal static class Program
         CheckOutdatedMod(session);
         CheckKnownInstallations();
         CheckTooltip(session);
+        CheckReinspection(session);
 
         // Only when asked for: this one talks to somebody else's server, and a
         // test suite that fails because a stranger's host is down is a test
@@ -400,10 +401,10 @@ internal static class Program
             "1.9.0",
             "sauer");
 
+        var nameless = connected with { PlayerName = string.Empty };
+
         Report("online: a client with a name and a game is ready", connected.Ready);
         Report("online: and has nothing to complain about", connected.Missing is null);
-
-        var nameless = connected with { PlayerName = string.Empty };
         Report("online: without a name it is not ready", !nameless.Ready);
         Report("online: and says which half is missing", nameless.Missing?.Contains("name") == true);
 
@@ -438,6 +439,27 @@ internal static class Program
             () => Task.FromResult(((IReadOnlyList<LiveServer>)[], (string?)"nothing answered")));
 
         refused.LoadAsync().GetAwaiter().GetResult();
+
+        // The name rules, and that nothing can be joined without one. Note what
+        // is not done here: the PlayerName property is never set, because
+        // setting it writes into the client's own settings on this machine -
+        // and a test has no business renaming the person running it.
+        Report("online: a plain name is fine", GtaConnected.IsName("sauer"));
+        Report("online: an empty one is not", !GtaConnected.IsName("   "));
+        Report("online: nor one with a quote in it", !GtaConnected.IsName("sa\"uer"));
+        Report("online: nor one nobody could read on a scoreboard", !GtaConnected.IsName(new string('n', 40)));
+
+        var blocked = new OnlineViewModel(
+            nameless, (_, _) => { }, () => { }, () => Task.FromResult((live, (string?)null)));
+
+        blocked.LoadAsync().GetAwaiter().GetResult();
+
+        Report("online: without a name nothing can be connected to", !blocked.CanConnect);
+        Report(
+            "online: and every Connect button says so by being off",
+            blocked.Servers.Count > 0 && blocked.Servers.All(s => !s.ConnectCommand.CanExecute(null)));
+
+        Report("online: with a name they work", model.CanConnect);
 
         // What is actually handed to the client. Its own protocol handler is
         // "Launcher.exe %1" and its own server list builds this URL, so this is
@@ -695,6 +717,37 @@ internal static class Program
     /// of the screen. Measured here rather than looked at, because looking at it
     /// is what this whole test exists to avoid.
     /// </summary>
+    /// <summary>
+    /// That the version is read from the game again rather than remembered
+    /// from startup.
+    ///
+    /// The case: take the downgrade back on the home page, then go into the
+    /// wizard to pick another version. Detection had run once, at startup, and
+    /// every page went on believing it - so the only way to get a current
+    /// answer was to close the program and open it again.
+    /// </summary>
+    private static void CheckReinspection(Session session)
+    {
+        // A session that believes something about the game which the game does
+        // not say. Exactly the state a removal leaves behind.
+        var stale = On(session, "1.0.7.0", pinned: false);
+        Report("stale: the session claims 1.0.7.0 to begin with", stale.Install?.Version.Raw == "1.0.7.0");
+
+        stale.Reinspect();
+
+        Report("stale: reading it again gives what the file says", stale.Install?.Version.Raw != "1.0.7.0");
+        Report("stale: and the chosen installation stays chosen", stale.Install?.Path == session.Install?.Path);
+
+        // And the page that matters is not asked to remember either.
+        var believing = On(session, "1.0.7.0", pinned: false);
+        var step = new ChoiceStep(believing);
+        step.EnterAsync().GetAwaiter().GetResult();
+
+        Report(
+            "stale: the version list is built from the game, not from memory",
+            step.Versions.All(v => !v.IsCurrent || v.Raw != "1.0.7.0"));
+    }
+
     private static void CheckTooltip(Session session)
     {
         // The real worst case: whichever description in the catalog is longest.
@@ -795,14 +848,32 @@ internal static class Program
     }
 
     /// <summary>The same session, with the game standing on another version.</summary>
-    private static Session On(Session session, string version) => new()
+    /// <param name="pinned">
+    /// Whether the version should survive being read again. The pages re-read
+    /// the game now, which is the point of them - so a test that needs the game
+    /// to be on 1.0.7.0 points at a folder that is not there. That is also a
+    /// real state: an external disk, unplugged. What is known then stays known,
+    /// because blanking the page would be worse than being out of date.
+    /// </param>
+    private static Session On(Session session, string version, bool pinned = true)
     {
-        Install = session.Install! with { Version = KnownVersions.Resolve(version) },
-        Found = session.Found,
-        Environment = session.Environment,
-        Catalog = session.Catalog,
-        CacheRoot = session.CacheRoot,
-    };
+        var install = session.Install! with { Version = KnownVersions.Resolve(version) };
+
+        if (pinned)
+        {
+            var gone = Path.Combine(Path.GetTempPath(), "mliv-not-here");
+            install = install with { Path = gone, ExecutablePath = Path.Combine(gone, "GTAIV.exe") };
+        }
+
+        return new Session
+        {
+            Install = install,
+            Found = session.Found,
+            Environment = session.Environment,
+            Catalog = session.Catalog,
+            CacheRoot = session.CacheRoot,
+        };
+    }
 
     private static void Report(string label, bool ok)
     {

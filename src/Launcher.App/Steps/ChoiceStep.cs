@@ -264,6 +264,13 @@ public sealed class ChoiceStep(Session session) : WizardStep(session)
 
     public override Task EnterAsync()
     {
+        // The version is read from the EXE again here rather than taken from
+        // whatever startup found. Somebody who has just removed a downgrade on
+        // the home page is standing in front of a different game than the one
+        // detected ten minutes ago, and this page is where that matters most:
+        // it decides which version can be picked and which mods fit.
+        Session.Reinspect();
+
         BuildVersions();
         BuildRecipes();
 

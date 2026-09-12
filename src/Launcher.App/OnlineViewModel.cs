@@ -46,6 +46,8 @@ public sealed class OnlineViewModel : Observable
     private string _newAddress = string.Empty;
     private string _newName = string.Empty;
     private string _serverError = string.Empty;
+    private string _playerName = string.Empty;
+    private string _nameError = string.Empty;
 
     /// <param name="listing">
     /// Where the live list comes from. Left out, it is the real one - ten
@@ -64,6 +66,7 @@ public sealed class OnlineViewModel : Observable
         _connect = connect;
         _openBrowser = openBrowser;
         _listing = listing ?? (() => ServerListing.FetchAsync(TimeSpan.FromSeconds(10)));
+        _playerName = connected.PlayerName;
 
         RefreshCommand = new AsyncRelayCommand(LoadAsync, () => !_busy);
         AddServerCommand = new RelayCommand(AddServer, () => !string.IsNullOrWhiteSpace(NewAddress));
@@ -137,13 +140,68 @@ public sealed class OnlineViewModel : Observable
     /// the path need not be the installation this launcher looks after.
     /// </summary>
     public string Who =>
-        $"as {(string.IsNullOrWhiteSpace(_connected.PlayerName) ? "nobody yet" : _connected.PlayerName)}"
+        $"as {(string.IsNullOrWhiteSpace(_playerName) ? "nobody yet" : _playerName)}"
         + $"  ·  starting {_connected.GamePath ?? "an unknown game"}";
 
     /// <summary>What the client still needs before it can join anything.</summary>
     public string Missing => _connected.Missing ?? string.Empty;
 
     public bool NotReady => !_connected.Ready;
+
+    /// <summary>
+    /// The name to play under. Required, not optional: a server has nothing to
+    /// call you without one, and the client asks for it in a window of its own -
+    /// which is where this used to end, with nothing having happened.
+    ///
+    /// Typed here, it goes into the client's own setting, the same one its
+    /// launcher writes.
+    /// </summary>
+    public string PlayerName
+    {
+        get => _playerName;
+        set
+        {
+            if (!Set(ref _playerName, value ?? string.Empty))
+            {
+                return;
+            }
+
+            if (GtaConnected.IsName(_playerName))
+            {
+                GtaConnected.SetPlayerName(_playerName);
+                NameError = string.Empty;
+            }
+            else
+            {
+                NameError = string.IsNullOrWhiteSpace(_playerName)
+                    ? "A name is needed before you can join anything."
+                    : $"That name will not do: at most {GtaConnected.MaxNameLength} characters, and no quotes.";
+            }
+
+            Raise(nameof(CanConnect));
+            Raise(nameof(Who));
+
+            // Every row carries its own Connect, so each has to be asked again.
+            foreach (var row in Servers)
+            {
+                row.ConnectCommand.RaiseCanExecuteChanged();
+            }
+        }
+    }
+
+    /// <summary>Why the name was not taken. Empty when there is nothing to say.</summary>
+    public string NameError
+    {
+        get => _nameError;
+        private set => Set(ref _nameError, value);
+    }
+
+    /// <summary>
+    /// False while there is no usable name. Every Connect is off then - better
+    /// a button that says why it cannot than one that starts something which
+    /// quietly gets nowhere.
+    /// </summary>
+    public bool CanConnect => GtaConnected.IsName(_playerName);
 
     /// <summary>Fills the list. Called when the window opens.</summary>
     public async Task LoadAsync()
@@ -252,7 +310,7 @@ public sealed class OnlineViewModel : Observable
         origin,
         saved,
         game,
-        new RelayCommand(() => _connect(address, game)),
+        new RelayCommand(() => _connect(address, game), () => CanConnect),
         new RelayCommand(() => Keep(address, name), () => !saved),
         new RelayCommand(() => Forget(address), () => saved));
 

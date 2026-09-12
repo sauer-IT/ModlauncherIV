@@ -1,3 +1,4 @@
+using System.IO;
 using ModlauncherIV.Core.Backup;
 using ModlauncherIV.Core.Catalog;
 using ModlauncherIV.Core.Detection;
@@ -35,6 +36,44 @@ public sealed class Session
     public List<string> Applied { get; } = [];
 
     public string CacheRoot { get; set; } = AppPaths.Cache;
+
+    /// <summary>
+    /// Reads the installation again, from the files.
+    ///
+    /// Detection runs once at startup, and its answer used to stand for the rest
+    /// of the session - which is wrong the moment anything changes the game.
+    /// Take back the downgrade on the home page and the version on disk is the
+    /// Complete Edition again, while every page still said 1.0.7.0 and offered
+    /// what fits it. The only way out was to close the program and open it
+    /// again, which is a thing no user should ever be told to do.
+    ///
+    /// Only the version and what is in the directory are re-read. Which
+    /// installation was chosen is the user's decision and stays theirs.
+    /// </summary>
+    public void Reinspect()
+    {
+        if (Install is not { } install)
+        {
+            return;
+        }
+
+        // A game that is not there cannot be read, and what was known about it
+        // stays known: an external disk unplugged should leave the page out of
+        // date, not blank.
+        if (!File.Exists(install.ExecutablePath))
+        {
+            return;
+        }
+
+        var fresh = new InstallInspector().Inspect(
+            new InstallCandidate(install.Path, install.Platform, install.FoundVia));
+
+        Install = fresh;
+
+        Found = Found
+            .Select(f => string.Equals(f.Path, fresh.Path, StringComparison.OrdinalIgnoreCase) ? fresh : f)
+            .ToArray();
+    }
 
     public InstallLedger Ledger =>
         Install is null ? InstallLedger.Empty(string.Empty) : new LedgerStore(Install.Path).Load();

@@ -151,6 +151,66 @@ public static class GtaConnected
     }
 
     /// <summary>
+    /// The longest name the client's own field takes. Beyond it a server would
+    /// cut it off anyway, and nobody reads that far across a scoreboard.
+    /// </summary>
+    public const int MaxNameLength = 24;
+
+    /// <summary>
+    /// Whether this is a name one can play under.
+    ///
+    /// The rule is the one a scoreboard can live with: something in it, not too
+    /// long, and no control characters or quotes - it is written into another
+    /// program's settings and read back by a server.
+    /// </summary>
+    public static bool IsName(string? name)
+    {
+        if (string.IsNullOrWhiteSpace(name))
+        {
+            return false;
+        }
+
+        var trimmed = name.Trim();
+
+        return trimmed.Length <= MaxNameLength
+               && trimmed.All(c => !char.IsControl(c) && c is not ('"' or '\\'));
+    }
+
+    /// <summary>
+    /// Sets the name the client plays under, in the client's own setting.
+    ///
+    /// Writing another program's configuration is not something to do lightly.
+    /// It is done here because the alternative is worse: without a name nothing
+    /// can be joined, the client asks for it in a window of its own, and the
+    /// person who wants to play is standing in front of this one. The value is
+    /// the one its launcher writes itself, in the user's own hive, and it can be
+    /// changed back there at any time.
+    /// </summary>
+    public static bool SetPlayerName(string name)
+    {
+        if (!IsName(name))
+        {
+            return false;
+        }
+
+        try
+        {
+            using var key = Registry.CurrentUser.OpenSubKey(Root, writable: true);
+            if (key is null)
+            {
+                return false;
+            }
+
+            key.SetValue("Name", name.Trim(), RegistryValueKind.String);
+            return true;
+        }
+        catch (Exception e) when (e is IOException or UnauthorizedAccessException or System.Security.SecurityException)
+        {
+            return false;
+        }
+    }
+
+    /// <summary>
     /// How the client says "connect to this server", in its own words.
     ///
     /// It registers a gtac: protocol whose handler is its own launcher with the
