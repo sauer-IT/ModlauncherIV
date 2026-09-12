@@ -23,6 +23,7 @@ internal sealed record CliOptions(
     string? KeyPath = null,
     string? PublicKey = null,
     string? AssumeVersion = null,
+    string? TargetVersion = null,
     string? GamePath = null,
     string? CatalogPath = null,
     string? CachePath = null,
@@ -34,7 +35,7 @@ internal static class CommandLine
 {
     private static readonly string[] Commands =
         ["detect", "catalog", "plan", "apply", "remove", "status", "fetch", "route", "guard", "verify",
-         "catalog-key", "catalog-sign"];
+         "journey", "catalog-key", "catalog-sign"];
 
     public const string HelpText = """
         mliv -- Modlauncher IV
@@ -51,6 +52,7 @@ internal static class CommandLine
           remove <rezept-id>     Rezept zurueckbauen. --all fuer alles, neueste zuerst.
           status                 Was der Launcher an dieser Installation verändert hat.
           route  [version]       Welcher Weg zu einer anderen Spielversion führt.
+          journey <id,id,...>    Voller Weg zum Wunschzustand, mit Abhängigkeiten.
           guard                  Ob die Plattform das Spiel zurückpatchen kann.
           verify                 Ob noch alles so liegt, wie der Launcher es einbaute.
 
@@ -66,6 +68,7 @@ internal static class CommandLine
           --public-key <Base64>  Abweichender Signierschlüssel, dem vertraut wird.
           --allow-unsigned       Unsignierten Katalog zulassen. Nur zum Entwickeln.
           --assume-version <v>   Spielversion vorgeben, wenn sie nicht lesbar ist.
+          --target <version>     Bei journey: gewünschte Spielversion.
           --json                 Maschinenlesbare Ausgabe (nur detect).
           --out <Datei>          Ausgabe in eine Datei schreiben.
           --yes                  Rückfrage bei apply überspringen.
@@ -146,6 +149,15 @@ internal static class CommandLine
                     }
 
                     options = options with { AssumeVersion = assumed };
+                    break;
+
+                case "--target":
+                    if (!TryValue(args, ref i, out var target))
+                    {
+                        return options with { Error = "--target erwartet eine Versionsnummer." };
+                    }
+
+                    options = options with { TargetVersion = target };
                     break;
 
                 case "--public-key":

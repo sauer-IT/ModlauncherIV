@@ -35,6 +35,7 @@ internal static class Program
                 "plan" => RecipeCommands.Plan(options),
                 "apply" => RecipeCommands.Apply(options),
                 "status" => RecipeCommands.Status(options),
+                "journey" => JourneyCommand.Run(options),
                 "fetch" => await Fetch(options).ConfigureAwait(false),
                 "route" => WithInstall(options, i => StateCommands.Route(
                     options, i, RecipeCommands.LoadCatalog(options))),

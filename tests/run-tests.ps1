@@ -224,6 +224,67 @@ Copy-Item (Join-Path $cache "xliveless.dll") (Join-Path $fetchCache "xliveless.d
 }
 "@ | Set-Content -Path (Join-Path $catalog "test-down-108-107.json") -Encoding utf8
 
+# Rezepte fuer die Wegplanung. test-j-top haengt an test-j-base, und beide
+# gelten nur fuer 1.0.7.0 - also erst nach dem Downgrade.
+@"
+{
+  "id": "test-j-base",
+  "name": "Testrezept, Unterbau",
+  "version": "1.0.0",
+  "game": "GtaIV",
+  "appliesToVersions": [ "1.0.7.0" ],
+  "steps": [ { "type": "ensureDirectory", "target": "j-base" } ]
+}
+"@ | Set-Content -Path (Join-Path $catalog "test-j-base.json") -Encoding utf8
+
+@"
+{
+  "id": "test-j-top",
+  "name": "Testrezept, baut auf dem Unterbau auf",
+  "version": "1.0.0",
+  "game": "GtaIV",
+  "appliesToVersions": [ "1.0.7.0" ],
+  "requires": [ "test-j-base" ],
+  "steps": [ { "type": "ensureDirectory", "target": "j-top" } ]
+}
+"@ | Set-Content -Path (Join-Path $catalog "test-j-top.json") -Encoding utf8
+
+@"
+{
+  "id": "test-j-streit",
+  "name": "Testrezept, vertraegt sich nicht mit dem Unterbau",
+  "version": "1.0.0",
+  "game": "GtaIV",
+  "appliesToVersions": [ "1.0.7.0" ],
+  "conflictsWith": [ "test-j-base" ],
+  "steps": [ { "type": "ensureDirectory", "target": "j-streit" } ]
+}
+"@ | Set-Content -Path (Join-Path $catalog "test-j-streit.json") -Encoding utf8
+
+# Zwei Rezepte, die einander verlangen. Ohne Zyklenpruefung laeuft die
+# Aufloesung endlos oder liefert stillschweigend eine falsche Reihenfolge.
+@"
+{
+  "id": "test-j-ring-a",
+  "name": "Testrezept, Ring A",
+  "version": "1.0.0",
+  "game": "GtaIV",
+  "requires": [ "test-j-ring-b" ],
+  "steps": [ { "type": "ensureDirectory", "target": "j-ring-a" } ]
+}
+"@ | Set-Content -Path (Join-Path $catalog "test-j-ring-a.json") -Encoding utf8
+
+@"
+{
+  "id": "test-j-ring-b",
+  "name": "Testrezept, Ring B",
+  "version": "1.0.0",
+  "game": "GtaIV",
+  "requires": [ "test-j-ring-a" ],
+  "steps": [ { "type": "ensureDirectory", "target": "j-ring-b" } ]
+}
+"@ | Set-Content -Path (Join-Path $catalog "test-j-ring-b.json") -Encoding utf8
+
 # Ein gefaelschtes Steam-Layout: Spiel in steamapps/common, Manifest daneben.
 $steamRoot = Join-Path $work "steam"
 $steamGame = Join-Path $steamRoot "steamapps\common\Grand Theft Auto IV"
@@ -246,7 +307,7 @@ Write-Host "`n== Katalog ==" -ForegroundColor Cyan
 $r = Invoke-Mliv @("catalog", "--catalog", $catalog, "--allow-unsigned")
 Assert ($r.ExitCode -eq 0) "catalog: Exitcode 0"
 Assert ($r.Output -match "test-ok") "catalog: listet test-ok"
-Assert ($r.Output -match "8 Rezept") "catalog: findet alle acht"
+Assert ($r.Output -match "13 Rezept") "catalog: findet alle dreizehn"
 Assert ($r.Output -match "NICHT auf eine Signatur") "catalog: warnt vor fehlender Signaturpruefung"
 
 Write-Host "`n== Pruefsummenschutz ==" -ForegroundColor Cyan
@@ -343,6 +404,66 @@ Assert ($r.Output -match "bereits auf") "normalisierung: kein Weg noetig, Versio
 $r = Invoke-Mliv (@("route", "9.9.9.9") + $routeArgs)
 Assert ($r.ExitCode -eq 1) "route: unerreichbare Version meldet Fehlschlag"
 Assert ($r.Output -match "Kein Weg") "route: sagt, dass es keinen Weg gibt"
+
+# ----------------------------------------------------------------- journey
+
+Write-Host "`n== Wegplanung ==" -ForegroundColor Cyan
+$jArgs = @("--path", $game, "--catalog", $catalog, "--allow-unsigned")
+
+# Der Kern des Assistenten: test-j-top gilt nur fuer 1.0.7.0. Wer auf 1.2.0.59
+# steht, bekommt es trotzdem - denn nach dem Downgrade passt es. Wuerde gegen
+# die aktuelle Version geprueft, waere der ganze Weg unmoeglich.
+$r = Invoke-Mliv (@("journey", "test-j-top", "--assume-version", "1.2.0.59", "--target", "1.0.7.0") + $jArgs)
+Assert ($r.ExitCode -eq 0) "journey: Weg ueber das Downgrade ist moeglich"
+Assert ($r.Output -match "test-down-ce-108")  "journey: erste Kante ist dabei"
+Assert ($r.Output -match "test-down-108-107") "journey: zweite Kante ist dabei"
+Assert ($r.Output -match "test-j-base")       "journey: die Abhaengigkeit wurde ergaenzt"
+Assert ($r.Output -match "test-j-top")        "journey: das gewuenschte Rezept steht drin"
+Assert ($r.Output -match "Offen: 4 von 4")    "journey: vier offene Schritte"
+
+# Reihenfolge: der Versionswechsel muss vor allem anderen stehen, sonst
+# ueberschreibt das Downgrade die gerade erst eingebauten Dateien.
+$posDown = $r.Output.IndexOf("test-down-ce-108")
+$posBase = $r.Output.IndexOf("test-j-base")
+$posTop  = $r.Output.IndexOf("test-j-top")
+Assert ($posDown -lt $posBase) "journey: Downgrade steht vor den Rezepten"
+Assert ($posBase -lt $posTop)  "journey: Abhaengigkeit steht vor dem, was sie braucht"
+
+# Ohne Downgrade passt test-j-top nicht - das muss auffallen, nicht durchrutschen.
+$r = Invoke-Mliv (@("journey", "test-j-top", "--assume-version", "1.2.0.59") + $jArgs)
+Assert ($r.ExitCode -eq 3) "journey: ohne Downgrade blockiert"
+Assert ($r.Output -match "passt nicht zu Version") "journey: nennt die unpassende Version"
+
+$r = Invoke-Mliv (@("journey", "test-j-ring-a") + $jArgs)
+Assert ($r.ExitCode -eq 3) "journey: Ringabhaengigkeit blockiert"
+Assert ($r.Output -match "verlangen einander") "journey: nennt den Ring"
+Assert ($r.Output -match "test-j-ring-a -> test-j-ring-b") "journey: zeigt den Ring als Kette"
+
+$r = Invoke-Mliv (@("journey", "test-j-base,test-j-streit", "--assume-version", "1.0.7.0") + $jArgs)
+Assert ($r.ExitCode -eq 3) "journey: Konflikt blockiert"
+Assert ($r.Output -match "vertraegt sich nicht|verträgt sich nicht") "journey: nennt den Konflikt"
+
+$r = Invoke-Mliv (@("journey", "gibt-es-nicht") + $jArgs)
+Assert ($r.ExitCode -eq 3) "journey: unbekanntes Rezept blockiert"
+Assert ($r.Output -match "steht nicht im Katalog") "journey: sagt, dass es das Rezept nicht gibt"
+
+# Ohne lesbare Version gibt es keinen Ausgangspunkt - und damit keinen Weg.
+$r = Invoke-Mliv (@("journey", "test-j-base", "--target", "1.0.7.0") + $jArgs)
+Assert ($r.ExitCode -eq 3) "journey: unbekannte Ausgangsversion blockiert"
+Assert ($r.Output -match "nicht bestimmen") "journey: sagt, dass die Version fehlt"
+
+# Die fehlende Version ist die Ursache. Sie danach noch einmal pro Rezept als
+# "passt nicht zu (keine Versionsinformation)" zu melden, vergraebt sie.
+Assert ($r.Output -notmatch "passt nicht zu Version") "journey: keine Folgemeldung zur fehlenden Version"
+
+# Auch ohne Zielversion darf eine unlesbare Version nicht stillschweigend
+# durchgehen - sonst wuerde ungeprueft installiert.
+$r = Invoke-Mliv (@("journey", "test-j-base") + $jArgs)
+Assert ($r.ExitCode -eq 3) "journey: unbekannte Version blockiert auch ohne Ziel"
+
+$r = Invoke-Mliv (@("journey", "--assume-version", "1.0.7.0") + $jArgs)
+Assert ($r.ExitCode -eq 0) "journey: ohne Wuensche ist nichts zu tun"
+Assert ($r.Output -match "nichts zu tun") "journey: sagt das auch"
 
 # ------------------------------------------------------------------- guard
 
