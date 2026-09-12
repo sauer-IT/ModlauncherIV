@@ -30,9 +30,10 @@ namespace
 {
     /// The name in the menu title and in the log.
     ///
-    /// The files carry it too: sauer.asi, sauer.ini, sauer.log. One name in one
-    /// place, so the title cannot drift away from the file next to the game.
-    constexpr const char* kTrainerName = "sauer";
+    /// One name in one place, so the title cannot drift away from what the
+    /// launcher shows. The files stay short - sauer.asi, sauer.ini, sauer.log -
+    /// the way the launcher itself is ModlauncherIV.exe and "Modlauncher IV".
+    constexpr const char* kTrainerName = "sauer IV Trainer";
 
     // -------------------------------------------------------------- State
 
@@ -388,6 +389,55 @@ namespace
 
     bool g_lockInput = false;
     bool g_controlTaken = false;
+
+    /// Removes what earlier versions of this trainer left lying around.
+    ///
+    /// The launcher cleans up the files its recipe owns - it knows them from the
+    /// ledger. The log and the settings are not among them: the trainer writes
+    /// those itself at run time, so nothing but the trainer knows they exist.
+    ///
+    /// Only our own old names, and only files. Anything else here would be a
+    /// plugin deleting things it does not own.
+    void RemoveLegacyFiles(const std::wstring& dllPath)
+    {
+        const wchar_t* legacy[] = {
+            L"ModlauncherIV-Trainer.log",
+            L"ModlauncherIV-Trainer.ini",
+            L"Trainer.log",   // the old name of the fallback under LOCALAPPDATA
+        };
+
+        std::vector<std::wstring> folders;
+
+        const size_t slash = dllPath.find_last_of(L"\\/");
+        if (slash != std::wstring::npos)
+        {
+            folders.push_back(dllPath.substr(0, slash + 1));
+        }
+
+        wchar_t* appData = nullptr;
+        size_t length = 0;
+        if (_wdupenv_s(&appData, &length, L"LOCALAPPDATA") == 0 && appData != nullptr)
+        {
+            folders.push_back(std::wstring(appData) + L"\\ModlauncherIV\\");
+            free(appData);
+        }
+
+        for (const std::wstring& folder : folders)
+        {
+            for (const wchar_t* name : legacy)
+            {
+                const std::wstring path = folder + name;
+
+                // Deleting is allowed to fail: under Program Files without
+                // elevation it will, and a leftover log is not worth a word on
+                // screen. It is written down, and that is enough.
+                if (DeleteFileW(path.c_str()))
+                {
+                    mliv::LogLine("Left over from an earlier version, removed: %ls", path.c_str());
+                }
+            }
+        }
+    }
 
     /// Reads the pad and turns it into menu input.
     ///
@@ -2093,6 +2143,8 @@ void plugin::gameStartupEvent()
     mliv::LogOpen(self);
 
     mliv::LogLine("%s, stage T6", kTrainerName);
+
+    RemoveLegacyFiles(self);
 
     const mliv::GameInfo game = mliv::DetectGame();
     mliv::LogLine("Version: %ls (%s)",

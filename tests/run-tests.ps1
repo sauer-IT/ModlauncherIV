@@ -629,7 +629,7 @@ $goodSize = Get-Size (Join-Path $srvDir "good.bin")
   "version": "1.0.0",
   "game": "GtaIV",
   "requires": [ "test-ok" ],
-  "steps": [ { "type": "ensureDirectory", "target": "haengt-dran" } ]
+  "steps": [ { "type": "ensureDirectory", "target": "depends-on-it" } ]
 }
 "@ | Set-Content -Path (Join-Path $work "test-needs-ok.json") -Encoding utf8
 
@@ -782,7 +782,75 @@ Assert (-not ($r.Output -match "test-ok")) "removal: the ledger is empty"
 $r = Invoke-Mliv (@("remove", "test-ok", "--yes") + $common)
 Assert ($r.ExitCode -eq 5) "removal: what is not installed cannot be removed"
 
-# ------------------------------------------------------------------ Ergebnis
+# ----------------------------------------------------- Leftovers on an update
+
+Write-Host "`n== Leftovers on an update ==" -ForegroundColor Cyan
+
+# A recipe that renames the file it installs between two releases. That is the
+# case that used to leave the old one behind, and for an ASI it means the game
+# loads both - the older one answering on the same key as the newer.
+
+@"
+{
+  "id": "test-rename",
+  "name": "Test recipe, renames its file",
+  "version": "1.0.0",
+  "game": "GtaIV",
+  "sources": [
+    { "id": "xlive", "fileName": "xliveless.dll", "sha256": "$xliveHash", "sizeBytes": $xliveSize, "urls": [] }
+  ],
+  "steps": [ { "type": "copyFile", "source": "xliveless.dll", "target": "plugins\\old-name.asi" } ]
+}
+"@ | Set-Content -Path (Join-Path $catalog "test-rename.json") -Encoding utf8
+
+$r = Invoke-Mliv (@("apply", "test-rename", "--yes") + $common)
+Assert ($r.ExitCode -eq 0) "leftovers: the first version installed"
+Assert (Test-Path (Join-Path $game "plugins\old-name.asi")) "leftovers: the old file is there"
+
+# Release two, same recipe, different file name.
+@"
+{
+  "id": "test-rename",
+  "name": "Test recipe, renames its file",
+  "version": "2.0.0",
+  "game": "GtaIV",
+  "sources": [
+    { "id": "xlive", "fileName": "xliveless.dll", "sha256": "$xliveHash", "sizeBytes": $xliveSize, "urls": [] }
+  ],
+  "steps": [ { "type": "copyFile", "source": "xliveless.dll", "target": "plugins\\new-name.asi" } ]
+}
+"@ | Set-Content -Path (Join-Path $catalog "test-rename.json") -Encoding utf8
+
+# The dry run has to say so before anything happens, or the deletion would be a
+# surprise: no recipe asked for it, it follows from what was installed before.
+$r = Invoke-Mliv (@("plan", "test-rename") + $common)
+Assert ($r.Output -match "LEFT OVER FROM THE PREVIOUS VERSION") "leftovers: the dry run announces the cleanup"
+Assert ($r.Output -match "old-name\.asi") "leftovers: and names the file"
+Assert (Test-Path (Join-Path $game "plugins\old-name.asi")) "leftovers: the dry run deleted nothing"
+
+$r = Invoke-Mliv (@("apply", "test-rename", "--yes") + $common)
+Assert ($r.ExitCode -eq 0) "leftovers: the update ran"
+Assert (Test-Path (Join-Path $game "plugins\new-name.asi")) "leftovers: the new file is there"
+Assert (-not (Test-Path (Join-Path $game "plugins\old-name.asi"))) "leftovers: the old file is gone"
+Assert ($r.Output -match "Left over from the previous version") "leftovers: and it is reported"
+
+# Taking it back has to restore the state from before this update, old file
+# included - the snapshot covers the deletion like any other change.
+$r = Invoke-Mliv (@("remove", "test-rename", "--yes") + $common)
+Assert ($r.ExitCode -eq 0) "leftovers: the update was taken back"
+Assert (Test-Path (Join-Path $game "plugins\old-name.asi")) "leftovers: the old file came back"
+Assert (-not (Test-Path (Join-Path $game "plugins\new-name.asi"))) "leftovers: the new one is gone"
+
+# A file the recipe keeps under the same name is not a leftover.
+$r = Invoke-Mliv (@("apply", "test-rename", "--yes") + $common)
+$r = Invoke-Mliv (@("apply", "test-rename", "--yes") + $common)
+Assert ($r.ExitCode -eq 0) "leftovers: applying the same release twice works"
+Assert (Test-Path (Join-Path $game "plugins\new-name.asi")) "leftovers: and does not delete its own file"
+
+$r = Invoke-Mliv (@("remove", "test-rename", "--yes") + $common)
+Remove-Item (Join-Path $catalog "test-rename.json") -Force
+
+# ------------------------------------------------------------------- Result
 
 Write-Host "`n$('=' * 50)"
 Write-Host " $script:passed passed, $script:failed failed" -ForegroundColor $(if ($script:failed) { "Red" } else { "Green" })

@@ -310,6 +310,20 @@ internal static class RecipeCommands
             }
         }
 
+        // Named separately, because a deletion is the one thing in the plan that
+        // nobody asked for by writing a recipe - it follows from what was
+        // installed before, and should not turn up as a surprise.
+        if (plan.Orphans.Count > 0)
+        {
+            Console.WriteLine();
+            Console.WriteLine("  LEFT OVER FROM THE PREVIOUS VERSION");
+            Console.WriteLine("  -----------------------------------");
+            foreach (var orphan in plan.Orphans)
+            {
+                Console.WriteLine($"   - {Path.GetRelativePath(plan.GameRoot, orphan)}");
+            }
+        }
+
         Console.WriteLine();
         Console.WriteLine($"  Files affected in total: {plan.AffectedPaths.Count}");
         Console.WriteLine();

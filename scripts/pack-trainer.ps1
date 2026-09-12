@@ -89,14 +89,24 @@ $version = "$feature+$($hash.Substring(0, 8))"
 Write-Host "  Release  $version"
 
 # ------------------------------------------------------------------ 3. Recipe
+#
+# The deleteFile step below is not the general answer to leftovers. The launcher
+# removes what the previous install of a recipe owned and the new one no longer
+# writes - it takes that from the ledger, so no list of old names has to be kept
+# anywhere, and it works for every recipe.
+#
+# The step covers the one case the ledger cannot: an ASI that got into plugins\
+# without the launcher, copied there by hand from an older build. Nothing wrote
+# it down, so nothing knows it is there - and two ASIs in that folder means the
+# game loads both, with the older one answering on the same key.
 
 $recipe = @"
 {
   "id": "mliv-trainer",
-  "name": "Modlauncher IV Trainer",
+  "name": "sauer IV Trainer",
   "version": "$version",
   "game": "GtaIV",
-  "description": "sauer, the trainer menu of this project. In game F7 opens it; it is operated with the numpad or the arrow keys. Player, weapons, wanted level, money, vehicles, world, movement and pedestrians, each in its own submenu. Key bindings and menu position live in sauer.ini, which is created next to the game on the first start.",
+  "description": "The trainer menu of this project. In game F7 opens it, on a controller L3+R3; it is operated with the numpad or the arrow keys. Player, weapons, wanted level, money, vehicles, world, movement and pedestrians, each in its own submenu. Key bindings and menu position live in sauer.ini, which is created next to the game on the first start.",
 
   "appliesToVersions": [ "1.0.7.0" ],
 

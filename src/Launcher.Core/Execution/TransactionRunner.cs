@@ -28,10 +28,19 @@ public sealed record ExecutionPlan(
     string GameRoot,
     IReadOnlyList<PlannedStep> Steps,
     IReadOnlyList<PreflightIssue> Issues,
-    IReadOnlyList<string> MissingSources)
+    IReadOnlyList<string> MissingSources,
+    IReadOnlyList<string> Orphans)
 {
+    /// <summary>
+    /// Everything the snapshot has to cover: what the steps touch, plus the
+    /// files left over from the previous install.
+    ///
+    /// The orphans belong in here and not only in the deletion, or a rollback
+    /// would restore the new state and leave the old files gone for good.
+    /// </summary>
     public IReadOnlyList<string> AffectedPaths => Steps
         .SelectMany(s => s.AffectedPaths)
+        .Concat(Orphans)
         .Distinct(StringComparer.OrdinalIgnoreCase)
         .OrderBy(p => p, StringComparer.OrdinalIgnoreCase)
         .ToArray();
@@ -90,7 +99,75 @@ public sealed class TransactionRunner(SnapshotStore snapshots, LedgerStore ledge
         CheckDiskSpace(recipe, context, steps, issues);
         CheckWritable(context, issues);
 
-        return new ExecutionPlan(recipe, context.GameRoot, steps, issues, missingSources);
+        var orphans = FindOrphans(recipe, context, steps);
+
+        return new ExecutionPlan(recipe, context.GameRoot, steps, issues, missingSources, orphans);
+    }
+
+    /// <summary>
+    /// Files the previous install of this recipe owned and the new one no longer
+    /// writes.
+    ///
+    /// Updating a recipe overwrites what keeps its name. What gets renamed, or
+    /// dropped, would otherwise stay behind forever - and for an ASI that is not
+    /// cosmetic: two plugins in the same folder means the game loads both, and
+    /// the older one answers on the same key as the newer. That is exactly what
+    /// happened when the trainer was renamed to sauer.
+    ///
+    /// The ledger already knows which files the previous version created, so
+    /// nothing has to be guessed and no list of old names has to be maintained.
+    /// This works for every recipe, not just for the one that prompted it.
+    /// </summary>
+    private IReadOnlyList<string> FindOrphans(
+        Recipe recipe, RecipeContext context, List<PlannedStep> steps)
+    {
+        InstallLedger ledger;
+        try
+        {
+            ledger = ledgerStore.Load();
+        }
+        catch (Exception e) when (e is IOException or UnauthorizedAccessException)
+        {
+            // An unreadable ledger is already reported by CheckLedger. Cleaning
+            // up is the lesser duty of the two - it must not add a second
+            // message about the same problem.
+            return [];
+        }
+
+        var previous = ledger.Find(recipe.Id);
+        if (previous is null)
+        {
+            return [];
+        }
+
+        var keeps = steps
+            .SelectMany(s => s.AffectedPaths)
+            .ToHashSet(StringComparer.OrdinalIgnoreCase);
+
+        var orphans = new List<string>();
+
+        foreach (var owned in previous.Files)
+        {
+            string path;
+            try
+            {
+                // Through the containment check like everything else: a ledger is
+                // a file too, and a path out of the game directory must not
+                // become a deletion just because it once got written down.
+                path = context.ResolveGamePath(owned.RelativePath);
+            }
+            catch (RecipeSecurityException)
+            {
+                continue;
+            }
+
+            if (!keeps.Contains(path) && File.Exists(path))
+            {
+                orphans.Add(path);
+            }
+        }
+
+        return orphans;
     }
 
     private static void CheckVersion(Recipe recipe, string? installedVersion, List<PreflightIssue> issues)
@@ -345,6 +422,31 @@ public sealed class TransactionRunner(SnapshotStore snapshots, LedgerStore ledge
             {
                 errors.Add($"Step {applied + 1} ({planned.Description}) failed: {e.Message}");
                 break;
+            }
+        }
+
+        // Leftovers from the previous version of this recipe, once the new one
+        // is in place. After the steps rather than before: if a step fails we
+        // roll back anyway, and there is never a moment where the old file is
+        // gone and the new one is not there yet.
+        if (errors.Count == 0)
+        {
+            foreach (var orphan in plan.Orphans)
+            {
+                try
+                {
+                    if (File.Exists(orphan))
+                    {
+                        File.Delete(orphan);
+                        log.Info($"Left over from the previous version, removed: " +
+                                 $"{Path.GetRelativePath(context.GameRoot, orphan)}");
+                    }
+                }
+                catch (Exception e) when (e is IOException or UnauthorizedAccessException)
+                {
+                    errors.Add($"Could not remove the leftover {orphan}: {e.Message}");
+                    break;
+                }
             }
         }
 

@@ -117,7 +117,7 @@ Exit codes: `0` success - `1` nothing found - `2` wrong invocation -
 .\tests\run-tests.ps1
 ```
 
-137 tests against fake game directories. No real installation is touched. If GTA
+151 tests against fake game directories. No real installation is touched. If GTA
 IV happens to be running, the script aborts up front - otherwise every pre-flight
 rightly blocks and four tests fail without anything being wrong with the code.
 Among the things covered:
@@ -140,6 +140,8 @@ Among the things covered:
   back, recipes that are depended on are not removed
 - catalog signature: unsigned is rejected, a recipe file changed afterwards is
   noticed, a forged signature is detected
+- leftovers: a recipe that renames its file on an update gets the old one
+  removed, says so in the dry run first, and a rollback brings it back
 
 **The script is deliberately pure ASCII.** PowerShell 5.1 reads a `.ps1` without
 a BOM as CP1252; a UTF-8 em dash becomes, among other things, `”`, and that
@@ -249,7 +251,7 @@ anything reached the game directory.
 **After the downgrade, do not start through the Rockstar Games Launcher**, start
 `GTAIV.exe` directly - otherwise the launcher notices the changed installation.
 
-## Trainer: sauer
+## Trainer: sauer IV Trainer
 
 ```
 .\scripts\pack-trainer.ps1             build and make installable in the catalog
@@ -428,7 +430,7 @@ log file is, when there is a problem, as mute as one that never loaded at all.
 The ASI loads, recognises 1.0.7.0 and reports for duty:
 
 ```
-[14:25:53.944] sauer, stage T6
+[14:25:53.944] sauer IV Trainer, stage T6
 [14:25:53.945] Version: 1.0.7.0 (1.0.7.0)
 [14:25:53.946] Menu ready. F7 opens it, 13 key bindings active.
 ```
@@ -557,5 +559,9 @@ separate document.
   of pre-flight, snapshot, apply, verify, commit, with automatic rollback.
 - Ledger and snapshots live under `%LOCALAPPDATA%\ModlauncherIV\`, not in the
   game directory.
+- Updating a recipe removes what its previous version owned and the new one no
+  longer writes. The ledger already knows those files, so no list of old names
+  has to be maintained - and an ASI that gets renamed cannot stay behind and
+  answer on the same key as its successor.
 - No game files and no third-party mods are shipped along. Everything is
   downloaded from the original source and checked by SHA-256.
