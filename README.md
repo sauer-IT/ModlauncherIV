@@ -450,13 +450,13 @@ categories**, each of which opens its own submenu:
 | Category | Content |
 |---|---|
 | Player | godmode, health, armour, invisible, jump to camera, skins, traits |
-| Weapons | all weapons, take them away, infinite ammo, weapon skill |
+| Weapons | pick one and get it, all weapons, take them away, infinite ammo, skill |
 | Wanted | level, never wanted, upper limit, clear cops, no new patrols |
 | Money | amount and give |
 | Vehicles | spawn ten models, repair, indestructible, tuning, paint |
 | World | time of day, weather, traffic density, jump to five places |
 | Movement | fly, superjump, run speed, map marker, three saved places |
-| Pedestrians | density, everyone ignores you, riot, panic, clear the area |
+| Pedestrians | density, everyone ignores you, riot, panic, clear the area, armed companion |
 | Settings | lock game input while the menu is open |
 
 It used to be a flat list that mixed about twenty single entries with a handful

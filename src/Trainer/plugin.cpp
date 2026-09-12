@@ -868,6 +868,112 @@ namespace
             }
         }
 
+        // ------------------------------------------------------- Companion
+
+        /// The last companion spawned, so it can be given an order afterwards.
+        ///
+        /// One, not a list. Keeping several would mean tracking which of them
+        /// are still alive - a ped handle stays a number after the ped is gone,
+        /// and asking the game about a dead one is how a trainer takes the game
+        /// with it.
+        Scripting::Ped g_companion = 0;
+
+        /// Puts an armed ped next to the player.
+        ///
+        /// Deliberately called a companion and not a bodyguard: it is armed, it
+        /// is not hostile, and it can be sent at somebody. What it does the rest
+        /// of the time is the game's own pedestrian AI, and promising more than
+        /// that in a label would be a promise the game does not keep.
+        void SpawnCompanion(const char* modelName, const unsigned weapon)
+        {
+            const Scripting::Ped player = LocalPed();
+            if (player == 0)
+            {
+                return;
+            }
+
+            const unsigned model = Scripting::GET_HASH_KEY(modelName);
+
+            CStreaming::ScriptRequestModel(static_cast<int32_t>(model));
+            CStreaming::LoadAllRequestedModels(false);
+
+            if (!Scripting::HAS_MODEL_LOADED(model))
+            {
+                mliv::LogLine("Model not loaded: %s", modelName);
+                return;
+            }
+
+            float x = 0.0f, y = 0.0f, z = 0.0f;
+            Scripting::GET_CHAR_COORDINATES(player, &x, &y, &z);
+
+            Scripting::Ped spawned = 0;
+            Scripting::CREATE_CHAR(
+                PED_TYPE_CIV_MALE, model, x + 2.0f, y + 2.0f, z, &spawned, 1);
+
+            Scripting::MARK_MODEL_AS_NO_LONGER_NEEDED(model);
+
+            if (spawned == 0)
+            {
+                mliv::LogLine("Companion could not be created.");
+                return;
+            }
+
+            // A mission char is not cleaned up by the streamer when the player
+            // walks away. Without it the companion is gone round the next
+            // corner.
+            Scripting::SET_CHAR_AS_MISSION_CHAR(spawned);
+            Scripting::SET_CHAR_AS_ENEMY(spawned, 0);
+            Scripting::SET_CHAR_NEVER_TARGETTED(spawned, 1);
+            Scripting::SET_CHAR_ACCURACY(spawned, 70);
+            Scripting::GIVE_WEAPON_TO_CHAR(spawned, weapon, 999, 1);
+
+            g_companion = spawned;
+            mliv::LogLine("Companion spawned: %s", modelName);
+        }
+
+        /// Sends the companion at whoever is closest to the player.
+        bool SetCompanionOnNearest()
+        {
+            const Scripting::Ped player = LocalPed();
+
+            if (player == 0 || g_companion == 0 || !Scripting::DOES_CHAR_EXIST(g_companion))
+            {
+                return false;
+            }
+
+            float x = 0.0f, y = 0.0f, z = 0.0f;
+            Scripting::GET_CHAR_COORDINATES(player, &x, &y, &z);
+
+            Scripting::Ped target = 0;
+            Scripting::GET_CLOSEST_CHAR(x, y, z, 40.0f, 1, 1, &target);
+
+            if (target == 0 || target == player || target == g_companion)
+            {
+                return false;
+            }
+
+            Scripting::TASK_COMBAT(g_companion, target);
+            return true;
+        }
+
+        // ------------------------------------------------------- Weapons II
+
+        /// Hands over one weapon and puts it in the player's hands.
+        void GiveWeapon(const unsigned weapon)
+        {
+            const Scripting::Ped ped = LocalPed();
+            if (ped == 0)
+            {
+                return;
+            }
+
+            unsigned maxAmmo = 0;
+            Scripting::GET_MAX_AMMO(ped, weapon, &maxAmmo);
+
+            Scripting::GIVE_WEAPON_TO_CHAR(ped, weapon, maxAmmo > 0 ? maxAmmo : 500, 1);
+            Scripting::SET_CURRENT_CHAR_WEAPON(ped, weapon, 1);
+        }
+
         // -------------------------------------------------- Vehicles, small
 
         void SetEngine(const bool on)
@@ -1683,6 +1789,8 @@ namespace
     int g_vehicleChoice = 0;
     int g_skinChoice = 0;
     int g_slotChoice = 0;
+    int g_weaponChoice = 0;
+    int g_companionChoice = 0;
     int g_timeChoice = 2;
     int g_weatherChoice = 1;
     int g_placeChoice = 0;
@@ -1742,6 +1850,46 @@ namespace
     const char* const kVehicles[] = {
         "infernus", "comet", "banshee", "turismo", "sultanrs",
         "nrg900",   "sanchez", "patriot", "annihilator", "maverick",
+    };
+
+    /// The weapons worth picking one at a time, with a readable name.
+    ///
+    /// A shorter list than the one "give all" hands out: the point here is
+    /// choosing, and a choice of nineteen is not a choice.
+    struct Gun
+    {
+        const char* label;
+        unsigned weapon;
+    };
+
+    const Gun kGuns[] = {
+        { "Pistol",         Scripting::WEAPON_PISTOL      },
+        { "Desert Eagle",   Scripting::WEAPON_DEAGLE      },
+        { "Micro SMG",      Scripting::WEAPON_MICRO_UZI   },
+        { "MP5",            Scripting::WEAPON_MP5         },
+        { "AK-47",          Scripting::WEAPON_AK47        },
+        { "M4",             Scripting::WEAPON_M4          },
+        { "Shotgun",        Scripting::WEAPON_SHOTGUN     },
+        { "Sniper rifle",   Scripting::WEAPON_SNIPERRIFLE },
+        { "RPG",            Scripting::WEAPON_RLAUNCHER   },
+        { "Grenade",        Scripting::WEAPON_GRENADE     },
+        { "Molotov",        Scripting::WEAPON_MOLOTOV     },
+        { "Baseball bat",   Scripting::WEAPON_BASEBALLBAT },
+    };
+
+    /// What can be spawned as a companion, and what it carries.
+    struct Companion
+    {
+        const char* label;
+        const char* model;
+        unsigned weapon;
+    };
+
+    const Companion kCompanions[] = {
+        { "SWAT with an M4",      "M_Y_SWAT",  Scripting::WEAPON_M4      },
+        { "Cop with a pistol",    "M_Y_COP",   Scripting::WEAPON_PISTOL  },
+        { "Gang member with AK",  "M_Y_GAFR_HI_01", Scripting::WEAPON_AK47 },
+        { "Brucie with a shotgun","IG_BRUCIE", Scripting::WEAPON_SHOTGUN },
     };
 
     /// Player models, with the name the game knows them by.
@@ -2063,6 +2211,22 @@ namespace
         // --- Weapons ---
         auto weapons = std::make_shared<mliv::Menu>("Weapons");
 
+        // One weapon at a time, for anyone who does not want a wheel with
+        // nineteen entries in it just to fire a pistol.
+        mliv::MenuItem one;
+        one.label = "Weapon";
+        one.kind = mliv::ItemKind::Choice;
+        one.choiceIndex = &g_weaponChoice;
+        for (const Gun& gun : kGuns)
+        {
+            one.choices.emplace_back(gun.label);
+        }
+        weapons->add(one);
+
+        weapons->add({"Give this one", mliv::ItemKind::Action, [] {
+            game::GiveWeapon(kGuns[g_weaponChoice].weapon);
+        }});
+
         weapons->add({"Give all weapons", mliv::ItemKind::Action, game::GiveAllWeapons});
         weapons->add({"Take weapons away", mliv::ItemKind::Action, game::RemoveAllWeapons});
         weapons->add({"Infinite ammo", mliv::ItemKind::Toggle, nullptr, &g_infiniteAmmo});
@@ -2371,6 +2535,30 @@ namespace
         peds->add({"Turn the nearest one on you", mliv::ItemKind::Action, game::ProvokeNearest});
         peds->add({"Explosion ahead", mliv::ItemKind::Action, game::ExplosionAhead});
         peds->add({"Kill everyone nearby", mliv::ItemKind::Action, game::KillNearby});
+
+        peds->add({"-- Companion --", mliv::ItemKind::Label});
+
+        mliv::MenuItem mate;
+        mate.label = "Kind";
+        mate.kind = mliv::ItemKind::Choice;
+        mate.choiceIndex = &g_companionChoice;
+        for (const Companion& entry : kCompanions)
+        {
+            mate.choices.emplace_back(entry.label);
+        }
+        peds->add(mate);
+
+        peds->add({"Spawn one", mliv::ItemKind::Action, [] {
+            const Companion& pick = kCompanions[g_companionChoice];
+            game::SpawnCompanion(pick.model, pick.weapon);
+        }});
+
+        peds->add({"Send it at the nearest", mliv::ItemKind::Action, [] {
+            if (!game::SetCompanionOnNearest())
+            {
+                mliv::LogLine("No companion, or nobody nearby.");
+            }
+        }});
 
         g_root->add(submenu("Pedestrians", peds));
 
