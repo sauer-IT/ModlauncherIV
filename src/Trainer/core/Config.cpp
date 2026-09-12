@@ -1,4 +1,5 @@
 #include "Config.h"
+#include "Pad.h"
 
 #include <algorithm>
 #include <cctype>
@@ -179,6 +180,15 @@ namespace mliv
                 continue;
             }
 
+            // [Pad] holds button bindings, with one exception: "Enabled" is a
+            // switch, not an action. Two names in one section beats a second
+            // section for the same device, which nobody would find.
+            if (section == "pad" && name != "enabled")
+            {
+                bindPad(name, value);
+                continue;
+            }
+
             const std::string key = section.empty() ? name : section + "." + name;
 
             // The last entry wins. A duplicate line is usually a leftover from
@@ -237,6 +247,64 @@ namespace mliv
         }
 
         bindings_.push_back({action, codes});
+    }
+
+    void Config::bindPad(const std::string& action, const std::string& value)
+    {
+        std::vector<unsigned short> chords;
+        std::istringstream parts(value);
+        std::string part;
+
+        while (std::getline(parts, part, ','))
+        {
+            const std::string text = Trim(part);
+            if (text.empty())
+            {
+                continue;
+            }
+
+            std::vector<std::string> unknown;
+            const unsigned short chord = PadChordFromNames(text, unknown);
+
+            for (const std::string& name : unknown)
+            {
+                problems_.push_back("Unknown pad button \"" + name + "\" for " + action + ".");
+            }
+
+            // A chord with one name missing is not the chord that was meant.
+            // Taking the rest would bind the menu to half a combination, and
+            // that half might be a button the game already uses.
+            if (chord != PadNone && unknown.empty())
+            {
+                chords.push_back(chord);
+            }
+        }
+
+        for (PadBinding& binding : padBindings_)
+        {
+            if (binding.action == action)
+            {
+                binding.chords = chords;
+                return;
+            }
+        }
+
+        padBindings_.push_back({action, chords});
+    }
+
+    std::vector<unsigned short> Config::chords(const std::string& action) const
+    {
+        const std::string wanted = Lower(action);
+
+        for (const PadBinding& binding : padBindings_)
+        {
+            if (binding.action == wanted)
+            {
+                return binding.chords;
+            }
+        }
+
+        return {};
     }
 
     const std::string* Config::find(const std::string& key) const
@@ -364,6 +432,24 @@ namespace mliv
             "FlyRight    = D\n"
             "FlyUp       = SPACE\n"
             "FlyDown     = CTRL\n"
+            "\n"
+            "# Controller. Works alongside the keyboard, not instead of it.\n"
+            "#\n"
+            "# Button names: A, B, X, Y (or Cross, Circle, Square, Triangle),\n"
+            "# DPadUp, DPadDown, DPadLeft, DPadRight, LB, RB, L3, R3, Start,\n"
+            "# Back. Several buttons at once with +, alternatives with commas.\n"
+            "#\n"
+            "# Menu opens on L3+R3 - both sticks pressed in. A single button\n"
+            "# would fire during play, because the game already uses them all.\n"
+            "[Pad]\n"
+            "Enabled = yes\n"
+            "Menu    = L3+R3\n"
+            "Up      = DPadUp\n"
+            "Down    = DPadDown\n"
+            "Left    = DPadLeft\n"
+            "Right   = DPadRight\n"
+            "Select  = A\n"
+            "Back    = B\n"
             "\n"
             "# Position and size of the menu, as a fraction of the screen (0 to 1).\n"
             "# Meant for unusual aspect ratios and for anyone who finds the text\n"

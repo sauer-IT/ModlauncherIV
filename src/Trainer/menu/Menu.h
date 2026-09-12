@@ -114,7 +114,7 @@ namespace mliv
         void handle(MenuInput input);
         void draw(IMenuRenderer& renderer);
 
-        /// Wie tief wir im Baum stehen. 0 = Wurzel.
+        /// How deep we stand in the tree. 0 = the root.
         size_t depth() const { return stack_.size() - 1; }
 
     private:

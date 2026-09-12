@@ -14,6 +14,7 @@
 
 #include "core/Config.h"
 #include "core/Log.h"
+#include "core/Pad.h"
 #include "game/GameVersion.h"
 #include "menu/Menu.h"
 
@@ -247,6 +248,178 @@ namespace
             {
                 g_keys.push_back({code, fallback.input});
             }
+        }
+    }
+
+    // ------------------------------------------------------------ Controller
+
+    /// XInput, loaded at run time rather than linked.
+    ///
+    /// Which xinput DLL exists depends on the Windows version - 1_4 since
+    /// Windows 8, 1_3 from the old DirectX redistributable, 9_1_0 everywhere
+    /// since Vista. Linking against one of them would make the trainer refuse to
+    /// load where it is absent, and the ASI loader reports that as nothing
+    /// happening at all. Loading it ourselves costs one call and fails softly:
+    /// no DLL, no controller, everything else works.
+    using XInputGetStateFn = unsigned long (__stdcall*)(unsigned long, void*);
+
+    XInputGetStateFn g_xinput = nullptr;
+    bool g_padEnabled = true;
+
+    /// XINPUT_STATE, only as far as we read it: a packet counter, then the pad
+    /// with its button mask. Declared here for the same reason the button values
+    /// are in Pad.h - so that no header has to be present at build time.
+    struct XInputStateHead
+    {
+        unsigned long packet;
+        unsigned short buttons;
+    };
+
+    void LoadXInput()
+    {
+        const wchar_t* candidates[] = {
+            L"xinput1_4.dll",
+            L"xinput1_3.dll",
+            L"xinput9_1_0.dll",
+        };
+
+        for (const wchar_t* name : candidates)
+        {
+            if (const HMODULE module = LoadLibraryW(name))
+            {
+                g_xinput = reinterpret_cast<XInputGetStateFn>(
+                    reinterpret_cast<void*>(GetProcAddress(module, "XInputGetState")));
+
+                if (g_xinput != nullptr)
+                {
+                    mliv::LogLine("Controller: %ls in use.", name);
+                    return;
+                }
+            }
+        }
+
+        mliv::LogLine("Controller: no XInput found, keyboard only.");
+    }
+
+    /// What is held on the first connected pad. 0 when there is none.
+    ///
+    /// All four slots are asked, because a single pad does not have to sit in
+    /// slot 0 - after a reconnect it usually does not.
+    unsigned short ReadPad()
+    {
+        if (g_xinput == nullptr)
+        {
+            return mliv::PadNone;
+        }
+
+        for (unsigned long slot = 0; slot < 4; ++slot)
+        {
+            XInputStateHead state{};
+
+            // ERROR_SUCCESS. Anything else means nothing is plugged in there.
+            if (g_xinput(slot, &state) == 0)
+            {
+                return state.buttons;
+            }
+        }
+
+        return mliv::PadNone;
+    }
+
+    /// One controller binding.
+    ///
+    /// Navigation repeats while held: on a pad you hold a direction, you do not
+    /// tap it sixty times. Select and Back do not repeat - a menu that keeps
+    /// confirming because a thumb stayed on the button would be unusable.
+    struct PadBinding
+    {
+        unsigned short chord;
+        mliv::MenuInput input;
+        bool repeats;
+        bool wasDown = false;
+        unsigned nextRepeat = 0;
+    };
+
+    std::vector<PadBinding> g_pad;
+
+    /// How long before a held direction starts repeating, and how fast then.
+    /// Roughly what a keyboard does, which is what the hand expects.
+    constexpr unsigned kRepeatFirstMs = 350;
+    constexpr unsigned kRepeatEveryMs = 110;
+
+    struct PadDefault
+    {
+        const char* action;
+        mliv::MenuInput input;
+        unsigned short chord;
+        bool repeats;
+    };
+
+    const PadDefault kPadDefaults[] = {
+        { "Menu",   mliv::MenuInput::Toggle, mliv::PadLeftStick | mliv::PadRightStick, false },
+        { "Up",     mliv::MenuInput::Up,     mliv::PadUp,                              true  },
+        { "Down",   mliv::MenuInput::Down,   mliv::PadDown,                            true  },
+        { "Left",   mliv::MenuInput::Left,   mliv::PadLeft,                            true  },
+        { "Right",  mliv::MenuInput::Right,  mliv::PadRight,                           true  },
+        { "Select", mliv::MenuInput::Select, mliv::PadA,                               false },
+        { "Back",   mliv::MenuInput::Back,   mliv::PadB,                               false },
+    };
+
+    void BindPad(const mliv::Config& config)
+    {
+        g_pad.clear();
+        g_padEnabled = config.flag("Pad.Enabled", true);
+
+        for (const PadDefault& fallback : kPadDefaults)
+        {
+            std::vector<unsigned short> chords = config.chords(fallback.action);
+
+            if (chords.empty())
+            {
+                chords.push_back(fallback.chord);
+            }
+
+            for (const unsigned short chord : chords)
+            {
+                g_pad.push_back({chord, fallback.input, fallback.repeats});
+            }
+        }
+    }
+
+    bool g_lockInput = false;
+    bool g_controlTaken = false;
+
+    /// Reads the pad and turns it into menu input.
+    ///
+    /// A chord counts as pressed the moment its last button goes down, and as
+    /// released as soon as any one of them comes up. Otherwise L3+R3 would fire
+    /// a second time when only one stick is let go.
+    void PollPad()
+    {
+        if (!g_padEnabled || g_xinput == nullptr)
+        {
+            return;
+        }
+
+        const unsigned short buttons = ReadPad();
+        const unsigned now = GetTickCount();
+
+        for (PadBinding& binding : g_pad)
+        {
+            const bool down = (buttons & binding.chord) == binding.chord;
+
+            if (down && !binding.wasDown)
+            {
+                g_menu->handle(binding.input);
+                binding.nextRepeat = now + kRepeatFirstMs;
+            }
+            else if (down && binding.repeats && static_cast<int>(now - binding.nextRepeat) >= 0)
+            {
+                g_menu->handle(binding.input);
+                binding.nextRepeat = now + kRepeatEveryMs;
+            }
+
+            binding.wasDown = down;
         }
     }
 
@@ -1331,6 +1504,33 @@ namespace
 
     const int kMoneyAmounts[] = {1000, 10000, 100000, 1000000};
 
+    /// Takes the game controls away while the menu is open, if asked to.
+    ///
+    /// The presses reach the game as well - there is no way to swallow them from
+    /// here. On the keyboard that is bearable, because the numpad does little in
+    /// GTA IV. On a pad it is not: every button is already taken, so opening the
+    /// menu also does something in the game, and scrolling through it switches
+    /// weapons underneath.
+    ///
+    /// Off by default all the same. Freezing the player is the more drastic of
+    /// the two annoyances if it happens in traffic, and which one somebody
+    /// prefers is not ours to decide.
+    void ApplyInputLock()
+    {
+        const bool want = g_lockInput && g_menu->visible();
+
+        // Not while there is no player: the call would go nowhere, and control
+        // has to come back on the next frame that has one - otherwise closing
+        // the menu during a cutscene would leave the player frozen afterwards.
+        if (want == g_controlTaken || !game::g_frame.playing)
+        {
+            return;
+        }
+
+        Scripting::SET_PLAYER_CONTROL(game::g_frame.player, want ? 0 : 1);
+        g_controlTaken = want;
+    }
+
     /// Runs every frame.
     ///
     /// Godmode and "never wanted" get set again and again here, not just when
@@ -1834,6 +2034,13 @@ namespace
 
         g_root->add(submenu("Pedestrians", peds));
 
+        // --- Settings ---
+        auto settings = std::make_shared<mliv::Menu>("Settings");
+
+        settings->add({"Lock game input while open", mliv::ItemKind::Toggle, nullptr, &g_lockInput});
+
+        g_root->add(submenu("Settings", settings));
+
         g_menu = std::make_unique<mliv::MenuController>(g_root);
     }
 
@@ -1847,6 +2054,7 @@ namespace
     void OnScript()
     {
         PollInput();
+        PollPad();
 
         // Player, ped and vehicle once for this tick. Everything below reads
         // them from there instead of asking the game over and over.
@@ -1856,6 +2064,7 @@ namespace
         // while you are looking.
         EnforceToggles();
         ApplyNoclip();
+        ApplyInputLock();
 
         // Drawing happens here, not in drawingEvent.
         //
@@ -1914,6 +2123,9 @@ void plugin::gameStartupEvent()
 
     BindKeys(config);
     BindFlyKeys(config);
+
+    LoadXInput();
+    BindPad(config);
 
     g_renderer.configure(
         config.number("Menu.Left", 0.025f),

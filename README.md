@@ -280,18 +280,48 @@ toggles and choices react, actions run all the way through into the log file.
 | `Num 5` / `Enter` | select |
 | `Num 0` / `Backspace` | back |
 
-Key bindings and the menu's position and scale live in
-`sauer.ini`, which is written next to the game on the first
-start. The file is plain INI with the sections `[Keys]`, `[Menu]` and `[Log]`,
-and pure ASCII: it lands next to the game and gets opened with whatever happens
-to be around.
+**A controller works too**, alongside the keyboard rather than instead of it:
+
+| Button | Effect |
+|---|---|
+| `L3` + `R3` | open and close the menu |
+| D-pad | move the selection and change values |
+| `A` | select |
+| `B` | back |
+
+The opener is a chord because a pad has few buttons and GTA IV already uses all
+of them - a single button would fire during normal play. Both sticks clicked at
+once does not happen by accident. Directions repeat while held, after a short
+pause and then at a steady rate: on a pad you hold a direction, you do not tap it
+sixty times.
+
+XInput is loaded at run time rather than linked. Which `xinput` DLL exists
+depends on the Windows version, and linking one would make the trainer refuse to
+load where it is absent - which the ASI loader reports as nothing happening at
+all. This way: no DLL, no controller, everything else still works. All four pad
+slots are polled, because a pad does not have to sit in slot 0 and after a
+reconnect usually does not.
+
+What it cannot do is swallow the presses. They reach the game as well, so opening
+the menu also does something in the game and scrolling switches weapons
+underneath. **Settings → "Lock game input while open"** turns that off by taking
+the controls away for as long as the menu is up. Off by default: being frozen in
+traffic is the more drastic of the two annoyances, and which one you prefer is
+not ours to decide.
+
+Key bindings, controller buttons and the menu's position and scale live in
+`sauer.ini`, which is written next to the game on the first start. The file is
+plain INI with the sections `[Keys]`, `[Pad]`, `[Menu]` and `[Log]`, and pure
+ASCII: it lands next to the game and gets opened with whatever happens to be
+around. Button names accept both dialects - `A` and `Cross` are the same bit,
+because what a button is called depends on the pad in your hands.
 
 The **menu logic knows nothing about the game** - structure, navigation and state
 live in `menu/`, drawing goes through `IMenuRenderer`, movement through abstract
 inputs. That makes it possible to play the whole menu through without the game:
 
 ```
-.\scripts\build-trainer.ps1 -Test      69 tests, without GTA IV
+.\scripts\build-trainer.ps1 -Test      117 tests, without GTA IV
 ```
 
 A navigation bug shows up in milliseconds that way, instead of after a game
@@ -310,6 +340,7 @@ categories**, each of which opens its own submenu:
 | World | time of day, weather, traffic density, jump to five places |
 | Movement | fly, superjump, run speed, teleport to the waypoint |
 | Pedestrians | density, everyone ignores you, riot, panic, clear the area |
+| Settings | lock game input while the menu is open |
 
 It used to be a flat list that mixed about twenty single entries with a handful
 of submenus, so reaching the world settings meant scrolling past health and

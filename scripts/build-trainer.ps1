@@ -147,6 +147,7 @@ $sources = @(
     (Join-Path $source "plugin.cpp"),
     (Join-Path $source "core\Log.cpp"),
     (Join-Path $source "core\Config.cpp"),
+    (Join-Path $source "core\Pad.cpp"),
     (Join-Path $source "game\GameVersion.cpp"),
     (Join-Path $source "menu\Menu.cpp")
 )
@@ -160,7 +161,8 @@ $sources = @(
 if ($Test) {
     $suites = @(
         @{ Name = "Menu";          Exe = "menu-test.exe";   Files = @("test\menu-test.cpp", "menu\Menu.cpp") },
-        @{ Name = "Configuration"; Exe = "config-test.exe"; Files = @("test\config-test.cpp", "core\Config.cpp") }
+        @{ Name = "Configuration"; Exe = "config-test.exe"; Files = @("test\config-test.cpp", "core\Config.cpp", "core\Pad.cpp") },
+        @{ Name = "Controller";    Exe = "pad-test.exe";    Files = @("test\pad-test.cpp", "core\Config.cpp", "core\Pad.cpp") }
     )
 
     New-Item -ItemType Directory -Force -Path (Join-Path $obj "test") | Out-Null

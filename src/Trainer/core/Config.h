@@ -38,6 +38,13 @@ namespace mliv
         /// otherwise be unusable.
         std::vector<int> keys(const std::string& action) const;
 
+        /// The controller chords for one action, in the order they were written.
+        /// Empty when nothing is set - the caller then uses its own default.
+        ///
+        /// One entry per chord: "L3+R3, Back" gives two, of which the first
+        /// needs both sticks clicked and the second only Back.
+        std::vector<unsigned short> chords(const std::string& action) const;
+
         bool flag(const std::string& name, bool fallback) const;
 
         float number(const std::string& name, float fallback) const;
@@ -73,8 +80,18 @@ namespace mliv
         /// messages exist would depend on what the caller happened to read.
         void bind(const std::string& action, const std::string& value);
 
+        /// The same for a [Pad] entry.
+        void bindPad(const std::string& action, const std::string& value);
+
+        struct PadBinding
+        {
+            std::string action; ///< lower case
+            std::vector<unsigned short> chords;
+        };
+
         std::vector<Entry> entries_;
         std::vector<Binding> bindings_;
+        std::vector<PadBinding> padBindings_;
 
         /// mutable because it is a log and not a statement about the content:
         /// that something did not work out while reading changes nothing about
