@@ -5,7 +5,7 @@
   "game": "GtaIV",
   "description": "Higher resolution textures for everything the other packs forget: cut-scene props, bowling and billiards, litter, newspapers and cans, interior fittings, the sky dome and the binoculars. By Ash735.",
 
-  "appliesToVersions": [ "1.0.7.0", "1.0.8.0" ],
+  "appliesToVersions": [ "1.0.8.0" ],
 
   "requires": [ "fusionfix" ],
 

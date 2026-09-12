@@ -5,7 +5,7 @@
   "game": "GtaIV",
   "description": "Repairs a great many small things in Liberty City that were never patched: wrong materials on power lines and buildings, broken collisions, misspelled signs, missing textures. Also restores content that was cut. Covers GTA IV and both episodes. 1.7 GB, almost all of it textures and models.",
 
-  "appliesToVersions": [ "1.0.7.0", "1.0.8.0" ],
+  "appliesToVersions": [ "1.0.8.0" ],
 
   "requires": [ "fusionfix" ],
 

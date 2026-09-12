@@ -3,9 +3,9 @@
   "name": "FusionFix",
   "version": "5.0.1",
   "game": "GtaIV",
-  "description": "Fixes a long list of bugs and technical shortcomings in GTA IV that were never patched, and adds settings for modern systems: a graphics menu of its own, working shadows and reflections, a frame limiter, restored cut content, and Vulkan through DXVK as an alternative to DirectX 9. The largest and most widely used mod for the game.",
+  "description": "Fixes a long list of bugs and technical shortcomings in GTA IV that were never patched, and adds settings for modern systems: a graphics menu of its own, working shadows and reflections, a frame limiter, restored cut content, and Vulkan through DXVK as an alternative to DirectX 9. The largest and most widely used mod for the game. NOT for 1.0.7.0: measured there, it corrupts the heap and takes the game down about ten seconds in. The project supports the Complete Edition only; of the older releases, 1.0.8.0 is the one people get it working on, and even that is unsupported by its authors and untested here.",
 
-  "appliesToVersions": [ "1.0.7.0", "1.0.8.0" ],
+  "appliesToVersions": [ "1.0.8.0" ],
 
   "requires": [ "ultimate-asi-loader", "gfwl-stub" ],
 

@@ -23,7 +23,7 @@ The only thing that changes the game is the "Install" step in the wizard, or
 | `src/Launcher.Cli` | Headless front end (`mliv`). Dry runs, diagnostics, CI. |
 | `src/Launcher.App` | The program you start (WPF): home page and wizard. |
 | `src/Trainer` | C++ ASI plugin, x86, IV-SDK. Player, weapons, vehicles, world, movement, peds, time and physics. |
-| `catalog/` | The declarative recipes. Twelve of them, six proven. |
+| `catalog/` | The declarative recipes. Eleven of them, six proven. |
 | `tests/` | Fixtures and the test script. |
 
 **Journey planning** (`Core/Planning`) is the difference between the CLI and the
@@ -152,7 +152,7 @@ from that point on.
 
 ## The catalog - state and caveats
 
-Twelve recipes with **real, self-computed SHA-256 checksums**. Six of them have
+Eleven recipes with **real, self-computed SHA-256 checksums**. Six of them have
 **run against a real installation** - Complete Edition 1.2.0.59 through the
 Rockstar Games Launcher, downgraded to 1.0.7.0. The game starts.
 
@@ -163,12 +163,11 @@ Rockstar Games Launcher, downgraded to 1.0.7.0. The game starts.
 | `gfwl-stub` | FusionFix Legacy Addon, GitHub release | 4.0 MB | run |
 | `vc80-runtime` | Microsoft, signed redistributable | 1.8 MB | run |
 | `mliv-trainer` | shipped, self-built | 205 KB | run |
-| `scripthook-dotnet` | ClonkAndre, GitHub release | 647 KB | untested |
-| `fusionfix` | ThirteenAG, GitHub release | 197 MB | run |
+| `fusionfix` | ThirteenAG, GitHub release | 197 MB | 1.0.8.0 only - crashes 1.0.7.0 |
 | `xbox-rain-droplets` | ThirteenAG, GitHub release | 365 KB | untested |
-| `various-fixes` | valentyn-l, GitHub release | 1.7 GB | untested |
-| `hires-vehicle-pack` | Ash735, supplied by hand | 140 MB | untested |
-| `hires-misc-pack` | Ash735, supplied by hand | 365 MB | untested |
+| `various-fixes` | valentyn-l, GitHub release | 1.7 GB | 1.0.8.0 only, untested |
+| `hires-vehicle-pack` | Ash735, supplied by hand | 140 MB | 1.0.8.0 only, untested |
+| `hires-misc-pack` | Ash735, supplied by hand | 365 MB | 1.0.8.0 only, untested |
 | `libertys-legacy` | Const96b, supplied by hand | 0.7 MB | untested |
 
 **FusionFix** is the largest mod in here and the one that shows what the
@@ -196,6 +195,20 @@ Its download is not offered by [the page most people find it
 on](https://www.nexusmods.com/gta4/mods/716): Nexus refuses plain requests and
 hands out links that expire with a session, so no recipe could fetch it. The
 project publishes the same files on GitHub, and that is where ours come from.
+
+**The FusionFix chain is 1.0.8.0 only, and that was learned the hard way.** The
+recipe originally claimed 1.0.7.0 as well. Installed there, the game gets about
+ten seconds in and dies of heap corruption (`0xC0000374`, faulting module
+`ntdll.dll` - the messenger, not the cause). The project supports the Complete
+Edition only; of the older releases, 1.0.8.0 is the one people report getting it
+to work on, and even that its authors decline to support. So the version gate now
+says what is true, and on a 1.0.7.0 installation the planner refuses the whole
+chain instead of installing something that takes the game down.
+
+That is the same mechanism that stops a 1.0.7.0 recipe from being applied to the
+Complete Edition. It only protects anyone if the recipes are honest about what
+they fit - a claim nobody checked is worse than no claim, because the machinery
+around it works perfectly and carries the wrong thing through.
 
 **Three recipes have no URL at all** - the two texture packs and Liberty's
 Legacy live only on Nexus. They are in the catalog anyway, with the checksum of
