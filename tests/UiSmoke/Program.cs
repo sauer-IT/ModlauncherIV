@@ -79,6 +79,16 @@ internal static class Program
         CheckChoiceList(session);
         CheckVersions(session);
         CheckServerBook();
+        CheckListingProtocol();
+        CheckOnlineWindow();
+
+        // Only when asked for: this one talks to somebody else's server, and a
+        // test suite that fails because a stranger's host is down is a test
+        // suite people learn to ignore.
+        if (args.Contains("--live"))
+        {
+            AskTheRealList();
+        }
 
         Console.WriteLine();
         Console.WriteLine(Failures.Count == 0
@@ -318,6 +328,224 @@ internal static class Program
             {
                 File.Delete(file);
             }
+        }
+    }
+
+    /// <summary>
+    /// The master list's wire format, against bytes built here.
+    ///
+    /// Without this the only test of the parser would be somebody else's server
+    /// being up. The frames below are written the way the client's own page
+    /// writes them - a 7-bit length in front of everything - so a change to the
+    /// reader that breaks the shape shows up here rather than on a black list
+    /// in front of a user.
+    /// </summary>
+    private static void CheckListingProtocol()
+    {
+        var servers = new List<LiveServer>();
+
+        var type = ServerListing.Read(
+            ServerAdd(flags: 2, "Jacob's Freeroam", "Freeroam", max: 64, current: 12, "1.2.3.4:22000", "IVC"),
+            servers);
+
+        Report("listing: a server entry is read", servers.Count == 1);
+        Report("listing: it is a ServerAdd", type == 0);
+
+        if (servers.Count == 1)
+        {
+            var server = servers[0];
+            Report("listing: the address", server.Address == "1.2.3.4:22000");
+            Report("listing: the name", server.Name == "Jacob's Freeroam");
+            Report("listing: how full it is", server is { Players: 12, MaxPlayers: 64 });
+            Report("listing: and that it is official", server.Official && !server.Locked);
+        }
+
+        // The address comes from a stranger and goes on a command line.
+        servers.Clear();
+        ServerListing.Read(
+            ServerAdd(0, "bad", "mode", 10, 1, "1.2.3.4:22000 --flag", "IVC"),
+            servers);
+
+        Report("listing: an address with a space is dropped", servers.Count == 0);
+
+        // A message that stops in the middle must cost that message, nothing else.
+        var truncated = ServerAdd(0, "half", "mode", 10, 1, "1.2.3.4:22000", "IVC");
+        servers.Clear();
+        ServerListing.Read(truncated[..(truncated.Length / 2)], servers);
+        Report("listing: a truncated message costs only itself", servers.Count == 0);
+
+        var join = ServerListing.JoinMessage();
+        Report("listing: the join message asks to join", join.Array is not null && join.Array[0] == 0);
+        Report("listing: and names the games", join.Count > 4);
+    }
+
+    /// <summary>
+    /// The page that opens on "Play online" - built for real, with a list that
+    /// was not fetched from anybody.
+    ///
+    /// It is a Window rather than a page in the shell, so it is shown, off the
+    /// side of the screen, and closed again: showing is what makes WPF build
+    /// and bind it, which is the whole point of this test.
+    /// </summary>
+    private static void CheckOnlineWindow()
+    {
+        var connected = new ConnectedInstall(
+            Path.Combine(Path.GetTempPath(), "mliv-ui-smoke", "Launcher.exe"),
+            Path.Combine(Path.GetTempPath(), "mliv-ui-smoke", "GTAIV.exe"),
+            "1.9.0");
+
+        IReadOnlyList<LiveServer> live =
+        [
+            new("1.2.3.4:22000", "Busy Freeroam", "Freeroam", 30, 64, false, true, ["IVC"]),
+            new("5.6.7.8:22000", "Quiet one", "Racing", 1, 32, true, false, ["IVC"]),
+        ];
+
+        var model = new OnlineViewModel(
+            connected,
+            _ => { },
+            () => { },
+            () => Task.FromResult((live, (string?)null)));
+
+        model.LoadAsync().GetAwaiter().GetResult();
+
+        Report("online: the servers that are up are listed", model.Servers.Count == 2);
+        Report("online: busiest first", model.Servers.Count == 2 && model.Servers[0].Address == "1.2.3.4:22000");
+        Report("online: with how full they are", model.Servers.Count > 0 && model.Servers[0].Detail.Contains("30/64"));
+        Report("online: and the list says how many", model.Status.Contains('2'));
+
+        // A refusal has to leave a way forward rather than an empty page.
+        var refused = new OnlineViewModel(
+            connected,
+            _ => { },
+            () => { },
+            () => Task.FromResult(((IReadOnlyList<LiveServer>)[], (string?)"nothing answered")));
+
+        refused.LoadAsync().GetAwaiter().GetResult();
+
+        Report("online: a refusal is said out loud", refused.ListingFailed);
+        Report("online: and names what went wrong", refused.ListingError.Contains("nothing answered"));
+
+        Trace.Lines.Clear();
+        string? error = null;
+
+        try
+        {
+            var window = new OnlineWindow(model)
+            {
+                WindowStartupLocation = WindowStartupLocation.Manual,
+                ShowInTaskbar = false,
+                Left = -4000,
+                Top = -4000,
+            };
+
+            window.Show();
+            Dispatcher.CurrentDispatcher.Invoke(() => { }, DispatcherPriority.ContextIdle);
+            window.Close();
+            Dispatcher.CurrentDispatcher.Invoke(() => { }, DispatcherPriority.ContextIdle);
+        }
+        catch (Exception e)
+        {
+            error = e.Message;
+        }
+
+        if (error is null && Trace.Lines.Count == 0)
+        {
+            Console.WriteLine("  PASS  online: the window builds");
+        }
+        else
+        {
+            Console.WriteLine("  FAIL  online: the window builds");
+            Failures.Add("online window");
+
+            if (error is not null)
+            {
+                Console.WriteLine($"          {error}");
+            }
+
+            foreach (var line in Trace.Lines.Take(6))
+            {
+                Console.WriteLine($"          {line}");
+            }
+        }
+    }
+
+    /// <summary>Builds one ServerAdd frame the way the master list writes them.</summary>
+    private static byte[] ServerAdd(
+        int flags, string name, string mode, int max, int current, string address, params string[] games)
+    {
+        var body = new List<byte>();
+
+        void Number(int value)
+        {
+            var remaining = (uint)value;
+            while (remaining >= 0x80)
+            {
+                body.Add((byte)(remaining | 0x80));
+                remaining >>= 7;
+            }
+
+            body.Add((byte)remaining);
+        }
+
+        void Text(string value)
+        {
+            var bytes = System.Text.Encoding.UTF8.GetBytes(value);
+            Number(bytes.Length);
+            body.AddRange(bytes);
+        }
+
+        Number(0); // ServerAdd
+        Number(flags);
+        Text(name);
+        Text(mode);
+        Number(max);
+        Number(current);
+        Text(address);
+        Number(games.Length);
+
+        foreach (var game in games)
+        {
+            Text(game);
+        }
+
+        return body.ToArray();
+    }
+
+    /// <summary>
+    /// The real thing, only with --live. Reports what came back rather than
+    /// passing or failing on it: whether a stranger's server is up today says
+    /// nothing about this code.
+    /// </summary>
+    private static void AskTheRealList()
+    {
+        Console.WriteLine();
+        Console.WriteLine($"  asking {ServerListing.Endpoint} ...");
+
+        var (servers, error) = ServerListing
+            .FetchAsync(TimeSpan.FromSeconds(10))
+            .GetAwaiter()
+            .GetResult();
+
+        if (error is not null)
+        {
+            Console.WriteLine($"    no list: {error}");
+            Console.WriteLine("    the launcher falls back to the client's own browser here.");
+            return;
+        }
+
+        Console.WriteLine($"    {servers.Count} server(s) up:");
+
+        foreach (var server in servers.Take(15))
+        {
+            var marks = string.Join(" ", new[]
+            {
+                server.Locked ? "locked" : null,
+                server.Official ? "official" : null,
+                string.Join("/", server.Games),
+            }.Where(m => !string.IsNullOrEmpty(m)));
+
+            Console.WriteLine(
+                $"      {server.Address,-24} {server.Players,3}/{server.MaxPlayers,-3} {server.Name,-32} {marks}");
         }
     }
 

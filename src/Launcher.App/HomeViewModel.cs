@@ -32,25 +32,6 @@ public sealed record ExternalTool(
     string ActionLabel,
     RelayCommand ActionCommand);
 
-/// <summary>
-/// One server to go straight to.
-/// </summary>
-/// <param name="Name">What it is called here, or the address again.</param>
-/// <param name="Address">host:port.</param>
-/// <param name="Origin">"saved here" or "last played" - where it came from.</param>
-/// <param name="Saved">
-/// Whether it is in the launcher's own list. Only those can be forgotten; the
-/// client's history belongs to the client.
-/// </param>
-public sealed record OnlineServer(
-    string Name,
-    string Address,
-    string Origin,
-    bool Saved,
-    RelayCommand ConnectCommand,
-    RelayCommand KeepCommand,
-    RelayCommand ForgetCommand);
-
 /// <summary>An installed recipe, the way it appears on the home page.</summary>
 public sealed record InstalledMod(
     string RecipeId,
@@ -73,9 +54,6 @@ public sealed class HomeViewModel : Observable
     private string _status = string.Empty;
     private bool _healthy = true;
     private bool _busy;
-    private string _newAddress = string.Empty;
-    private string _newName = string.Empty;
-    private string _serverError = string.Empty;
 
     public HomeViewModel(Session session, Action openWizard)
     {
@@ -86,7 +64,6 @@ public sealed class HomeViewModel : Observable
         WizardCommand = new RelayCommand(openWizard);
         VerifyCommand = new AsyncRelayCommand(VerifyAsync, () => !_busy);
         FolderCommand = new RelayCommand(OpenFolder, () => _session.Install is not null);
-        AddServerCommand = new RelayCommand(AddServer, () => !string.IsNullOrWhiteSpace(NewAddress));
     }
 
     private readonly ConnectedInstall? _connected = GtaConnected.Find();
@@ -104,44 +81,10 @@ public sealed class HomeViewModel : Observable
 
     public RelayCommand FolderCommand { get; }
 
-    /// <summary>Puts what was typed into the list of servers.</summary>
-    public RelayCommand AddServerCommand { get; }
-
     public ObservableCollection<InstalledMod> Mods { get; } = [];
 
     /// <summary>Programs beside the game that the launcher only found.</summary>
     public ObservableCollection<ExternalTool> External { get; } = [];
-
-    /// <summary>The servers to choose from: kept here, and last played.</summary>
-    public ObservableCollection<OnlineServer> Servers { get; } = [];
-
-    /// <summary>Address being typed into the add row.</summary>
-    public string NewAddress
-    {
-        get => _newAddress;
-        set
-        {
-            if (Set(ref _newAddress, value ?? string.Empty))
-            {
-                ServerError = string.Empty;
-                AddServerCommand.RaiseCanExecuteChanged();
-            }
-        }
-    }
-
-    /// <summary>Optional name for it. An address is a poor thing to recognise.</summary>
-    public string NewName
-    {
-        get => _newName;
-        set => Set(ref _newName, value ?? string.Empty);
-    }
-
-    /// <summary>Why the address was not taken. Empty when there is nothing to say.</summary>
-    public string ServerError
-    {
-        get => _serverError;
-        private set => Set(ref _serverError, value);
-    }
 
     /// <summary>The offer to put itself on the desktop. Disappears once done.</summary>
     public SetupBanner Setup { get; } = new();
@@ -297,10 +240,31 @@ public sealed class HomeViewModel : Observable
     /// </summary>
     private void PlayOnline()
     {
-        if (_connected is { } connected && WarnBeforeOnline(connected))
+        if (_connected is not { } connected)
         {
-            Launch(connected, string.Empty);
+            return;
         }
+
+        // The question "which server?" belongs here, at the moment of deciding,
+        // rather than on the home page where it sat among things about the
+        // installation. The warnings stay with the handover itself: they are
+        // about what is about to start, and the same ones apply whether a
+        // server was picked here or is about to be picked over there.
+        var window = new OnlineWindow(new OnlineViewModel(
+            connected,
+            Connect,
+            () =>
+            {
+                if (WarnBeforeOnline(connected))
+                {
+                    Launch(connected, string.Empty);
+                }
+            }))
+        {
+            Owner = Application.Current?.MainWindow,
+        };
+
+        window.ShowDialog();
     }
 
     /// <summary>
@@ -439,96 +403,6 @@ public sealed class HomeViewModel : Observable
     }
 
     /// <summary>
-    /// The list to pick from: what was kept here first, then where the client
-    /// was last.
-    ///
-    /// Two sources, one list, because to the person looking for a server the
-    /// difference does not matter - and the row says which it is anyway. The
-    /// history belongs to GTA Connected and is read from its own file, so a
-    /// server dropped over there disappears here too. The saved ones are ours,
-    /// because a history is not a choice: it forgets, it is ordered by
-    /// accident, and a server nobody has been on yet is never in it.
-    /// </summary>
-    private void FillServers()
-    {
-        Servers.Clear();
-
-        var saved = ServerBook.Load();
-
-        foreach (var server in saved)
-        {
-            var address = server.Address;
-
-            Servers.Add(new OnlineServer(
-                string.IsNullOrWhiteSpace(server.Name) ? address : server.Name,
-                address,
-                "saved here",
-                Saved: true,
-                new RelayCommand(() => Connect(address)),
-                new RelayCommand(() => { }, () => false),
-                new RelayCommand(() => Forget(address))));
-        }
-
-        if (_connected is not { } connected)
-        {
-            return;
-        }
-
-        foreach (var address in connected.RecentServers())
-        {
-            // Already kept? Then it is one entry, not two.
-            if (saved.Any(s => string.Equals(s.Address, address, StringComparison.OrdinalIgnoreCase)))
-            {
-                continue;
-            }
-
-            var target = address;
-
-            Servers.Add(new OnlineServer(
-                target,
-                target,
-                "last played",
-                Saved: false,
-                new RelayCommand(() => Connect(target)),
-                new RelayCommand(() => Keep(target)),
-                new RelayCommand(() => { }, () => false)));
-        }
-    }
-
-    /// <summary>Takes a server into the launcher's own list.</summary>
-    private void Keep(string address, string name = "")
-    {
-        ServerBook.Add(name, address);
-        FillServers();
-    }
-
-    private void Forget(string address)
-    {
-        ServerBook.Remove(address);
-        FillServers();
-    }
-
-    /// <summary>
-    /// Adds what was typed in. The address is checked before it is kept, not
-    /// when it is used: this ends up on a command line, and the answer to a bad
-    /// one belongs next to the box it was typed into.
-    /// </summary>
-    private void AddServer()
-    {
-        if (!ServerBook.IsAddress(NewAddress))
-        {
-            ServerError = "That is not an address. Expected something like 192.99.32.215:22000.";
-            return;
-        }
-
-        ServerError = string.Empty;
-        Keep(NewAddress.Trim(), NewName);
-
-        NewAddress = string.Empty;
-        NewName = string.Empty;
-    }
-
-    /// <summary>
     /// What else is on this machine that starts this game.
     ///
     /// The state line answers the one question that matters and cannot be seen:
@@ -539,9 +413,6 @@ public sealed class HomeViewModel : Observable
     private void FillExternal(GameInstall install)
     {
         External.Clear();
-        Servers.Clear();
-
-        FillServers();
 
         foreach (var tool in ToolCatalog.LoadFrom(AppPaths.CatalogDirectory, _session.Catalog!))
         {

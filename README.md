@@ -115,27 +115,37 @@ key is as much part of "which program is this" as a checksum is. The key it read
 is the one that program's own launcher reads, and the check asks for the file
 rather than the key, because a key outlives an uninstall.
 
-Under it sits a **list of servers to pick from**, each with a Connect that goes
-straight there. It has two halves. The client's own `History.xml` - where it was
-last, newest first, the same file its own browser is built from, so a server
-dropped over there disappears here too. And a list the launcher keeps itself, in
-`%LOCALAPPDATA%\ModlauncherIV\servers.json`, because a history is not a choice:
-it forgets, it is ordered by accident, and a server nobody has been on yet is
-never in it. An address typed in once is in the list from then on, with a name
-if it was given one; anything out of the history can be *kept* with one click,
-and what was kept can be forgotten again. The rows say which half they came
-from.
+**"Play online" asks where to**, rather than handing straight over. The page it
+opens is a list of servers with a Connect on each, out of three sources:
 
-What is deliberately not here is a server browser. There is no list of live
-servers to be had without guessing at somebody's undocumented endpoint - the
-project's own site refuses plain requests - and a browser that quietly goes
-stale in the launcher, next to a client that has a real one, would be worse than
-not having it.
+- **What is up right now**, from GTA Connected's own master list. Its client
+  asks `serverlisting.gtaconnected.com` over a WebSocket with the sub-protocol
+  `ws_masterlist1`; the page that host serves does the same thing in JavaScript,
+  which is where the frame layout was read from rather than guessed. Both ends
+  use .NET's conventions - a 7-bit encoded length in front of every string and
+  number - so the reader is a few lines. Names, player counts and game modes
+  come with it, and the busiest server is at the top.
+- **What was kept here**, in `%LOCALAPPDATA%\ModlauncherIV\servers.json`. A
+  history is not a choice: it forgets, it is ordered by accident, and a server
+  nobody has been on yet is never in it. An address typed in once is in the list
+  from then on, with a name if it was given one.
+- **Where the client was last**, out of its own `History.xml` - the same file its
+  own browser is built from, so a server dropped over there disappears here too.
+
+Each address appears once, with the best that is known about it, and the row
+says which of the three it came from.
+
+**The master list belongs to somebody else and nobody has promised it will stay
+put.** So every failure is the same failure: an empty list, the reason, and the
+button next to it that opens the client's own server browser - which is where
+this list would have come from anyway. Ten seconds is the longest it may take;
+somebody has just clicked "play".
 
 An address is checked before it is stored, not when it is used: it ends up on a
 command line, so what may be in it is what may be in a host name and a port and
-nothing else. That check runs again on load, because a file this program wrote
-is still a file somebody can edit.
+nothing else. That check runs on what the master list sends as well, because an
+entry there is written by a stranger, and again when the file is read back,
+because a file this program wrote is still a file somebody can edit.
 
 The switches are the client's own - `/connect <server>` and `/silent`, read out
 of its launcher's help text rather than guessed.
@@ -183,7 +193,7 @@ Exit codes: `0` success - `1` nothing found - `2` wrong invocation -
 .\tests\run-tests.ps1
 ```
 
-211 tests against fake game directories. No real installation is touched. If GTA
+228 tests against fake game directories. No real installation is touched. If GTA
 IV happens to be running, the script aborts up front - otherwise every pre-flight
 rightly blocks and four tests fail without anything being wrong with the code.
 Among the things covered:
