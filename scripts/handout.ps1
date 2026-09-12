@@ -129,9 +129,12 @@ file is here:
 
     %LOCALAPPDATA%\ModlauncherIV\launcher.log
 
-And if something went wrong in the game rather than in the launcher:
+And if something went wrong in the game rather than in the launcher, the trainer
+writes its own, next to itself - or, when the game folder is not writable
+without administrator rights, beside the launcher's:
 
     <game folder>\plugins\sauer.log
+    %LOCALAPPDATA%\ModlauncherIV\sauer.log
 
 Known and not yet fixed:
 

@@ -33,13 +33,27 @@ public sealed record ExternalTool(
     RelayCommand ActionCommand);
 
 /// <summary>An installed recipe, the way it appears on the home page.</summary>
+/// <param name="Version">The release that is installed, not what the catalog has.</param>
+/// <param name="State">Files counted, or what is wrong with them.</param>
+/// <param name="Intact">False when files are changed or gone.</param>
+/// <param name="Outdated">
+/// True when the catalog has a different release than the one installed. It
+/// happens more often than it sounds: the trainer's release changes with every
+/// build of it, and nothing on this page used to say so - the wizard knew, five
+/// clicks away, and the home page showed a version number that meant nothing
+/// without the other one beside it.
+/// </param>
+/// <param name="Available">What the catalog has, when that is something else.</param>
 public sealed record InstalledMod(
     string RecipeId,
     string Name,
     string Version,
     string State,
     bool Intact,
-    RelayCommand RemoveCommand);
+    bool Outdated,
+    string Available,
+    RelayCommand RemoveCommand,
+    RelayCommand UpdateCommand);
 
 /// <summary>
 /// The home page.
@@ -51,6 +65,7 @@ public sealed record InstalledMod(
 public sealed class HomeViewModel : Observable
 {
     private readonly Session _session;
+    private readonly Action _openWizard;
     private string _status = string.Empty;
     private bool _healthy = true;
     private bool _busy;
@@ -58,6 +73,7 @@ public sealed class HomeViewModel : Observable
     public HomeViewModel(Session session, Action openWizard)
     {
         _session = session;
+        _openWizard = openWizard;
 
         PlayCommand = new RelayCommand(Play, () => CanPlay);
         OnlineCommand = new RelayCommand(PlayOnline, () => _connected is not null);
@@ -156,6 +172,25 @@ public sealed class HomeViewModel : Observable
             WorkingDirectory = install.Path,
             UseShellExecute = true,
         });
+    }
+
+    /// <summary>
+    /// Hands one mod to the wizard to be brought up to date.
+    ///
+    /// Not installed from here, deliberately. Bringing a recipe up to date is an
+    /// ordinary run: dependencies may have moved with it, files it no longer
+    /// installs have to be cleaned up, and there is a plan to read and a
+    /// question to answer before anything is written. All of that lives in the
+    /// wizard. What this saves is finding the right tick box.
+    /// </summary>
+    private void Update(string recipeId)
+    {
+        _session.Wanted.Clear();
+        _session.Wanted.Add(recipeId);
+
+        Diary.Info($"Update wanted for {recipeId}; handing over to the wizard.");
+
+        _openWizard();
     }
 
     /// <summary>
@@ -397,13 +432,19 @@ public sealed class HomeViewModel : Observable
                 var current = _session.Catalog?.Recipes
                     .FirstOrDefault(r => string.Equals(r.Id, id, StringComparison.OrdinalIgnoreCase));
 
+                var outdated = current is not null
+                               && !string.Equals(current.Version, entry.RecipeVersion, StringComparison.OrdinalIgnoreCase);
+
                 Mods.Add(new InstalledMod(
                     id,
                     current?.Name ?? entry.RecipeName,
                     entry.RecipeVersion,
                     broken == 0 ? $"{entry.Files.Count} file(s)" : $"{broken} file(s) changed or gone",
                     broken == 0,
-                    new RelayCommand(() => Remove(id), () => !_busy)));
+                    outdated,
+                    outdated ? current!.Version : string.Empty,
+                    new RelayCommand(() => Remove(id), () => !_busy),
+                    new RelayCommand(() => Update(id), () => !_busy)));
             }
 
             FillExternal(install);

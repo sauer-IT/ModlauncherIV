@@ -4,6 +4,7 @@ using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Threading;
 using ModlauncherIV.App;
+using ModlauncherIV.Core.Backup;
 using ModlauncherIV.Core.Catalog;
 using ModlauncherIV.Core.Detection;
 
@@ -82,6 +83,7 @@ internal static class Program
         CheckListingProtocol();
         CheckOnlineWindow();
         CheckDiary();
+        CheckOutdatedMod(session);
 
         // Only when asked for: this one talks to somebody else's server, and a
         // test suite that fails because a stranger's host is down is a test
@@ -515,6 +517,75 @@ internal static class Program
         }
 
         Report("log: writing never throws", ok);
+    }
+
+    /// <summary>
+    /// A mod installed at a release the catalog has moved past.
+    ///
+    /// The case that made this worth having: the trainer's release changes with
+    /// every build of it, so an installation is out of date within a day - and
+    /// the home page used to show the installed version with nothing to compare
+    /// it against.
+    /// </summary>
+    private static void CheckOutdatedMod(Session session)
+    {
+        var recipe = session.Catalog?.Recipes.FirstOrDefault(r => r.Id == "mliv-trainer");
+        if (recipe is null || session.Install is null)
+        {
+            Report("mods: the trainer recipe is in the catalog", false);
+            return;
+        }
+
+        var store = new LedgerStore(session.Install.Path);
+
+        try
+        {
+            store.Save(InstallLedger.Empty(session.Install.Path) with
+            {
+                Entries =
+                [
+                    new LedgerEntry(
+                        recipe.Id,
+                        "a name from an older day",
+                        "0.0.1-ancient",
+                        DateTimeOffset.Now,
+                        "20200101-000000-aaaaaa",
+                        []),
+                ],
+            });
+
+            var home = new HomeViewModel(session, () => { });
+            home.EnterAsync().GetAwaiter().GetResult();
+
+            var row = home.Mods.FirstOrDefault(m => m.RecipeId == recipe.Id);
+
+            Report("mods: the installed recipe is listed", row is not null);
+            Report("mods: an older release is marked as out of date", row is { Outdated: true });
+            Report("mods: and the newer one is named", row?.Available == recipe.Version);
+            Report("mods: under the catalog's current name", row?.Name == recipe.Name);
+
+            Check("home with a mod on it", home);
+
+            // And the same page with the catalog's own release installed.
+            store.Save(InstallLedger.Empty(session.Install.Path) with
+            {
+                Entries =
+                [
+                    new LedgerEntry(recipe.Id, recipe.Name, recipe.Version, DateTimeOffset.Now, "x", []),
+                ],
+            });
+
+            var current = new HomeViewModel(session, () => { });
+            current.EnterAsync().GetAwaiter().GetResult();
+
+            Report(
+                "mods: nothing is claimed when the releases match",
+                current.Mods.FirstOrDefault(m => m.RecipeId == recipe.Id) is { Outdated: false });
+        }
+        finally
+        {
+            store.Save(InstallLedger.Empty(session.Install.Path));
+        }
     }
 
     /// <summary>Builds one ServerAdd frame the way the master list writes them.</summary>

@@ -187,6 +187,21 @@ Exit codes: `0` success - `1` nothing found - `2` wrong invocation -
 `3` blockers found, nothing executed - `4` output not writable -
 `5` execution failed.
 
+## When a mod has moved on
+
+The home page compares what is installed against what the catalog has, and says
+so on the row: *newer in the catalog: 0.4.0+83a5a28a*, with an **Update** next to
+Remove. The trainer made this worth having - its release changes with every
+build of it, so an installation is behind within a day, and the page used to
+show the installed version with nothing to compare it against. The wizard knew,
+five clicks away.
+
+Update does not install anything by itself. It ticks that recipe and opens the
+wizard, because bringing one up to date is an ordinary run: dependencies may
+have moved with it, files it no longer installs have to be cleaned up, and there
+is a plan to read and a question to answer before anything is written. What the
+button saves is finding the right tick box.
+
 ## What comes back when it goes wrong
 
 `%LOCALAPPDATA%\ModlauncherIV\launcher.log`, and a **Log** button at the bottom
@@ -211,7 +226,7 @@ because it could not write its own log would be a bad joke.
 .\tests\run-tests.ps1
 ```
 
-233 tests against fake game directories. No real installation is touched. If GTA
+239 tests against fake game directories. No real installation is touched. If GTA
 IV happens to be running, the script aborts up front - otherwise every pre-flight
 rightly blocks and four tests fail without anything being wrong with the code.
 Among the things covered:

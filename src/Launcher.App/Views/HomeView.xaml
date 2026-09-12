@@ -121,14 +121,36 @@
                                     <StackPanel Grid.Column="0">
                                         <TextBlock Text="{Binding Name}" Style="{StaticResource Head}" />
                                         <TextBlock Text="{Binding Version}" Style="{StaticResource Dim}" Margin="0,3,0,0" />
+
+                                        <!-- A version number alone says nothing.
+                                             What makes it mean something is the
+                                             other one next to it. -->
+                                        <StackPanel Orientation="Horizontal" Margin="0,5,0,0"
+                                                    Visibility="{Binding Outdated, Converter={StaticResource Show}}">
+                                            <Border Style="{StaticResource Chip}">
+                                                <TextBlock Style="{StaticResource ChipText}"
+                                                           Foreground="{StaticResource Accent}">
+                                                    <Run Text="newer in the catalog:" />
+                                                    <Run Text="{Binding Available, Mode=OneWay}" />
+                                                </TextBlock>
+                                            </Border>
+                                        </StackPanel>
                                     </StackPanel>
 
                                     <TextBlock x:Name="State" Grid.Column="1" Text="{Binding State}"
                                                Style="{StaticResource Dim}" VerticalAlignment="Center" Margin="12,0,0,0" />
 
-                                    <Button Grid.Column="2" Content="Remove"
-                                            Command="{Binding RemoveCommand}"
-                                            VerticalAlignment="Center" Margin="14,0,0,0" />
+                                    <StackPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Center">
+                                        <Button Content="Update"
+                                                Command="{Binding UpdateCommand}"
+                                                Style="{StaticResource Primary}"
+                                                MinWidth="0" Padding="16,6" Margin="14,0,0,0"
+                                                Visibility="{Binding Outdated, Converter={StaticResource Show}}" />
+
+                                        <Button Content="Remove"
+                                                Command="{Binding RemoveCommand}"
+                                                Margin="8,0,0,0" />
+                                    </StackPanel>
                                 </Grid>
                             </Border>
                             <DataTemplate.Triggers>
