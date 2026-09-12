@@ -347,14 +347,25 @@ namespace
     /// Laeuft pro Bild. Hier wird nichts angelegt und nichts geloggt - ein
     /// Logeintrag je Bild waere bei 60 Bildern je Sekunde eine Datei, die
     /// schneller waechst als das Spiel laedt.
-    void OnDraw()
+    /// Spiellogik. Laeuft nur, wenn das Spiel seine Skripte abarbeitet.
+    ///
+    /// Muss hier stehen und nicht im Zeichen-Event: processScriptsEvent setzt
+    /// vorher CTheScripts::m_pCurrentThread, drawingEvent nicht. Natives
+    /// brauchen diesen Script-Kontext. Dazu kommt, dass drawingEvent laut SDK
+    /// auch im Menue und im Ladebildschirm laeuft - dort gibt es noch gar keine
+    /// Skript-Maschine, und ein GET_PLAYER_ID beendet das Spiel wortlos.
+    void OnScript()
     {
         PollInput();
 
         // Auch wenn das Menue zu ist: die Schalter sollen wirken, nicht nur
         // solange man hinsieht.
         EnforceToggles();
+    }
 
+    /// Nur zeichnen. Zeichen-Natives kommen ohne Script-Kontext aus.
+    void OnDraw()
+    {
         g_menu->draw(g_renderer);
     }
 }
@@ -385,6 +396,8 @@ void plugin::gameStartupEvent()
     }
 
     BuildMenu();
+
+    plugin::processScriptsEvent::Add(OnScript);
     plugin::drawingEvent::Add(OnDraw);
 
     mliv::LogLine("Menue bereit. F7 oeffnet, Numblock oder Pfeiltasten bedienen.");
