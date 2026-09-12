@@ -3,10 +3,11 @@
 Ein geführter Downgrader und Mod-Installer für GTA IV — und ein selbstgebauter
 Trainer, den er am Ende ausliefert.
 
-**Stand: M3 abgeschlossen, Trainer T0 läuft** — Rezept-Engine mit Snapshot,
+**Stand: M3 abgeschlossen, Trainer bis T1** — Rezept-Engine mit Snapshot,
 Rollback und Rückbau,
 Beschaffung mit Hash-Prüfung und Mirror-Kette, signierter Katalog. Der Downgrade
-ist an einer echten Installation gelaufen: 1.2.0.59 → 1.0.7.0, das Spiel startet.
+ist an einer echten Installation gelaufen: 1.2.0.59 → 1.0.7.0, das Spiel startet,
+und der selbstgebaute Trainer zeigt sein Menü darin.
 Einziger Befehl, der das Spiel verändert, ist `apply` — nach Rückfrage und mit
 vorherigem Snapshot.
 
@@ -17,14 +18,15 @@ vorherigem Snapshot.
 | `src/Launcher.Core` | Domäne und Pipeline. Keine UI-Abhängigkeit, damit gegen Fixtures testbar. |
 | `src/Launcher.Cli` | Headless-Frontend (`mliv`). Dry-Runs, Diagnose, CI. |
 | `src/Launcher.App` | WPF-Wizard. Kommt mit M5. |
-| `src/Trainer` | C++ ASI-Plugin, x86. Stufe T0 lädt im Spiel. |
+| `src/Trainer` | C++ ASI-Plugin, x86, IV-SDK. Menü läuft im Spiel (T1). |
 | `catalog/` | Die deklarativen Rezepte. Fünf Stück, vier davon erprobt. |
 | `tests/` | Fixtures und Testskript. |
 
 ## Voraussetzungen
 
 - **.NET 10 SDK** — für Launcher.Core und Launcher.Cli
-- **Visual Studio Build Tools mit C++ (x86)** — für den Trainer
+- **Visual Studio Build Tools mit C++ (x86)** — für den Trainer. SDK und
+  D3DX-Header holt `build-trainer.ps1` selbst und prüft sie per SHA-256.
 
 ## Bauen und ausführen
 
@@ -145,10 +147,36 @@ Voraussetzung:
   voraussetzt, wäre ausgerechnet hier fehl am Platz: an genau einer fehlenden
   Visual-C++-Laufzeit ist das Spiel nach dem Downgrade zuerst gescheitert.
 
-**Stufe T0** lädt, meldet sich im Logfile und tut sonst nichts. Das ist der
-ganze Zweck: ohne echtes Laden lässt sich nicht beantworten, ob der ASI-Loader
-das Plugin annimmt und ob Smart App Control eine unsignierte DLL in
-`GTAIV.exe` zulässt.
+**Stand: T1.** Das Menü läuft im Spiel — F7 öffnet, Numblock oder Pfeiltasten
+bedienen, Schalter und Auswahl reagieren, Aktionen laufen bis ins Logfile durch.
+
+| Taste | Wirkung |
+|---|---|
+| `F7` | Menü öffnen und schließen |
+| `Num 8` / `↑` · `Num 2` / `↓` | Auswahl bewegen |
+| `Num 4` / `←` · `Num 6` / `→` | Wert ändern |
+| `Num 5` / `Enter` | Auswählen |
+| `Num 0` / `Rücktaste` | Zurück |
+
+Die **Menülogik kennt das Spiel nicht** — Struktur, Navigation und Zustand
+liegen in `menu/`, gezeichnet wird über `IMenuRenderer`, bewegt über abstrakte
+Eingaben. Dadurch lässt sich das Menü vollständig ohne Spiel durchspielen:
+
+```
+.\scripts\build-trainer.ps1 -Test      22 Tests, ohne GTA IV
+```
+
+Ein Navigationsfehler fällt so in Millisekunden auf statt nach Spielstart,
+Ladebildschirm und Tastendruck.
+
+**Zwei Fallen beim Zeichnen**, beide erst im Spiel sichtbar:
+
+- `DRAW_RECT` nimmt in GTA IV **Mittelpunkt und Größe**, nicht zwei Ecken — die
+  Parameternamen im SDK (`x1, y1, x2, y2`) legen anderes nahe. Mit Ecken
+  gefüttert landen die Flächen sichtbar daneben.
+- `beginFrame` bekommt die Anzahl der Einträge, weil der Hintergrund gezeichnet
+  sein muss, **bevor** der Text darauf landet. Später gezeichnete Flächen lägen
+  darüber.
 
 Der `VersionAdapter` prüft beim Laden die Spielversion und **bricht ab, wenn
 sie nicht unterstützt wird**. Auf einer anderen Version stimmen Native-Hashes
@@ -237,11 +265,27 @@ Vertrauenskette. Deterministisch löst das nur ein echtes Codesigning-Zertifikat
 dessen Reputation aufgebaut ist — `MLIV_SIGN_THUMBPRINT` setzen, dann greift der
 Release-Pfad in `sign.ps1`.
 
-**Für den Trainer beantwortet (T0):** Ein unsigniertes — genauer: selbstsigniertes —
-ASI wurde bei aktivem Smart App Control (`State = 1`) anstandslos in `GTAIV.exe`
-geladen, ohne eine einzige Code-Integrity-Meldung. Das ist ein Datenpunkt, keine
-Garantie: SAC entscheidet reputationsbasiert, und ob die Selbstsignatur dabei
-etwas beigetragen hat, lässt sich weiterhin nicht messen.
+**Für den Trainer: gemessen, und es ging schief.**
+
+| | T0 | T1 |
+|---|---|---|
+| Größe | 147 KB | 193 KB |
+| Signatur | selbstsigniert | dieselbe |
+| SAC-Zustand | aktiv (`1`) | aktiv (`1`) |
+| Ergebnis | **geladen** | **blockiert** |
+
+Gleicher Rechner, gleiches Zertifikat, gleiche Richtlinie — anderes Ergebnis.
+T1 scheiterte mit Ereignis 3077 und ASI-Loader-Fehler 4551 (`0x11C7`, der
+Win32-Anteil von `0x800711C7`). Die Abhängigkeiten waren sauber, das ASI x86 und
+signiert. Es gab technisch nichts zu korrigieren.
+
+Damit ist belegt, was oben als Vermutung steht: **SAC ist keine Regel, die man
+erfüllen kann.** Auf diesem Entwicklungsrechner wurde es deshalb abgeschaltet.
+
+**Für Endnutzer bleibt das ungelöst.** Wer Smart App Control aktiv hat, bekommt
+den Trainer nicht geladen. Deterministisch hilft dort nur ein echtes
+Codesigning-Zertifikat mit aufgebauter Reputation — `MLIV_SIGN_THUMBPRINT`
+setzen, dann greift der Release-Pfad in `sign.ps1`.
 
 **Alter Stand, überholt:** Für den Trainer hilft das Single-File-Verfahren
 nicht. Eine `.asi` ist definitionsgemäß eine unsignierte DLL, die in `GTAIV.exe`
@@ -254,9 +298,9 @@ Endnutzer mit aktivem Smart App Control.
 - **M1** Rezept-Engine, Snapshot, Rollback, Ledger, Dry-Run ✔
 - **M2** Beschaffung, Hash-Prüfung, Mirror, Katalogsignatur ✔
 - **M3** Downgrade-Rezepte, Versionsgraph, Update-Sperre, Gegenprobe, Rückbau ✔
-- **M4** Trainer T0 ✔ · Basis-Stack · T1 Menügerüst ← *hier*
-- **M5** WPF-Wizard und Dev-Modus · Trainer T1
-- **M6** Profile, Deinstallation, Katalog-Update · Trainer T2/T3
+- **M4** Basis-Stack ✔ · Trainer T0 ✔ · T1 Menügerüst ✔
+- **M5** WPF-Wizard und Dev-Modus · Trainer T2: Features ← *hier*
+- **M6** Profile, Katalog-Update · Trainer T3: Config und Politur
 
 Der vollständige Projektplan mit Architektur, Risiken und offenen Fragen liegt
 als eigenes Dokument vor.
