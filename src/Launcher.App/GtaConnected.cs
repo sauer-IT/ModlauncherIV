@@ -8,7 +8,8 @@ namespace ModlauncherIV.App;
 /// <param name="GamePath">
 /// The GTAIV.exe it is set to start, as it recorded it - not as we detected it.
 /// </param>
-public sealed record ConnectedInstall(string LauncherPath, string? GamePath);
+/// <param name="Version">What its uninstall entry says, or empty.</param>
+public sealed record ConnectedInstall(string LauncherPath, string? GamePath, string Version);
 
 /// <summary>
 /// GTA Connected, the multiplayer client, if it is installed.
@@ -51,12 +52,46 @@ public static class GtaConnected
             using var game = Registry.CurrentUser.OpenSubKey($@"{Root}\Grand Theft Auto IV");
             var exe = game?.GetValue("Game EXE Path") as string;
 
-            return new ConnectedInstall(launcher, exe);
+            return new ConnectedInstall(launcher, exe, ReadVersion());
         }
         catch (Exception e) when (e is IOException or UnauthorizedAccessException or System.Security.SecurityException)
         {
             return null;
         }
+    }
+
+    /// <summary>
+    /// The version, from the same place Windows takes it for its own list of
+    /// installed programs. Empty when the entry is not there - a missing version
+    /// is worth less than a wrong one.
+    /// </summary>
+    private static string ReadVersion()
+    {
+        const string uninstall =
+            @"SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall";
+
+        foreach (var hive in new[] { Registry.CurrentUser, Registry.LocalMachine })
+        {
+            using var key = hive.OpenSubKey(uninstall);
+            if (key is null)
+            {
+                continue;
+            }
+
+            foreach (var name in key.GetSubKeyNames())
+            {
+                using var entry = key.OpenSubKey(name);
+
+                if (entry?.GetValue("DisplayName") is string display &&
+                    display.Contains("Grand Theft Auto Connected", StringComparison.OrdinalIgnoreCase) &&
+                    entry.GetValue("DisplayVersion") is string version)
+                {
+                    return version;
+                }
+            }
+        }
+
+        return string.Empty;
     }
 
     /// <summary>

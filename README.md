@@ -84,11 +84,23 @@ It takes the catalog and the shipped payload from **its own folder**, not from
 the working directory - a program started through a shortcut has an arbitrary
 one and would then not find its own recipes.
 
-**Multiplayer through GTA Connected.** If it is installed, a second button
-appears next to Play. It is not a recipe and nothing installs it: it lives
-elsewhere, brings its own client and its own `xlive.dll`, and starts the game
-itself - so this is a handover, not a launch. Found through its own registry key
-rather than by guessing at paths, because that key is what its launcher reads.
+**Multiplayer through GTA Connected**, under its own heading on the home page:
+*ALSO ON THIS PC - found, not installed by the launcher*. It is deliberately not
+in the catalog, and the reason is worth stating because it is the same rule that
+keeps the rest safe.
+
+A recipe is something written **into the game directory**, with a snapshot behind
+it and a way back out. GTA Connected is neither: it installs itself under
+`%LOCALAPPDATA%`, which every recipe step is forbidden from touching by the same
+containment check that rejects `..\..\somewhere.dll`, and it ships as an
+installer, which no recipe step may run. Listing it as a mod would make the list
+claim something untrue about what the launcher can take back again. So it gets a
+section of its own that says exactly what it is - and a Start button, because
+the two are aimed at the same installation and switching by hand means going
+through two start menus.
+
+Found through its own registry key rather than by guessing at paths, because
+that key is what its launcher reads.
 
 Two things get said first, both invisible until they have already gone wrong.
 That key also records which `GTAIV.exe` it will start, and it need not be the

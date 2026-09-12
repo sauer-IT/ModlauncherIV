@@ -60,6 +60,46 @@
                     </StackPanel>
                 </Border>
 
+                <!-- Kept apart from the recipes on purpose: these are programs
+                     the launcher found, not ones it installed - there is no
+                     snapshot behind them and no way back through it. -->
+                <StackPanel Visibility="{Binding External.Count, Converter={StaticResource HasContent}}">
+                    <TextBlock Text="ALSO ON THIS PC" Style="{StaticResource Dim}" Margin="0,10,0,2" />
+                    <TextBlock Text="found, not installed by the launcher"
+                               Style="{StaticResource Dim}" FontSize="11" Margin="0,0,0,8" Opacity="0.7" />
+
+                    <ItemsControl ItemsSource="{Binding External}">
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate>
+                                <Border Style="{StaticResource Card}" Padding="12" Margin="0,0,0,6">
+                                    <Grid>
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="*" />
+                                            <ColumnDefinition Width="Auto" />
+                                        </Grid.ColumnDefinitions>
+
+                                        <StackPanel Grid.Column="0">
+                                            <TextBlock Text="{Binding Name}" Style="{StaticResource Head}" />
+                                            <TextBlock Text="{Binding Version}" Style="{StaticResource Dim}" Margin="0,3,0,0" />
+                                            <TextBlock x:Name="State" Text="{Binding State}"
+                                                       Style="{StaticResource Dim}" FontSize="11" Margin="0,3,0,0" />
+                                        </StackPanel>
+
+                                        <Button Grid.Column="1" Content="Start"
+                                                Command="{Binding StartCommand}"
+                                                VerticalAlignment="Center" Margin="14,0,0,0" />
+                                    </Grid>
+                                </Border>
+                                <DataTemplate.Triggers>
+                                    <DataTrigger Binding="{Binding Fine}" Value="False">
+                                        <Setter TargetName="State" Property="Foreground" Value="{StaticResource Bad}" />
+                                    </DataTrigger>
+                                </DataTemplate.Triggers>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                </StackPanel>
+
                 <TextBlock Text="INSTALLED" Style="{StaticResource Dim}" Margin="0,10,0,8"
                            Visibility="{Binding Mods.Count, Converter={StaticResource HasContent}}" />
 

@@ -11,6 +11,18 @@ using ModlauncherIV.Core.Verification;
 
 namespace ModlauncherIV.App;
 
+/// <summary>
+/// A program next to the game that this launcher did not install.
+///
+/// Deliberately not a recipe, and deliberately shown apart from them. A recipe
+/// is something written into the game directory, with a snapshot behind it and a
+/// way back out. This is a second program that starts the same game, installs
+/// itself somewhere else entirely, and is none of our business beyond being
+/// worth knowing about. Calling it a mod would make the list say something
+/// untrue about what the launcher can take back.
+/// </summary>
+public sealed record ExternalTool(string Name, string Version, string State, bool Fine, RelayCommand StartCommand);
+
 /// <summary>An installed recipe, the way it appears on the home page.</summary>
 public sealed record InstalledMod(
     string RecipeId,
@@ -61,6 +73,9 @@ public sealed class HomeViewModel : Observable
     public RelayCommand FolderCommand { get; }
 
     public ObservableCollection<InstalledMod> Mods { get; } = [];
+
+    /// <summary>Programs beside the game that the launcher only found.</summary>
+    public ObservableCollection<ExternalTool> External { get; } = [];
 
     /// <summary>The offer to put itself on the desktop. Disappears once done.</summary>
     public SetupBanner Setup { get; } = new();
@@ -313,6 +328,7 @@ public sealed class HomeViewModel : Observable
                     new RelayCommand(() => Remove(id), () => !_busy)));
             }
 
+            FillExternal(install);
             Describe(result, ledger);
         }
         finally
@@ -320,6 +336,33 @@ public sealed class HomeViewModel : Observable
             _busy = false;
             VerifyCommand.RaiseCanExecuteChanged();
         }
+    }
+
+    /// <summary>
+    /// What else is on this machine that starts this game.
+    ///
+    /// The state line answers the one question that matters and cannot be seen:
+    /// whether it is aimed at the installation on this page. With two copies of
+    /// the game it may not be, and then nothing listed above applies to what it
+    /// starts.
+    /// </summary>
+    private void FillExternal(GameInstall install)
+    {
+        External.Clear();
+
+        if (_connected is not { } connected)
+        {
+            return;
+        }
+
+        var fine = connected.PointsAt(install.Path);
+
+        External.Add(new ExternalTool(
+            "GTA Connected",
+            connected.Version.Length > 0 ? connected.Version : "version unknown",
+            fine ? "starts this installation" : $"starts {connected.GamePath}",
+            fine,
+            OnlineCommand));
     }
 
     private void Describe(VerificationResult result, InstallLedger ledger)
