@@ -182,6 +182,15 @@ int main()
         Check(config.keys("Rechts").size() == 2, "Rechts auch");
         Check(config.keys("Waehlen").size() == 2, "Waehlen auch");
         Check(config.keys("Zurueck").size() == 2, "Zurueck auch");
+
+        // Die Flugtasten haben bewusst nur je eine Belegung: sie werden
+        // gehalten, nicht getippt, und zwei gleichzeitig gehaltene Tasten fuer
+        // dieselbe Richtung ergaeben doppelte Geschwindigkeit.
+        Check(config.keys("FlugVor").size() == 1 && Has(config.keys("FlugVor"), 'W'),
+              "FlugVor liegt auf W");
+        Check(Has(config.keys("FlugRunter"), 0x11), "FlugRunter liegt auf Strg");
+        Check(Has(config.keys("FlugHoch"), 0x20), "FlugHoch liegt auf der Leertaste");
+
         Check(config.flag("Protokoll.Aktiv", false), "das Protokoll ist voreingestellt an");
     }
 

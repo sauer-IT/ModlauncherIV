@@ -1,4 +1,4 @@
-﻿// Modlauncher IV - Trainer, Stufe T3
+﻿// Modlauncher IV - Trainer, Stufe T5
 //
 // Die einzige Uebersetzungseinheit, die das IV-SDK einbindet. Das ist keine
 // Bequemlichkeit: IVSDK.cpp definiert Globals und ein eigenes DllMain. Wuerde
@@ -17,6 +17,7 @@
 #include "game/GameVersion.h"
 #include "menu/Menu.h"
 
+#include <cmath>
 #include <cstdlib>
 #include <fstream>
 #include <memory>
@@ -603,6 +604,382 @@ namespace
             }
         }
 
+        // ------------------------------------------------------- Bewegung
+
+        /// Blickrichtung der Spielkamera als Einheitsvektor.
+        ///
+        /// GET_CAM_ROT liefert Winkel in Grad: X ist die Neigung, Z die
+        /// Himmelsrichtung. Die Umrechnung folgt der Konvention des Spiels -
+        /// Y zeigt nach Norden, nicht X.
+        void CameraForward(float& fx, float& fy, float& fz)
+        {
+            int camera = 0;
+            Scripting::GET_GAME_CAM(&camera);
+
+            float pitch = 0.0f, roll = 0.0f, yaw = 0.0f;
+            Scripting::GET_CAM_ROT(camera, &pitch, &roll, &yaw);
+
+            const float p = pitch * 3.14159265f / 180.0f;
+            const float y = yaw * 3.14159265f / 180.0f;
+
+            fx = -std::sin(y) * std::cos(p);
+            fy = std::cos(y) * std::cos(p);
+            fz = std::sin(p);
+        }
+
+        /// Schaltet den freien Flug ein oder aus.
+        ///
+        /// Der erste Anlauf fror den Spieler ein und versetzte ihn pro Bild um
+        /// ein Stueck. Das sah aus wie Ruckeln, und zwar zu Recht: zwischen
+        /// zwei Sprungen gibt es keine Bewegung, die die Engine glaetten
+        /// koennte, und die Schrittweite haengt an der Bildrate.
+        ///
+        /// Richtig ist, die Physik arbeiten zu lassen und ihr nur die
+        /// Geschwindigkeit vorzugeben. Dann interpoliert die Engine dazwischen,
+        /// und ein Wert in Einheiten je Sekunde ist von der Bildrate unabhaengig.
+        /// Kollision aus, damit man durch Waende kommt - das ist der Sinn der
+        /// Sache -, Schwerkraft aus, damit man stehen bleiben kann.
+        void SetNoclip(const bool on, const float normalGravity)
+        {
+            const Scripting::Ped ped = LocalPed();
+            if (ped == 0)
+            {
+                return;
+            }
+
+            Scripting::SET_CHAR_COLLISION(ped, on ? 0 : 1);
+            Scripting::SET_CHAR_GRAVITY(ped, on ? 0.0f : normalGravity);
+
+            if (!on)
+            {
+                // Ohne das behaelt man beim Aussteigen die letzte Fluggeschwindigkeit
+                // und schiesst quer durch die Gegend.
+                Scripting::SET_CHAR_VELOCITY(ped, 0.0f, 0.0f, 0.0f);
+            }
+        }
+
+        /// Gibt die Flugrichtung vor. Wird pro Bild gerufen, auch ohne Eingabe -
+        /// sonst faellt man in der Pause zwischen zwei Tastendruecken.
+        void FlyBy(const float forward, const float side, const float up, const float speed)
+        {
+            const Scripting::Ped ped = LocalPed();
+            if (ped == 0)
+            {
+                return;
+            }
+
+            float fx = 0.0f, fy = 0.0f, fz = 0.0f;
+            CameraForward(fx, fy, fz);
+
+            // Rechtsvektor: die Blickrichtung um 90 Grad gedreht, ohne Neigung.
+            // Mit Neigung kaeme beim Seitwaertsflug ein Steigen oder Sinken
+            // heraus, das niemand angefordert hat.
+            const float length = std::sqrt(fx * fx + fy * fy);
+            const float rx = length > 0.0001f ? fy / length : 1.0f;
+            const float ry = length > 0.0001f ? -fx / length : 0.0f;
+
+            float vx = (fx * forward + rx * side) * speed;
+            float vy = (fy * forward + ry * side) * speed;
+            float vz = (fz * forward + up) * speed;
+
+            // Diagonal gedrueckt waere man sonst um den Faktor 1,41 schneller
+            // als geradeaus - der aelteste Fehler in jeder Flugsteuerung.
+            const float total = std::sqrt(vx * vx + vy * vy + vz * vz);
+            if (total > speed)
+            {
+                const float factor = speed / total;
+                vx *= factor;
+                vy *= factor;
+                vz *= factor;
+            }
+
+            Scripting::SET_CHAR_VELOCITY(ped, vx, vy, vz);
+        }
+
+        /// Springt zum Wegpunkt auf der Karte.
+        ///
+        /// Der Wegpunkt ist ein Blip wie jeder andere; seine Z-Koordinate ist
+        /// allerdings nicht die Hoehe des Bodens, sondern Null. Deshalb wird sie
+        /// verworfen und der Boden gesucht - sonst landet man unter der Karte.
+        bool TeleportToWaypoint()
+        {
+            const Scripting::Blip blip = Scripting::GET_FIRST_BLIP_INFO_ID(Scripting::BLIP_WAYPOINT);
+            if (blip == 0)
+            {
+                return false;
+            }
+
+            Scripting::Vector3 position{};
+            Scripting::GET_BLIP_COORDS(blip, &position);
+
+            Teleport(position.x, position.y, 200.0f);
+            return true;
+        }
+
+        // ----------------------------------------------------- Fahrzeuge II
+
+        void BoostVehicle(const float extra)
+        {
+            const Scripting::Vehicle vehicle = CurrentVehicle();
+            if (vehicle == 0)
+            {
+                return;
+            }
+
+            float speed = 0.0f;
+            Scripting::GET_CAR_SPEED(vehicle, &speed);
+            Scripting::SET_CAR_FORWARD_SPEED(vehicle, speed + extra);
+        }
+
+        /// Stellt ein liegengebliebenes Fahrzeug wieder auf die Raeder.
+        ///
+        /// SET_CAR_ON_GROUND_PROPERLY gibt es in diesem SDK nicht, also von
+        /// Hand: ein Stueck ueber den Boden setzen und die Neigung durch ein
+        /// erneutes Setzen der Himmelsrichtung zuruecknehmen.
+        void UprightVehicle()
+        {
+            const Scripting::Vehicle vehicle = CurrentVehicle();
+            if (vehicle == 0)
+            {
+                return;
+            }
+
+            float x = 0.0f, y = 0.0f, z = 0.0f;
+            Scripting::GET_CAR_COORDINATES(vehicle, &x, &y, &z);
+
+            float ground = 0.0f;
+            Scripting::GET_GROUND_Z_FOR_3D_COORD(x, y, z + 20.0f, &ground);
+
+            float heading = 0.0f;
+            Scripting::GET_CAR_HEADING(vehicle, &heading);
+
+            Scripting::SET_CAR_COORDINATES(vehicle, x, y, (ground > 0.0f ? ground : z) + 1.5f);
+
+            // Die Himmelsrichtung neu zu setzen nimmt Neigung und Rollen mit
+            // zurueck - das ist der Weg zum Aufrichten ohne die Native, die es
+            // in diesem SDK nicht gibt.
+            Scripting::SET_CAR_HEADING(vehicle, heading);
+        }
+
+        void DeleteCurrentVehicle()
+        {
+            Scripting::Vehicle vehicle = CurrentVehicle();
+            if (vehicle == 0)
+            {
+                return;
+            }
+
+            const Scripting::Ped ped = LocalPed();
+            if (ped != 0)
+            {
+                // Erst aussteigen lassen. Ein geloeschtes Fahrzeug mit einem
+                // Insassen darin hinterlaesst den Spieler in der Luft.
+                float x = 0.0f, y = 0.0f, z = 0.0f;
+                Scripting::GET_CHAR_COORDINATES(ped, &x, &y, &z);
+                Scripting::SET_CHAR_COORDINATES(ped, x + 2.0f, y, z);
+            }
+
+            Scripting::DELETE_CAR(&vehicle);
+        }
+
+        // --------------------------------------------------------- Passanten
+
+        /// Bewaffnet den naechsten Passanten und hetzt ihn auf den Spieler.
+        void ProvokeNearest()
+        {
+            const Scripting::Ped player = LocalPed();
+            if (player == 0)
+            {
+                return;
+            }
+
+            float x = 0.0f, y = 0.0f, z = 0.0f;
+            Scripting::GET_CHAR_COORDINATES(player, &x, &y, &z);
+
+            Scripting::Ped other = 0;
+            Scripting::GET_CLOSEST_CHAR(x, y, z, 30.0f, 1, 1, &other);
+
+            if (other == 0 || other == player)
+            {
+                return;
+            }
+
+            Scripting::GIVE_WEAPON_TO_CHAR(other, Scripting::WEAPON_PISTOL, 200, 1);
+            Scripting::SET_CHAR_ACCURACY(other, 40);
+            Scripting::SET_CHAR_AS_ENEMY(other, 1);
+            Scripting::TASK_COMBAT(other, player);
+        }
+
+        /// Setzt die Gesundheit der Umstehenden auf null.
+        ///
+        /// GET_CLOSEST_CHAR liefert immer nur einen; nach jedem Treffer ist ein
+        /// anderer der naechste, also mehrfach rufen. Eine feste Obergrenze statt
+        /// einer Schleife bis "keiner mehr da" - sonst haengt das Spiel, sobald
+        /// die Native aus irgendeinem Grund denselben Passanten zurueckgibt.
+        void KillNearby()
+        {
+            const Scripting::Ped player = LocalPed();
+            if (player == 0)
+            {
+                return;
+            }
+
+            float x = 0.0f, y = 0.0f, z = 0.0f;
+            Scripting::GET_CHAR_COORDINATES(player, &x, &y, &z);
+
+            for (int i = 0; i < 24; ++i)
+            {
+                Scripting::Ped other = 0;
+                Scripting::GET_CLOSEST_CHAR(x, y, z, 35.0f, 1, 1, &other);
+
+                if (other == 0 || other == player)
+                {
+                    break;
+                }
+
+                Scripting::SET_CHAR_HEALTH(other, 0);
+            }
+        }
+
+        /// Eine Explosion in einiger Entfernung vor dem Spieler.
+        ///
+        /// Bewusst versetzt und nicht am eigenen Standort: eine Explosion unter
+        /// den eigenen Fuessen ist keine Funktion, sondern ein Selbstmordknopf.
+        void ExplosionAhead()
+        {
+            const Scripting::Ped ped = LocalPed();
+            if (ped == 0)
+            {
+                return;
+            }
+
+            float x = 0.0f, y = 0.0f, z = 0.0f;
+            Scripting::GET_OFFSET_FROM_CHAR_IN_WORLD_COORDS(ped, 0.0f, 8.0f, 0.0f, &x, &y, &z);
+
+            Scripting::ADD_EXPLOSION(x, y, z, 0, 1.0f, 1, 0, 1.0f);
+        }
+
+        // --------------------------------------------------- Mehr Fahrzeuge
+
+        /// Ruft etwas fuer jedes Fahrzeug in einem Umkreis auf.
+        ///
+        /// GET_RANDOM_CAR_IN_SPHERE_NO_SAVE liefert ein Fahrzeug, nicht alle.
+        /// Mehrfach gerufen kommen unterschiedliche heraus, aber nicht garantiert
+        /// jedes - deshalb eine feste Obergrenze statt einer Schleife, die auf
+        /// Vollstaendigkeit hofft und im Zweifel nie endet.
+        template <typename Action>
+        void ForNearbyCars(const float radius, const int attempts, Action action)
+        {
+            const Scripting::Ped ped = LocalPed();
+            if (ped == 0)
+            {
+                return;
+            }
+
+            float x = 0.0f, y = 0.0f, z = 0.0f;
+            Scripting::GET_CHAR_COORDINATES(ped, &x, &y, &z);
+
+            const Scripting::Vehicle own = CurrentVehicle();
+
+            for (int i = 0; i < attempts; ++i)
+            {
+                Scripting::Vehicle car = 0;
+                Scripting::GET_RANDOM_CAR_IN_SPHERE_NO_SAVE(x, y, z, radius, 0, 0, &car);
+
+                if (car == 0 || car == own)
+                {
+                    continue;
+                }
+
+                action(car);
+            }
+        }
+
+        void EnterNearestCar()
+        {
+            const Scripting::Ped ped = LocalPed();
+            if (ped == 0)
+            {
+                return;
+            }
+
+            float x = 0.0f, y = 0.0f, z = 0.0f;
+            Scripting::GET_CHAR_COORDINATES(ped, &x, &y, &z);
+
+            Scripting::Vehicle car = 0;
+            Scripting::GET_RANDOM_CAR_IN_SPHERE_NO_SAVE(x, y, z, 25.0f, 0, 0, &car);
+
+            if (car != 0)
+            {
+                Scripting::WARP_CHAR_INTO_CAR(ped, car);
+            }
+        }
+
+        // -------------------------------------------------------- Mehr Spieler
+
+        void SetInvisible(const bool on)
+        {
+            const Scripting::Ped ped = LocalPed();
+            if (ped != 0)
+            {
+                Scripting::SET_CHAR_VISIBLE(ped, on ? 0 : 1);
+            }
+        }
+
+        /// Setzt den Spieler dorthin, wo die Kamera steht.
+        ///
+        /// Der schnellste Weg irgendwohin: hinschauen, ausloesen. Gedacht fuer
+        /// Daecher und Stellen, an die man sonst klettern muesste.
+        void TeleportToCamera()
+        {
+            const Scripting::Ped ped = LocalPed();
+            if (ped == 0)
+            {
+                return;
+            }
+
+            int camera = 0;
+            Scripting::GET_GAME_CAM(&camera);
+
+            float x = 0.0f, y = 0.0f, z = 0.0f;
+            Scripting::GET_CAM_POS(camera, &x, &y, &z);
+
+            Scripting::SET_CHAR_COORDINATES(ped, x, y, z);
+        }
+
+        void Heal()
+        {
+            const Scripting::Ped ped = LocalPed();
+            if (ped == 0)
+            {
+                return;
+            }
+
+            Scripting::SET_CHAR_HEALTH(ped, 200);
+            Scripting::ADD_ARMOUR_TO_CHAR(ped, 100);
+        }
+
+        // ------------------------------------------------------------- Zeit
+
+        void SetTimeScale(const float scale)
+        {
+            Scripting::SET_TIME_SCALE(scale);
+        }
+
+        void SetGravity(const float value)
+        {
+            const Scripting::Ped ped = LocalPed();
+            if (ped == 0)
+            {
+                return;
+            }
+
+            // SET_GRAVITY_OFF wirkt auf die ganze Welt, SET_CHAR_GRAVITY nur auf
+            // den Spieler. Fuer Mondsprung will man das zweite - sonst schweben
+            // auch alle Fahrzeuge davon.
+            Scripting::SET_CHAR_GRAVITY(ped, value);
+        }
+
         void SetWantedLevel(const int level)
         {
             const Scripting::Player player = LocalPlayer();
@@ -631,6 +1008,26 @@ namespace
     /// Index der Stufe "unveraendert" - dort fassen wir die Dichte nicht an.
     constexpr int kTrafficDefault = 2;
     int g_trafficChoice = kTrafficDefault;
+
+    bool g_noclip = false;
+    bool g_invisible = false;
+    bool g_frozenVehicle = false;
+    bool g_invisibleVehicle = false;
+    bool g_peacefulPeds = false;
+    bool g_noCops = false;
+
+    int g_gravityChoice = 0;
+    int g_timeScaleChoice = 2;
+    int g_pedChoice = kTrafficDefault;
+    int g_colourChoice = 0;
+    int g_lightChoice = 0;
+    int g_flySpeedChoice = 1;
+
+    const float kGravities[] = {9.8f, 2.0f, 0.5f};
+    const float kTimeScales[] = {0.1f, 0.3f, 1.0f, 1.6f, 2.5f};
+    /// In Einheiten je Sekunde, nicht je Bild. Zum Vergleich: Gehen ist etwa 2,
+    /// Rennen 7, ein Auto auf der Schnellstrasse 30.
+    const float kFlySpeeds[] = {8.0f, 22.0f, 60.0f};
 
     const float kTrafficDensities[] = {0.0f, 0.5f, 1.0f, 2.0f};
     const int kTimes[] = {0, 6, 12, 18, 21};
@@ -717,8 +1114,90 @@ namespace
         {
             const float density = kTrafficDensities[g_trafficChoice];
             Scripting::SET_CAR_DENSITY_MULTIPLIER(density);
-            Scripting::SET_PED_DENSITY_MULTIPLIER(density);
+            Scripting::SET_RANDOM_CAR_DENSITY_MULTIPLIER(density);
         }
+
+        if (g_pedChoice != kTrafficDefault)
+        {
+            const float density = kTrafficDensities[g_pedChoice];
+            Scripting::SET_PED_DENSITY_MULTIPLIER(density);
+            Scripting::SET_SCENARIO_PED_DENSITY_MULTIPLIER(density, density);
+        }
+
+        if (g_peacefulPeds)
+        {
+            Scripting::SET_EVERYONE_IGNORE_PLAYER(player, 1);
+        }
+
+        if (g_noCops)
+        {
+            Scripting::SET_CREATE_RANDOM_COPS(0);
+        }
+    }
+
+    // ------------------------------------------------------------ Fliegen
+
+    /// Die Tasten fuers Fliegen.
+    ///
+    /// Eigene Tasten und nicht die des Menues: waehrend man fliegt, soll sich
+    /// das Menue weiterhin bedienen lassen. W/A/S/D und Leertaste/Strg liegen
+    /// ausserdem dort, wo man sie aus anderen Spielen kennt.
+    struct FlyKey
+    {
+        const char* action;
+        int code;
+        float* axis;
+        float sign;
+    };
+
+    float g_flyForward = 0.0f;
+    float g_flySide = 0.0f;
+    float g_flyUp = 0.0f;
+
+    FlyKey g_flyKeys[] = {
+        { "FlugVor",     'W',      &g_flyForward, +1.0f },
+        { "FlugZurueck", 'S',      &g_flyForward, -1.0f },
+        { "FlugRechts",  'D',      &g_flySide,    +1.0f },
+        { "FlugLinks",   'A',      &g_flySide,    -1.0f },
+        { "FlugHoch",    VK_SPACE, &g_flyUp,      +1.0f },
+        { "FlugRunter",  VK_CONTROL, &g_flyUp,   -1.0f },
+    };
+
+    void BindFlyKeys(const mliv::Config& config)
+    {
+        for (FlyKey& key : g_flyKeys)
+        {
+            const std::vector<int> codes = config.keys(key.action);
+            if (!codes.empty())
+            {
+                key.code = codes.front();
+            }
+        }
+    }
+
+    /// Gehaltene Tasten, keine Flanken: fliegen heisst gedrueckt halten.
+    void ApplyNoclip()
+    {
+        if (!g_noclip)
+        {
+            return;
+        }
+
+        g_flyForward = 0.0f;
+        g_flySide = 0.0f;
+        g_flyUp = 0.0f;
+
+        for (const FlyKey& key : g_flyKeys)
+        {
+            if ((GetAsyncKeyState(key.code) & 0x8000) != 0)
+            {
+                *key.axis += key.sign;
+            }
+        }
+
+        // Auch ohne Eingabe gesetzt, und zwar auf null: sonst behaelt der
+        // Spieler seine letzte Geschwindigkeit und treibt weiter.
+        game::FlyBy(g_flyForward, g_flySide, g_flyUp, kFlySpeeds[g_flySpeedChoice]);
     }
 
     // --------------------------------------------------------------- Menue
@@ -747,6 +1226,10 @@ namespace
 
         g_root->add({"Leben auffuellen", mliv::ItemKind::Action, game::RestoreHealth});
         g_root->add({"Panzerung auffuellen", mliv::ItemKind::Action, game::RestoreArmour});
+        g_root->add({"Voll aufrichten", mliv::ItemKind::Action, game::Heal});
+        g_root->add({"Unsichtbar", mliv::ItemKind::Toggle,
+                     [] { game::SetInvisible(g_invisible); }, &g_invisible});
+        g_root->add({"Zur Kamera springen", mliv::ItemKind::Action, game::TeleportToCamera});
 
         // --- Waffen ---
         g_root->add({"-- Waffen --", mliv::ItemKind::Label});
@@ -800,6 +1283,71 @@ namespace
         vehicles->add({"Reparieren", mliv::ItemKind::Action, game::RepairVehicle});
         vehicles->add({"Unkaputtbar", mliv::ItemKind::Toggle, nullptr, &g_strongVehicle});
 
+        vehicles->add({"-- Tuning --", mliv::ItemKind::Label});
+        vehicles->add({"Schub", mliv::ItemKind::Action, [] { game::BoostVehicle(20.0f); }});
+        vehicles->add({"Aufrichten", mliv::ItemKind::Action, game::UprightVehicle});
+        vehicles->add({"Wegraeumen", mliv::ItemKind::Action, game::DeleteCurrentVehicle});
+
+        mliv::MenuItem colour;
+        colour.label = "Farbe";
+        colour.kind = mliv::ItemKind::Choice;
+        colour.choices = {"Schwarz", "Weiss", "Rot", "Blau", "Gelb", "Gruen"};
+        colour.choiceIndex = &g_colourChoice;
+        colour.onChoice = [](const int i) {
+            const Scripting::Vehicle vehicle = game::CurrentVehicle();
+            if (vehicle != 0)
+            {
+                // Die Farbindizes stammen aus carcols.dat des Spiels.
+                static const int kColours[] = {0, 111, 27, 64, 88, 50};
+                Scripting::CHANGE_CAR_COLOUR(vehicle, kColours[i], kColours[i]);
+            }
+        };
+        vehicles->add(colour);
+
+        mliv::MenuItem lights;
+        lights.label = "Licht";
+        lights.kind = mliv::ItemKind::Choice;
+        lights.choices = {"Automatisch", "Immer an", "Immer aus"};
+        lights.choiceIndex = &g_lightChoice;
+        lights.onChoice = [](const int i) {
+            const Scripting::Vehicle vehicle = game::CurrentVehicle();
+            if (vehicle != 0)
+            {
+                Scripting::FORCE_CAR_LIGHTS(vehicle, i);
+            }
+        };
+        vehicles->add(lights);
+
+        vehicles->add({"-- Spielereien --", mliv::ItemKind::Label});
+        vehicles->add({"Einfrieren", mliv::ItemKind::Toggle,
+                       [] {
+                           const Scripting::Vehicle v = game::CurrentVehicle();
+                           if (v != 0) { Scripting::FREEZE_CAR_POSITION(v, g_frozenVehicle ? 1 : 0); }
+                       }, &g_frozenVehicle});
+        vehicles->add({"Unsichtbar", mliv::ItemKind::Toggle,
+                       [] {
+                           const Scripting::Vehicle v = game::CurrentVehicle();
+                           if (v != 0) { Scripting::SET_CAR_VISIBLE(v, g_invisibleVehicle ? 0 : 1); }
+                       }, &g_invisibleVehicle});
+        vehicles->add({"Tueren auf", mliv::ItemKind::Action, [] {
+            const Scripting::Vehicle v = game::CurrentVehicle();
+            if (v != 0) { for (unsigned d = 0; d < 6; ++d) { Scripting::OPEN_CAR_DOOR(v, d); } }
+        }});
+        vehicles->add({"Tueren zu", mliv::ItemKind::Action, [] {
+            const Scripting::Vehicle v = game::CurrentVehicle();
+            if (v != 0) { Scripting::CLOSE_ALL_CAR_DOORS(v); }
+        }});
+        vehicles->add({"Reifen zerschiessen", mliv::ItemKind::Action, [] {
+            const Scripting::Vehicle v = game::CurrentVehicle();
+            if (v != 0) { for (unsigned t = 0; t < 4; ++t) { Scripting::BURST_CAR_TYRE(v, t); } }
+        }});
+        vehicles->add({"Ins naechste Auto", mliv::ItemKind::Action, game::EnterNearestCar});
+        vehicles->add({"Umstehende sprengen", mliv::ItemKind::Action, [] {
+            game::ForNearbyCars(40.0f, 24, [](const Scripting::Vehicle car) {
+                Scripting::EXPLODE_CAR(car, 1, 0);
+            });
+        }});
+
         mliv::MenuItem vehiclesEntry;
         vehiclesEntry.label = "Fahrzeuge";
         vehiclesEntry.kind = mliv::ItemKind::Submenu;
@@ -850,11 +1398,87 @@ namespace
             mliv::LogLine("Teleport: %s", p.name);
         }});
 
+        mliv::MenuItem timeScale;
+        timeScale.label = "Zeitlupe";
+        timeScale.kind = mliv::ItemKind::Choice;
+        timeScale.choices = {"Sehr langsam", "Langsam", "Normal", "Schnell", "Sehr schnell"};
+        timeScale.choiceIndex = &g_timeScaleChoice;
+
+        // Einmal beim Umschalten, nicht pro Bild: anders als die Dichte-Regler
+        // haelt der Zeitfaktor von selbst, und ihn jedes Bild neu zu setzen
+        // legte sich mit Zwischensequenzen an.
+        timeScale.onChoice = [](const int i) { game::SetTimeScale(kTimeScales[i]); };
+        world->add(timeScale);
+
         mliv::MenuItem worldEntry;
         worldEntry.label = "Welt";
         worldEntry.kind = mliv::ItemKind::Submenu;
         worldEntry.submenu = world;
         g_root->add(worldEntry);
+
+        // --- Bewegung ---
+        auto motion = std::make_shared<mliv::Menu>("Bewegung");
+
+        mliv::MenuItem noclip;
+        noclip.label = "Fliegen";
+        noclip.kind = mliv::ItemKind::Toggle;
+        noclip.toggle = &g_noclip;
+        noclip.onSelect = [] { game::SetNoclip(g_noclip, kGravities[g_gravityChoice]); };
+        motion->add(noclip);
+
+        mliv::MenuItem flySpeed;
+        flySpeed.label = "Flugtempo";
+        flySpeed.kind = mliv::ItemKind::Choice;
+        flySpeed.choices = {"Langsam", "Normal", "Schnell"};
+        flySpeed.choiceIndex = &g_flySpeedChoice;
+        motion->add(flySpeed);
+
+        motion->add({"W A S D bewegt, Leertaste hoch, Strg runter", mliv::ItemKind::Label});
+
+        mliv::MenuItem gravity;
+        gravity.label = "Schwerkraft";
+        gravity.kind = mliv::ItemKind::Choice;
+        gravity.choices = {"Normal", "Niedrig", "Mond"};
+        gravity.choiceIndex = &g_gravityChoice;
+        gravity.onChoice = [](const int i) { game::SetGravity(kGravities[i]); };
+        motion->add(gravity);
+
+        motion->add({"Zum Wegpunkt", mliv::ItemKind::Action, [] {
+            if (!game::TeleportToWaypoint())
+            {
+                mliv::LogLine("Kein Wegpunkt auf der Karte gesetzt.");
+            }
+        }});
+
+        mliv::MenuItem motionEntry;
+        motionEntry.label = "Bewegung";
+        motionEntry.kind = mliv::ItemKind::Submenu;
+        motionEntry.submenu = motion;
+        g_root->add(motionEntry);
+
+        // --- Passanten ---
+        auto peds = std::make_shared<mliv::Menu>("Passanten");
+
+        mliv::MenuItem density;
+        density.label = "Passanten";
+        density.kind = mliv::ItemKind::Choice;
+        density.choices = {"Keine", "Wenige", "Normal", "Viele"};
+        density.choiceIndex = &g_pedChoice;
+        peds->add(density);
+
+        peds->add({"Alle ignorieren dich", mliv::ItemKind::Toggle, nullptr, &g_peacefulPeds});
+        peds->add({"Keine neuen Streifen", mliv::ItemKind::Toggle, nullptr, &g_noCops});
+
+        peds->add({"-- Chaos --", mliv::ItemKind::Label});
+        peds->add({"Naechsten aufhetzen", mliv::ItemKind::Action, game::ProvokeNearest});
+        peds->add({"Explosion voraus", mliv::ItemKind::Action, game::ExplosionAhead});
+        peds->add({"Umstehende umlegen", mliv::ItemKind::Action, game::KillNearby});
+
+        mliv::MenuItem pedsEntry;
+        pedsEntry.label = "Passanten";
+        pedsEntry.kind = mliv::ItemKind::Submenu;
+        pedsEntry.submenu = peds;
+        g_root->add(pedsEntry);
 
         g_menu = std::make_unique<mliv::MenuController>(g_root);
     }
@@ -873,6 +1497,7 @@ namespace
         // Auch wenn das Menue zu ist: die Schalter sollen wirken, nicht nur
         // solange man hinsieht.
         EnforceToggles();
+        ApplyNoclip();
 
         // Gezeichnet wird hier, nicht in drawingEvent.
         //
@@ -900,7 +1525,7 @@ void plugin::gameStartupEvent()
     GetModuleFileNameW(GetModuleHandleW(L"ModlauncherIV-Trainer.asi"), self, MAX_PATH);
     mliv::LogOpen(self);
 
-    mliv::LogLine("Modlauncher IV Trainer, Stufe T3");
+    mliv::LogLine("Modlauncher IV Trainer, Stufe T5");
 
     const mliv::GameInfo game = mliv::DetectGame();
     mliv::LogLine("Version: %ls (%s)",
@@ -930,6 +1555,7 @@ void plugin::gameStartupEvent()
     }
 
     BindKeys(config);
+    BindFlyKeys(config);
 
     g_renderer.configure(
         config.number("Menue.Links", 0.025f),
