@@ -90,6 +90,7 @@ internal static class Program
         CheckReinspection(session);
         CheckVersionAttribution(session);
         CheckGuardOnHome(session);
+        CheckMismatchedMod(session);
 
         // Only when asked for: this one talks to somebody else's server, and a
         // test suite that fails because a stranger's host is down is a test
@@ -861,6 +862,64 @@ internal static class Program
             || rockstar.Guard.Contains("FusionFix", StringComparison.OrdinalIgnoreCase));
 
         Check("home on a Rockstar installation", rockstar);
+    }
+
+    /// <summary>
+    /// A mod installed for a version the game no longer has.
+    ///
+    /// Found in the wild rather than thought up: FusionFix installed on 1.0.8.0,
+    /// then the game taken to 1.0.7.0 underneath it. Every file of it is still
+    /// exactly where it was put, so the counter-check reports an installation in
+    /// perfect order - while the mod cannot load, and that pairing is the one
+    /// measured to corrupt the heap.
+    /// </summary>
+    private static void CheckMismatchedMod(Session session)
+    {
+        var only1080 = session.Catalog?.Recipes.FirstOrDefault(r =>
+            r.AppliesTo.Count == 1 && r.AppliesTo[0] == "1.0.8.0" && !r.IsVersionTransition);
+
+        if (only1080 is null)
+        {
+            Report("mismatch: the catalog has a recipe for one version only", false);
+            return;
+        }
+
+        // On 1.0.7.0, with a folder that is not there so the version stays put.
+        var on107 = On(session, "1.0.7.0");
+        var store = new LedgerStore(on107.Install!.Path);
+
+        try
+        {
+            store.Save(InstallLedger.Empty(on107.Install.Path) with
+            {
+                Entries =
+                [
+                    new LedgerEntry(
+                        only1080.Id, only1080.Name, only1080.Version, DateTimeOffset.Now, "snap",
+                        [new OwnedFile(@"plugins\something.asi", null)],
+                        GameVersionAfter: "1.0.7.0"),
+                ],
+            });
+
+            var home = new HomeViewModel(on107, () => { });
+            home.EnterAsync().GetAwaiter().GetResult();
+
+            var row = home.Mods.FirstOrDefault(m => m.RecipeId == only1080.Id);
+
+            Report("mismatch: the mod is listed", row is not null);
+            Report("mismatch: and marked as made for another version", row is { Mismatched: true });
+            Report("mismatch: which version is named", row?.MadeFor == "1.0.8.0");
+            Report("mismatch: the page does not call this healthy", !home.Healthy);
+            Report(
+                "mismatch: and the line says it will not load",
+                home.Status.Contains("not load", StringComparison.OrdinalIgnoreCase));
+
+            Check("home with a mod for the wrong version", home);
+        }
+        finally
+        {
+            store.Save(InstallLedger.Empty(on107.Install.Path));
+        }
     }
 
     /// <summary>The same session, with the installation coming from elsewhere.</summary>

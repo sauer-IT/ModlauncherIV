@@ -161,15 +161,21 @@ because a file this program wrote is still a file somebody can edit.
 The switches are the client's own - `/connect <server>` and `/silent`, read out
 of its launcher's help text rather than guessed.
 
-Two things get said first, on both paths. That registry key also records which
-`GTAIV.exe` it will start, and it need not be the installation this launcher
-looks after - in which case nothing installed here applies to what actually
-runs. And the ASI loader does not care what the game is being used for:
-everything in `plugins\` loads in multiplayer too, the trainer included. On a
-server that is a good way to be thrown off it, and a good way to crash.
+One thing gets said first, on both paths, because it is true and invisible: that
+registry key also records which `GTAIV.exe` the client will start, and it need
+not be the installation this launcher looks after - in which case nothing
+installed here applies to what actually runs.
 
-Saying it on both paths is deliberate. Skipping it on the shorter one would mean
-the quick way is the way that warns about nothing.
+**What used to stand next to it was wrong.** It said everything in `plugins\`
+comes along into multiplayer, the trainer included, and that this would get you
+thrown off a server. That was reasoned rather than tried. Measured, the trainer
+does not load under the client at all: it starts the game itself and decides
+what goes into it. The warning is gone rather than corrected - there is nothing
+there to warn about, and a warning that is not true is worse than none.
+
+It is also the right way round. A trainer on a server with other people on it is
+cheating, and working around a client's own decision about what it loads is not
+something this project is going to do.
 
 **The trainer does not start separately.** It sits in the game directory as
 `plugins\sauer.asi` and is loaded along by the ASI loader when
@@ -250,7 +256,7 @@ because it could not write its own log would be a bad joke.
 .\tests\run-tests.ps1
 ```
 
-294 tests against fake game directories. No real installation is touched. If GTA
+300 tests against fake game directories. No real installation is touched. If GTA
 IV happens to be running, the script aborts up front - otherwise every pre-flight
 rightly blocks and four tests fail without anything being wrong with the code.
 Among the things covered:

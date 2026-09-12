@@ -45,6 +45,17 @@ public sealed record ExternalTool(
 /// without the other one beside it.
 /// </param>
 /// <param name="Available">What the catalog has, when that is something else.</param>
+/// <param name="Mismatched">
+/// True when this was made for a different game version than the one installed
+/// now.
+///
+/// The state nothing used to mention. Every file is exactly where it was put,
+/// so the counter-check is happy and the page looked healthy - while the mod
+/// itself does not load, or worse. It is what a version change leaves behind,
+/// and the planner warns before one; this is the same thing said afterwards,
+/// for somebody who is already standing in it.
+/// </param>
+/// <param name="MadeFor">The versions it was made for, when they are not this one.</param>
 public sealed record InstalledMod(
     string RecipeId,
     string Name,
@@ -53,6 +64,8 @@ public sealed record InstalledMod(
     bool Intact,
     bool Outdated,
     string Available,
+    bool Mismatched,
+    string MadeFor,
     RelayCommand RemoveCommand,
     RelayCommand UpdateCommand);
 
@@ -356,8 +369,10 @@ public sealed class HomeViewModel : Observable
     /// already gone wrong. Its own registry key records which GTAIV.exe it will
     /// start, and that need not be the installation this launcher looks after.
     /// And the ASI loader does not care what the game is being used for - every
-    /// plugin in plugins\ loads in multiplayer too, the trainer included. A
-    /// trainer on a server is both a good way to be thrown off it and a good way
+    /// plugin in plugins\ was thought to load in multiplayer too. It does not -
+    /// the client loads what it loads - so what is left to say is the one thing
+    /// that is true and invisible: which game it will start. A trainer on a
+    /// server with other people on it would be cheating and a good way
     /// to crash.
     /// </summary>
     private void PlayOnline()
@@ -404,17 +419,12 @@ public sealed class HomeViewModel : Observable
                 + "Nothing installed here applies to what actually starts.");
         }
 
-        var plugins = _session.Install is { } i ? Path.Combine(i.Path, "plugins") : null;
-
-        if (plugins is not null && Directory.Exists(plugins) &&
-            Directory.EnumerateFiles(plugins, "*.asi").Any())
-        {
-            warnings.Add(
-                "Plugins from plugins\\ load in multiplayer as well - the trainer "
-                + "among them. On a server that is a good way to be thrown off it, "
-                + "and a good way to crash. Remove them here first if you would "
-                + "rather play clean.");
-        }
+        // What used to stand here was that plugins come along into multiplayer,
+        // the trainer among them. That was reasoned, not tried, and it is wrong:
+        // the client decides what is loaded into the game it starts, and none of
+        // this goes with it. The warning is gone rather than corrected - there
+        // is nothing here to warn about, and a warning that is not true is worse
+        // than none at all.
 
         if (warnings.Count == 0)
         {
@@ -524,6 +534,14 @@ public sealed class HomeViewModel : Observable
                 var outdated = current is not null
                                && !string.Equals(current.Version, entry.RecipeVersion, StringComparison.OrdinalIgnoreCase);
 
+                // Made for another game version than the one that is installed.
+                // Its files are all present, so nothing else on this page would
+                // ever mention it - and the mod is silent, or worse.
+                var mismatched = current is not null
+                                 && current.AppliesTo.Count > 0
+                                 && !current.IsVersionTransition
+                                 && !current.Matches(install.Version.Raw);
+
                 Mods.Add(new InstalledMod(
                     id,
                     current?.Name ?? entry.RecipeName,
@@ -532,6 +550,8 @@ public sealed class HomeViewModel : Observable
                     broken == 0,
                     outdated,
                     outdated ? current!.Version : string.Empty,
+                    mismatched,
+                    mismatched ? string.Join(", ", current!.AppliesTo) : string.Empty,
                     new RelayCommand(() => Remove(id), () => !_busy),
                     new RelayCommand(() => Update(id), () => !_busy)));
             }
@@ -711,6 +731,26 @@ public sealed class HomeViewModel : Observable
                   + $"What is still installed was made for {result.ExpectedVersion} and will not load like this."
                 : $"The platform reset the game to {result.CurrentVersion}. "
                   + $"{result.ExpectedVersion} was installed. The mods will not load like this.";
+
+            Healthy = false;
+            return;
+        }
+
+        // Mods for another version of the game are not a file problem - every
+        // one of their files is present - so the counter-check has nothing to
+        // say about them. Said here, because a page reporting "everything is
+        // fine" over mods that cannot load is worse than one that says nothing.
+        var mismatched = Mods.Where(m => m.Mismatched).ToArray();
+
+        if (mismatched.Length > 0)
+        {
+            var names = string.Join(", ", mismatched.Select(m => m.Name));
+
+            Status = mismatched.Length == 1
+                ? $"{names} was made for {mismatched[0].MadeFor} and the game is {result.CurrentVersion}. "
+                  + "It will not load - take it back, or put that version back."
+                : $"{mismatched.Length} mods were made for another version than {result.CurrentVersion}: {names}. "
+                  + "They will not load - take them back, or put that version back.";
 
             Healthy = false;
             return;

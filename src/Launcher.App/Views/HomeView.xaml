@@ -155,13 +155,27 @@
                                         <!-- A version number alone says nothing.
                                              What makes it mean something is the
                                              other one next to it. -->
-                                        <StackPanel Orientation="Horizontal" Margin="0,5,0,0"
+                                        <StackPanel Orientation="Horizontal" Margin="0,5,0,0">
+                                            <Border Style="{StaticResource Chip}"
                                                     Visibility="{Binding Outdated, Converter={StaticResource Show}}">
-                                            <Border Style="{StaticResource Chip}">
                                                 <TextBlock Style="{StaticResource ChipText}"
                                                            Foreground="{StaticResource Accent}">
                                                     <Run Text="newer in the catalog:" />
                                                     <Run Text="{Binding Available, Mode=OneWay}" />
+                                                </TextBlock>
+                                            </Border>
+
+                                            <!-- Installed, present, and made for another
+                                                 version of the game. Nothing else on this
+                                                 page would ever say so: every file is
+                                                 exactly where it was put. -->
+                                            <Border Style="{StaticResource Chip}"
+                                                    Visibility="{Binding Mismatched, Converter={StaticResource Show}}">
+                                                <TextBlock Style="{StaticResource ChipText}"
+                                                           Foreground="{StaticResource Bad}">
+                                                    <Run Text="made for" />
+                                                    <Run Text="{Binding MadeFor, Mode=OneWay}" />
+                                                    <Run Text="- not loading on this version" />
                                                 </TextBlock>
                                             </Border>
                                         </StackPanel>

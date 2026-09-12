@@ -23,5 +23,5 @@
     "executable": "Launcher.exe"
   },
 
-  "note": "Plugins in plugins\\ load in multiplayer too, the trainer included. On a server that is a good way to be thrown off it, and a good way to crash."
+  "note": "What is in plugins\\ does not come along into multiplayer: measured, after this note claimed the opposite from reasoning rather than from trying it. The client decides what gets loaded into the game it starts, and the trainer is not part of it. That is the client's business and the right way round - a trainer on a server with other people on it is cheating, and would get you thrown off it."
 }
