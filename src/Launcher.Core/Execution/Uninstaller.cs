@@ -117,6 +117,7 @@ public sealed class Uninstaller(SnapshotStore snapshots, LedgerStore ledgerStore
             Lines(context));
     }
 
+    /// <summary>
     private static bool Same(string a, string b) =>
         string.Equals(a, b, StringComparison.OrdinalIgnoreCase);
 

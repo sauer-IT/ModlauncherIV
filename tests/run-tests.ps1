@@ -782,6 +782,47 @@ Assert (-not ($r.Output -match "test-ok")) "removal: the ledger is empty"
 $r = Invoke-Mliv (@("remove", "test-ok", "--yes") + $common)
 Assert ($r.ExitCode -eq 5) "removal: what is not installed cannot be removed"
 
+# ------------------------------------------------ Empty folders after removal
+
+Write-Host "`n== Empty folders after removal ==" -ForegroundColor Cyan
+
+# A recipe that puts a file two folders deep. Taking it back has to take the
+# folders with it - a texture pack removed this way used to leave a tree of
+# empty directories behind, and the game directory then looks modded while
+# holding nothing.
+
+@"
+{
+  "id": "test-deep",
+  "name": "Test recipe, writes into new folders",
+  "version": "1.0.0",
+  "game": "GtaIV",
+  "sources": [
+    { "id": "xlive", "fileName": "xliveless.dll", "sha256": "$xliveHash", "sizeBytes": $xliveSize, "urls": [] }
+  ],
+  "steps": [
+    { "type": "copyFile", "source": "xliveless.dll", "target": "update\\deep\\inner\\thing.dll" },
+    { "type": "copyFile", "source": "xliveless.dll", "target": "belegt\\thing.dll" }
+  ]
+}
+"@ | Set-Content -Path (Join-Path $catalog "test-deep.json") -Encoding utf8
+
+$r = Invoke-Mliv (@("apply", "test-deep", "--yes") + $common)
+Assert ($r.ExitCode -eq 0) "folders: the recipe installed"
+Assert (Test-Path (Join-Path $game "update\deep\inner\thing.dll")) "folders: the deep file is there"
+
+$r = Invoke-Mliv (@("remove", "test-deep", "--yes") + $common)
+Assert ($r.ExitCode -eq 0) "folders: it was taken back"
+Assert (-not (Test-Path (Join-Path $game "update\deep\inner\thing.dll"))) "folders: the file is gone"
+Assert (-not (Test-Path (Join-Path $game "update\deep\inner"))) "folders: the innermost folder is gone"
+Assert (-not (Test-Path (Join-Path $game "update"))) "folders: and so is the whole tree it created"
+
+# A folder that was already there stays, even though it is empty again now.
+# The snapshot knows the difference, and that difference is the whole rule.
+Assert (Test-Path (Join-Path $game "belegt")) "folders: a folder that existed before is kept"
+
+Remove-Item (Join-Path $catalog "test-deep.json") -Force
+
 # ----------------------------------------------------- Leftovers on an update
 
 Write-Host "`n== Leftovers on an update ==" -ForegroundColor Cyan

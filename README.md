@@ -164,7 +164,7 @@ Exit codes: `0` success - `1` nothing found - `2` wrong invocation -
 .\tests\run-tests.ps1
 ```
 
-156 tests against fake game directories. No real installation is touched. If GTA
+163 tests against fake game directories. No real installation is touched. If GTA
 IV happens to be running, the script aborts up front - otherwise every pre-flight
 rightly blocks and four tests fail without anything being wrong with the code.
 Among the things covered:
@@ -191,6 +191,8 @@ Among the things covered:
   removed, says so in the dry run first, and a rollback brings it back
 - shared files: a file a second recipe owns as well is neither deleted as a
   leftover nor reported as changed by the counter-check
+- empty folders: the folders a recipe created go with it when it is removed, and
+  a folder that was already there stays even when it ends up empty
 
 **The script is deliberately pure ASCII.** PowerShell 5.1 reads a `.ps1` without
 a BOM as CP1252; a UTF-8 em dash becomes, among other things, `”`, and that
@@ -706,6 +708,9 @@ separate document.
 
 - The core never touches files directly - every change runs through the pipeline
   of pre-flight, snapshot, apply, verify, commit, with automatic rollback.
+- A folder is deleted only when it is empty, and only when the snapshot says the
+  recipe created it. Never recursively: a recipe that made `plugins\` does not
+  thereby own what other recipes later put in it.
 - Ledger and snapshots live under `%LOCALAPPDATA%\ModlauncherIV\`, not in the
   game directory.
 - Updating a recipe removes what its previous version owned and the new one no

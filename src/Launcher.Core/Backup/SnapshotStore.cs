@@ -63,6 +63,27 @@ public sealed class SnapshotStore(string gameRoot)
                 continue;
             }
 
+            // The folders on the way there, as far as they are missing.
+            //
+            // A step announces the file it writes, not the directories it has to
+            // create to get there. Without recording them, taking the recipe back
+            // leaves a tree of empty folders standing - after a texture pack,
+            // that is the whole update\ hierarchy, and the game directory looks
+            // modded while holding nothing.
+            //
+            // Recorded as "did not exist" like anything else that is new, which
+            // is also the only way to tell them apart from a folder that was
+            // already there and must stay.
+            foreach (var missing in MissingAncestors(full))
+            {
+                if (seen.Add(missing))
+                {
+                    entries.Add(new SnapshotEntry(
+                        Path.GetRelativePath(_gameRoot, missing),
+                        Existed: false, WasDirectory: true, 0, null));
+                }
+            }
+
             entries.Add(Capture(full, fileRoot));
         }
 
@@ -72,6 +93,36 @@ public sealed class SnapshotStore(string gameRoot)
             JsonSerializer.Serialize(snapshot, JsonOptions));
 
         return snapshot;
+    }
+
+    /// <summary>
+    /// The folders between the game root and this path that do not exist yet,
+    /// outermost first - so restoring, which goes the other way, empties the
+    /// innermost one before trying its parent.
+    /// </summary>
+    private IEnumerable<string> MissingAncestors(string absolutePath)
+    {
+        var root = Path.GetFullPath(_gameRoot).TrimEnd(Path.DirectorySeparatorChar);
+        var prefix = root + Path.DirectorySeparatorChar;
+
+        var missing = new List<string>();
+        var current = Path.GetDirectoryName(absolutePath);
+
+        while (current is not null &&
+               current.TrimEnd(Path.DirectorySeparatorChar) is var trimmed &&
+               trimmed.StartsWith(prefix, StringComparison.OrdinalIgnoreCase))
+        {
+            if (Directory.Exists(trimmed))
+            {
+                break;
+            }
+
+            missing.Add(trimmed);
+            current = Path.GetDirectoryName(trimmed);
+        }
+
+        missing.Reverse();
+        return missing;
     }
 
     private SnapshotEntry Capture(string absolutePath, string fileRoot)
@@ -114,7 +165,16 @@ public sealed class SnapshotStore(string gameRoot)
         var fileRoot = Path.Combine(DirectoryFor(snapshot.Id), "files");
         var failures = new List<string>();
 
-        foreach (var entry in snapshot.Entries)
+        // Files first, folders afterwards and innermost first. A folder can only
+        // be judged empty once what was in it is gone, and the order entries
+        // happen to be written in says nothing about depth.
+        var ordered = snapshot.Entries
+            .Where(e => !(e is { Existed: false, WasDirectory: true }))
+            .Concat(snapshot.Entries
+                .Where(e => e is { Existed: false, WasDirectory: true })
+                .OrderByDescending(e => e.RelativePath.Length));
+
+        foreach (var entry in ordered)
         {
             var target = Path.Combine(_gameRoot, entry.RelativePath);
 
@@ -128,7 +188,18 @@ public sealed class SnapshotStore(string gameRoot)
                     }
                     else if (Directory.Exists(target))
                     {
-                        Directory.Delete(target, recursive: true);
+                        // Only when empty, and never recursively.
+                        //
+                        // A recipe that created plugins\ does not thereby own
+                        // what other recipes put in it afterwards. Deleting the
+                        // folder with everything in it would take the trainer
+                        // and every other ASI along with the ASI loader - a
+                        // removal that quietly removes three more things than it
+                        // was asked to.
+                        if (!Directory.EnumerateFileSystemEntries(target).Any())
+                        {
+                            Directory.Delete(target);
+                        }
                     }
 
                     continue;
@@ -143,7 +214,7 @@ public sealed class SnapshotStore(string gameRoot)
                 var stored = Path.Combine(fileRoot, entry.RelativePath);
                 if (!File.Exists(stored))
                 {
-                    failures.Add($"{entry.RelativePath}: Sicherungskopie fehlt");
+                    failures.Add($"{entry.RelativePath}: the backup copy is missing");
                     continue;
                 }
 
