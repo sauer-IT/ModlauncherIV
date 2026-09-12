@@ -98,7 +98,16 @@ namespace mliv
 
         virtual void beginFrame(int itemCount) = 0;
         virtual void drawTitle(const std::string& text) = 0;
-        virtual void drawItem(const std::string& label, const std::string& value, bool highlighted) = 0;
+
+        /// @param selectable  false for a heading: it is drawn, but never
+        ///                    highlighted, and reads as a divider rather than
+        ///                    as something that can be picked.
+        virtual void drawItem(const std::string& label, const std::string& value,
+                              bool highlighted, bool selectable) = 0;
+
+        /// One line under the entries: where we are, and how to get out.
+        virtual void drawFooter(const std::string& text) = 0;
+
         virtual void endFrame() = 0;
     };
 

@@ -1,7 +1,28 @@
 #include "Menu.h"
 
+#include <string>
+
 namespace mliv
 {
+    namespace
+    {
+        /// "3 / 11" and nothing else.
+        ///
+        /// No std::to_string dressing and no key hints: the keys are
+        /// configurable, so a hint written here would be a second place that has
+        /// to be kept in step with the configuration - and would be wrong for
+        /// anyone who changed them.
+        std::string Footer(const int position, const int total)
+        {
+            if (total <= 0)
+            {
+                return {};
+            }
+
+            return std::to_string(position) + " / " + std::to_string(total);
+        }
+    }
+
     std::string MenuItem::value() const
     {
         switch (kind)
@@ -239,13 +260,34 @@ namespace mliv
         renderer.beginFrame(static_cast<int>(items.size()));
         renderer.drawTitle(menu.title());
 
+        int selectableCount = 0;
+        int selectedIndex = 0;
+
         for (size_t i = 0; i < items.size(); ++i)
         {
+            const bool selectable = items[i].selectable();
+
+            if (selectable)
+            {
+                ++selectableCount;
+
+                if (static_cast<int>(i) == menu.selected())
+                {
+                    selectedIndex = selectableCount;
+                }
+            }
+
             renderer.drawItem(
                 items[i].label,
                 items[i].value(),
-                static_cast<int>(i) == menu.selected());
+                static_cast<int>(i) == menu.selected(),
+                selectable);
         }
+
+        // Headings are left out of the count: "3 of 11" is a statement about
+        // what can be picked, and counting dividers would make it disagree with
+        // what the eye sees moving.
+        renderer.drawFooter(Footer(selectedIndex, selectableCount));
 
         renderer.endFrame();
     }

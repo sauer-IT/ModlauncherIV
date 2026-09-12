@@ -400,7 +400,7 @@ live in `menu/`, drawing goes through `IMenuRenderer`, movement through abstract
 inputs. That makes it possible to play the whole menu through without the game:
 
 ```
-.\scripts\build-trainer.ps1 -Test      117 tests, without GTA IV
+.\scripts\build-trainer.ps1 -Test      120 tests, without GTA IV
 ```
 
 A navigation bug shows up in milliseconds that way, instead of after a game
@@ -417,7 +417,7 @@ categories**, each of which opens its own submenu:
 | Money | amount and give |
 | Vehicles | spawn ten models, repair, indestructible, tuning, paint |
 | World | time of day, weather, traffic density, jump to five places |
-| Movement | fly, superjump, run speed, teleport to the map marker |
+| Movement | fly, superjump, run speed, map marker, three saved places |
 | Pedestrians | density, everyone ignores you, riot, panic, clear the area |
 | Settings | lock game input while the menu is open |
 
@@ -452,6 +452,20 @@ Some of it is not obvious:
   stays in memory. The new ped is a new handle, so the sticky switches are gone;
   nothing special is needed for that, because re-asserting on a changed handle is
   what they already do.
+- **Saved places are kept for the session only.** Writing them out would mean a
+  second file format next to the settings, with its own parsing and its own
+  failure cases, for something whose whole use is "mark this spot, go and cause
+  trouble, come back". Quitting the game ends that errand anyway.
+
+The menu is drawn with `DRAW_RECT` and the text natives and nothing else - no
+D3D9 hook. A hook would look better and is one of the most common causes of
+crashes in this scene, because it collides with DXVK, with overlays and with
+other mods. What can be had inside that limit: a shadow behind the panel, a
+hairline in the accent colour along the left edge and under the header, a bar
+marking the selected row, drop shadows on the text so it survives a bright sky
+behind it, headings drawn as dividers rather than as entries, and a footer
+counting the position. The footer counts only what can be picked - counting
+dividers would make the number disagree with what the eye sees moving.
 
 Sticky switches such as godmode are **set again when the handle changes**, not
 only when toggled - the game takes invulnerability back on respawn, in cut scenes

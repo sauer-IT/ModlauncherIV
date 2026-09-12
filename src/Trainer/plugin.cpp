@@ -53,42 +53,75 @@ namespace
     public:
         void beginFrame(const int itemCount) override
         {
-            // Header plus entries, both counted in line heights.
+            const float headerHeight = titleHeight_ + padding_;
             const float bodyHeight = static_cast<float>(itemCount) * line_;
-            const float total = titleHeight_ + bodyHeight + 2.0f * padding_;
+
+            footerY_ = top_ + headerHeight + bodyHeight + padding_ * 0.6f;
+
+            const float total = headerHeight + bodyHeight + footerHeight_ + padding_;
 
             titleY_ = top_ + padding_;
-            y_ = titleY_ + titleHeight_;
+            y_ = top_ + headerHeight + padding_ * 0.5f;
 
-            // The box first: whatever is drawn later sits on top of it.
-            FillRect(left_, top_, width_, total, 0, 0, 0, 190);
+            // A shadow behind the whole panel, offset by a hair. Costs one
+            // rectangle and lifts the menu off whatever is behind it - which in
+            // this game is as often a bright sky as a dark alley.
+            FillRect(left_ + edge_, top_ + edge_, width_, total, 0, 0, 0, 110);
 
-            // A narrow strip as a header so the title stands out.
-            FillRect(left_, top_, width_, titleHeight_ + padding_, 158, 87, 16, 230);
+            // The box. Whatever is drawn later sits on top of it.
+            FillRect(left_, top_, width_, total, 12, 13, 16, 225);
+
+            // Header strip, and under it a hairline in the accent colour: the
+            // eye reads the break between title and list from that line, not
+            // from the change of background.
+            FillRect(left_, top_, width_, headerHeight, 158, 87, 16, 235);
+            FillRect(left_, top_ + headerHeight, width_, edge_, 224, 160, 74, 255);
+
+            // A strip down the left edge, the whole height. It is what makes the
+            // panel read as one object rather than as text on a dark patch.
+            FillRect(left_, top_, edge_, total, 224, 160, 74, 255);
         }
 
         void drawTitle(const std::string& text) override
         {
-            SetupText(255, 255, 255, 255, titleScale_);
+            SetupText(255, 255, 255, 255, titleScale_, true);
             Scripting::DISPLAY_TEXT_WITH_LITERAL_STRING(
-                left_ + padding_, titleY_, "STRING", text.c_str());
+                left_ + padding_ * 1.6f, titleY_, "STRING", text.c_str());
         }
 
-        void drawItem(const std::string& label, const std::string& value, const bool highlighted) override
+        void drawItem(const std::string& label, const std::string& value,
+                      const bool highlighted, const bool selectable) override
         {
+            // A heading is not an entry. No highlight bar, dimmer, and indented
+            // less - it separates, it is not something you land on.
+            if (!selectable)
+            {
+                SetupText(150, 150, 155, 255, itemScale_, false);
+                Scripting::DISPLAY_TEXT_WITH_LITERAL_STRING(
+                    left_ + padding_ * 1.6f, y_, "STRING", label.c_str());
+
+                y_ += line_;
+                return;
+            }
+
             if (highlighted)
             {
-                FillRect(left_, y_ - padding_ * 0.4f, width_, line_, 224, 160, 74, 210);
+                FillRect(left_, y_ - padding_ * 0.4f, width_, line_, 224, 160, 74, 215);
+
+                // A thicker bar at the left edge of the selected row, over the
+                // strip. The selection stays readable at a glance even when the
+                // fill has little contrast against what is behind the menu.
+                FillRect(left_, y_ - padding_ * 0.4f, edge_ * 2.5f, line_, 255, 255, 255, 235);
             }
 
             const unsigned tone = highlighted ? 20u : 235u;
-            SetupText(tone, tone, tone, 255, itemScale_);
+            SetupText(tone, tone, tone, 255, itemScale_, !highlighted);
             Scripting::DISPLAY_TEXT_WITH_LITERAL_STRING(
-                left_ + padding_, y_, "STRING", label.c_str());
+                left_ + padding_ * 1.6f, y_, "STRING", label.c_str());
 
             if (!value.empty())
             {
-                SetupText(tone, tone, tone, 255, itemScale_);
+                SetupText(tone, tone, tone, 255, itemScale_, !highlighted);
 
                 // Right-aligned to the right edge of the box. SET_TEXT_WRAP
                 // defines where "right" is - without it the text aligns to the
@@ -105,6 +138,25 @@ namespace
             }
 
             y_ += line_;
+        }
+
+        /// The position, right-aligned in the footer strip.
+        void drawFooter(const std::string& text) override
+        {
+            if (text.empty())
+            {
+                return;
+            }
+
+            SetupText(140, 140, 145, 255, itemScale_ * 0.88f, false);
+
+            Scripting::SET_TEXT_RIGHT_JUSTIFY(1);
+            Scripting::SET_TEXT_WRAP(left_, left_ + width_ - padding_);
+            Scripting::DISPLAY_TEXT_WITH_LITERAL_STRING(
+                left_ + padding_, footerY_, "STRING", text.c_str());
+
+            Scripting::SET_TEXT_RIGHT_JUSTIFY(0);
+            Scripting::SET_TEXT_WRAP(0.0f, 1.0f);
         }
 
         /// Reset the text state.
@@ -145,6 +197,11 @@ namespace
             padding_ = 0.008f * scale;
             titleScale_ = 0.34f * scale;
             itemScale_ = 0.26f * scale;
+            footerHeight_ = 0.020f * scale;
+
+            // The edge does not scale with the rest. It is a hairline, and a
+            // hairline that grows is a bar.
+            edge_ = 0.0018f;
         }
 
     private:
@@ -161,8 +218,12 @@ namespace
         float titleScale_ = 0.34f;
         float itemScale_ = 0.26f;
 
+        float footerHeight_ = 0.020f;
+        float edge_ = 0.0018f;
+
         float titleY_ = 0.12f;
         float y_ = 0.12f;
+        float footerY_ = 0.12f;
 
         /// DRAW_RECT in GTA IV takes CENTRE and SIZE, not two corners. The
         /// parameter names in the SDK suggest otherwise; fed with corners the
@@ -176,13 +237,19 @@ namespace
                                  width, height, r, g, b, a);
         }
 
+        /// @param shadow  a drop shadow behind the glyphs. On light text over a
+        ///                dark panel it is barely visible and costs nothing; the
+        ///                moment the panel sits over a bright sky it is the
+        ///                difference between readable and washed out. Off for
+        ///                dark text on the selection bar, where it would only
+        ///                smear the letters.
         static void SetupText(const unsigned r, const unsigned g, const unsigned b,
-                              const unsigned a, const float scale)
+                              const unsigned a, const float scale, const bool shadow)
         {
             Scripting::SET_TEXT_FONT(0);
             Scripting::SET_TEXT_SCALE(scale, scale * 1.6f);
             Scripting::SET_TEXT_COLOUR(r, g, b, a);
-            Scripting::SET_TEXT_DROPSHADOW(0, 0, 0, 0, 0);
+            Scripting::SET_TEXT_DROPSHADOW(shadow ? 1 : 0, 0, 0, 0, shadow ? 200 : 0);
             Scripting::SET_TEXT_CENTRE(0);
             Scripting::SET_TEXT_PROPORTIONAL(1);
         }
@@ -801,6 +868,38 @@ namespace
             }
         }
 
+        // -------------------------------------------------- Vehicles, small
+
+        void SetEngine(const bool on)
+        {
+            const Scripting::Vehicle vehicle = CurrentVehicle();
+            if (vehicle != 0)
+            {
+                Scripting::SET_CAR_ENGINE_ON(vehicle, on ? 1 : 0, 1);
+            }
+        }
+
+        void SetDoorsLocked(const bool locked)
+        {
+            const Scripting::Vehicle vehicle = CurrentVehicle();
+            if (vehicle != 0)
+            {
+                // 1 is open, 2 is locked. Not a boolean: the game knows further
+                // states, such as "locked, but the player may get out".
+                Scripting::LOCK_CAR_DOORS(vehicle, locked ? 2u : 1u);
+            }
+        }
+
+        void WashVehicle()
+        {
+            const Scripting::Vehicle vehicle = CurrentVehicle();
+            if (vehicle != 0)
+            {
+                // 0 is spotless, 15 is filthy.
+                Scripting::WASH_VEHICLE_TEXTURES(vehicle, 0u);
+            }
+        }
+
         /// Swaps the player's model.
         ///
         /// Same streaming detour as the vehicles, and for the same reason: a
@@ -1055,6 +1154,52 @@ namespace
             Teleport(position.x, position.y, 200.0f);
             return true;
         }
+        // ----------------------------------------------------- Saved places
+
+        /// Three places to come back to.
+        ///
+        /// Kept for the session only, and deliberately so: writing them out
+        /// would mean a second file format next to the settings, with its own
+        /// parsing and its own failure cases, for something whose whole use is
+        /// "mark this spot, go and cause trouble, come back". Quitting the game
+        /// ends that errand anyway.
+        struct Spot
+        {
+            bool set = false;
+            float x = 0.0f, y = 0.0f, z = 0.0f;
+        };
+
+        Spot g_spots[3];
+
+        void SavePosition(const size_t slot)
+        {
+            const Scripting::Ped ped = LocalPed();
+            if (ped == 0 || slot >= 3)
+            {
+                return;
+            }
+
+            Spot& spot = g_spots[slot];
+            Scripting::GET_CHAR_COORDINATES(ped, &spot.x, &spot.y, &spot.z);
+            spot.set = true;
+
+            mliv::LogLine("Position %zu saved: %.1f %.1f %.1f", slot + 1, spot.x, spot.y, spot.z);
+        }
+
+        bool JumpToPosition(const size_t slot)
+        {
+            if (slot >= 3 || !g_spots[slot].set)
+            {
+                return false;
+            }
+
+            const Spot& spot = g_spots[slot];
+            Teleport(spot.x, spot.y, spot.z);
+
+            return true;
+        }
+
+
 
         // ------------------------------------------------------ Vehicles II
 
@@ -1537,6 +1682,7 @@ namespace
 
     int g_vehicleChoice = 0;
     int g_skinChoice = 0;
+    int g_slotChoice = 0;
     int g_timeChoice = 2;
     int g_weatherChoice = 1;
     int g_placeChoice = 0;
@@ -2054,6 +2200,11 @@ namespace
             if (v != 0) { for (unsigned t = 0; t < 4; ++t) { Scripting::BURST_CAR_TYRE(v, t); } }
         }});
         vehicles->add({"Into the nearest car", mliv::ItemKind::Action, game::EnterNearestCar});
+        vehicles->add({"Engine on", mliv::ItemKind::Action, [] { game::SetEngine(true); }});
+        vehicles->add({"Engine off", mliv::ItemKind::Action, [] { game::SetEngine(false); }});
+        vehicles->add({"Lock the doors", mliv::ItemKind::Action, [] { game::SetDoorsLocked(true); }});
+        vehicles->add({"Unlock the doors", mliv::ItemKind::Action, [] { game::SetDoorsLocked(false); }});
+        vehicles->add({"Wash it", mliv::ItemKind::Action, game::WashVehicle});
         vehicles->add({"Floats", mliv::ItemKind::Toggle, nullptr, &g_vehicleFlags.watertight});
         vehicles->add({"Stays undamaged", mliv::ItemKind::Toggle, nullptr, &g_vehicleFlags.noVisibleDamage});
         vehicles->add({"Drives through anything", mliv::ItemKind::Toggle, nullptr, &g_vehicleFlags.noCollision});
@@ -2170,10 +2321,35 @@ namespace
         gravity.onChoice = [](const int i) { game::SetGravity(kGravities[i]); };
         motion->add(gravity);
 
-        motion->add({"To the waypoint", mliv::ItemKind::Action, [] {
+        motion->add({"To the map marker", mliv::ItemKind::Action, [] {
             if (!game::TeleportToWaypoint())
             {
-                mliv::LogLine("No waypoint set on the map.");
+                mliv::LogLine("No marker set on the map.");
+            }
+        }});
+
+        // --- Saved places ---
+        //
+        // A slot chooser plus save and jump, rather than six separate entries.
+        // Three slots as six lines would be half the movement menu, and the
+        // number of slots could then never change without redoing the layout.
+        motion->add({"-- Saved places --", mliv::ItemKind::Label});
+
+        mliv::MenuItem slot;
+        slot.label = "Slot";
+        slot.kind = mliv::ItemKind::Choice;
+        slot.choices = {"1", "2", "3"};
+        slot.choiceIndex = &g_slotChoice;
+        motion->add(slot);
+
+        motion->add({"Save this spot", mliv::ItemKind::Action, [] {
+            game::SavePosition(static_cast<size_t>(g_slotChoice));
+        }});
+
+        motion->add({"Jump to it", mliv::ItemKind::Action, [] {
+            if (!game::JumpToPosition(static_cast<size_t>(g_slotChoice)))
+            {
+                mliv::LogLine("Slot %d is empty.", g_slotChoice + 1);
             }
         }});
 

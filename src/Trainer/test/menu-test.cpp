@@ -36,13 +36,15 @@ namespace
     {
     public:
         std::string output;
+        std::string footer;
 
-        void beginFrame(int) override { output.clear(); }
+        void beginFrame(int) override { output.clear(); footer.clear(); }
         void drawTitle(const std::string& text) override { output += "[" + text + "]\n"; }
 
-        void drawItem(const std::string& label, const std::string& value, const bool highlighted) override
+        void drawItem(const std::string& label, const std::string& value,
+                      const bool highlighted, const bool selectable) override
         {
-            output += highlighted ? "> " : "  ";
+            output += highlighted ? "> " : (selectable ? "  " : "- ");
             output += label;
             if (!value.empty())
             {
@@ -51,6 +53,8 @@ namespace
 
             output += "\n";
         }
+
+        void drawFooter(const std::string& text) override { footer = text; }
 
         void endFrame() override {}
     };
@@ -109,6 +113,11 @@ int main()
     menu.draw(renderer);
     Check(Contains(renderer.output, "[Modlauncher IV]"), "the title is drawn");
     Check(Contains(renderer.output, "> Godmode : OFF"), "the selection is highlighted");
+    Check(Contains(renderer.output, "- -- Player --"), "a heading is marked as not selectable");
+
+    // The footer counts what can be picked. Counting the heading as well would
+    // make the number disagree with what the eye sees moving.
+    Check(renderer.footer == "1 / 3", "the footer counts only selectable entries");
 
     // --- Wrapping at the ends ---------------------------------------------
     menu.handle(mliv::MenuInput::Up);
@@ -117,6 +126,11 @@ int main()
 
     menu.handle(mliv::MenuInput::Down);
     Check(root->selected() == 1, "down from the last entry wraps to the start");
+
+    menu.handle(mliv::MenuInput::Up);
+    menu.draw(renderer);
+    Check(renderer.footer == "3 / 3", "the footer follows the selection");
+    menu.handle(mliv::MenuInput::Down);
 
     // --- Toggle -----------------------------------------------------------
     menu.handle(mliv::MenuInput::Select);
