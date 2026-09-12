@@ -18,7 +18,7 @@
                 </StackPanel>
 
                 <Button Grid.Column="1"
-                        Content="Set up"
+                        Content="{Binding Action}"
                         Command="{Binding SetupCommand}"
                         Style="{StaticResource Primary}"
                         VerticalAlignment="Center" />

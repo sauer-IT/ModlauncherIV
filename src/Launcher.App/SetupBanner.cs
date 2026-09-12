@@ -12,25 +12,32 @@ namespace ModlauncherIV.App;
 public sealed class SetupBanner : Observable
 {
     private string? _result;
-    private bool _done;
+    private SetupState _state;
 
     public SetupBanner()
     {
-        SetupCommand = new RelayCommand(Run, () => !_done);
-        _done = SelfInstall.IsSetUp;
+        SetupCommand = new RelayCommand(Run, () => _state != SetupState.Done);
+        _state = SelfInstall.State;
     }
 
     public RelayCommand SetupCommand { get; }
 
     /// <summary>Whether the offer is shown at all.</summary>
-    public bool Visible => !_done;
+    public bool Visible => _state != SetupState.Done;
 
-    public string Headline => "Put it on the desktop";
+    public string Headline => _state == SetupState.Outdated
+        ? "The copy on your desktop is out of date"
+        : "Put it on the desktop";
 
-    public string Text =>
-        "The launcher is sitting wherever you downloaded it. One click moves it "
-        + "to a fixed place and creates a shortcut on the desktop and in the start "
-        + "menu — then you will find it again.";
+    public string Text => _state == SetupState.Outdated
+        ? "The version you are running is newer than the one the desktop "
+          + "shortcut points at. One click replaces it — otherwise you keep "
+          + "starting the old one."
+        : "The launcher is sitting wherever you downloaded it. One click moves it "
+          + "to a fixed place and creates a shortcut on the desktop and in the start "
+          + "menu — then you will find it again.";
+
+    public string Action => _state == SetupState.Outdated ? "Update" : "Set up";
 
     public string? Result
     {
@@ -42,9 +49,12 @@ public sealed class SetupBanner : Observable
     {
         Result = SelfInstall.Run(out var relaunch);
 
-        _done = SelfInstall.IsSetUp || !relaunch;
+        _state = relaunch ? SetupState.Done : SelfInstall.State;
 
         Raise(nameof(Visible));
+        Raise(nameof(Headline));
+        Raise(nameof(Text));
+        Raise(nameof(Action));
         SetupCommand.RaiseCanExecuteChanged();
 
         if (!relaunch)

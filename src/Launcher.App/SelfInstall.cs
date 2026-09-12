@@ -15,6 +15,19 @@ namespace ModlauncherIV.App;
 /// may write without admin rights, the program survives a Windows repair, and a
 /// later update needs no prompt.
 /// </summary>
+/// <summary>What, if anything, is still to be done about the installed copy.</summary>
+public enum SetupState
+{
+    /// <summary>Nothing sits in the fixed place yet, or the shortcut is missing.</summary>
+    NotSetUp,
+
+    /// <summary>Something sits there, but it is not the version that is running.</summary>
+    Outdated,
+
+    /// <summary>In its place, on the desktop, up to date.</summary>
+    Done,
+}
+
 public static class SelfInstall
 {
     public const string ProgramName = "Modlauncher IV";
@@ -43,9 +56,66 @@ public static class SelfInstall
     /// True when the program already sits in its fixed place and can be found on
     /// the desktop. Only then is there nothing left to offer.
     /// </summary>
-    public static bool IsSetUp =>
-        string.Equals(CurrentPath, TargetPath, StringComparison.OrdinalIgnoreCase) &&
-        File.Exists(DesktopShortcut);
+    public static bool IsSetUp => State == SetupState.Done;
+
+    /// <summary>
+    /// What the installed copy looks like from here.
+    ///
+    /// The outdated case is the one that bites in practice: whoever installed an
+    /// older build once starts it from the desktop from then on, and every newer
+    /// build sits unnoticed next to it. The program has to say that itself -
+    /// nobody compares file dates of their own accord, and from the inside a
+    /// stale copy looks exactly like a working one.
+    /// </summary>
+    public static SetupState State
+    {
+        get
+        {
+            var here = CurrentPath;
+            if (string.IsNullOrEmpty(here) || !File.Exists(here))
+            {
+                // Without a path of our own there is nothing to offer, and an
+                // offer that cannot be carried out is worse than none.
+                return SetupState.Done;
+            }
+
+            if (!File.Exists(TargetPath))
+            {
+                return SetupState.NotSetUp;
+            }
+
+            if (!string.Equals(here, TargetPath, StringComparison.OrdinalIgnoreCase)
+                && !IsSameFile(here, TargetPath))
+            {
+                return SetupState.Outdated;
+            }
+
+            return File.Exists(DesktopShortcut) ? SetupState.Done : SetupState.NotSetUp;
+        }
+    }
+
+    /// <summary>
+    /// Same size and same timestamp. File.Copy takes the write time along, so the
+    /// installed copy of a build carries the date of that build - which makes
+    /// this comparison enough, and cheaper than hashing 60 MB on every start.
+    /// </summary>
+    private static bool IsSameFile(string a, string b)
+    {
+        try
+        {
+            var x = new FileInfo(a);
+            var y = new FileInfo(b);
+            return x.Length == y.Length && x.LastWriteTimeUtc == y.LastWriteTimeUtc;
+        }
+        catch (IOException)
+        {
+            return false;
+        }
+        catch (UnauthorizedAccessException)
+        {
+            return false;
+        }
+    }
 
     /// <summary>
     /// Copies itself to the fixed place and creates the shortcuts. Returns what
@@ -69,6 +139,8 @@ public static class SelfInstall
 
             if (!alreadyThere)
             {
+                var replacing = File.Exists(TargetPath);
+
                 Directory.CreateDirectory(TargetDirectory);
 
                 // Reading itself is allowed, even while running. Writing over an
@@ -76,7 +148,10 @@ public static class SelfInstall
                 // alone and reported instead.
                 File.Copy(source, TargetPath, overwrite: true);
 
-                messages.Add($"Copied to {TargetDirectory}");
+                messages.Add(replacing
+                    ? $"Replaced the older copy in {TargetDirectory}"
+                    : $"Copied to {TargetDirectory}");
+
                 relaunchNeeded = true;
             }
 
@@ -88,7 +163,12 @@ public static class SelfInstall
         }
         catch (IOException e)
         {
-            return $"Failed: {e.Message}";
+            // The most likely reason by far: the installed copy is open. Windows
+            // says "the process cannot access the file", which sends people
+            // looking for permissions rather than for a second window.
+            return File.Exists(TargetPath)
+                ? $"Failed: {e.Message} The installed copy may still be open - close it and try again."
+                : $"Failed: {e.Message}";
         }
         catch (UnauthorizedAccessException e)
         {
