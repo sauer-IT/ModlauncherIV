@@ -359,9 +359,18 @@ public sealed class HomeViewModel : Observable
 
                 var id = entry.RecipeId;
 
+                // The name the catalog uses today, not the one that was stored
+                // when it was installed. A recipe that has been renamed since -
+                // and every one of them was, when this stopped being German -
+                // would otherwise keep its old name on this page until somebody
+                // reinstalled it. The stored name still answers for a recipe
+                // that has left the catalog, which is the only case left.
+                var current = _session.Catalog?.Recipes
+                    .FirstOrDefault(r => string.Equals(r.Id, id, StringComparison.OrdinalIgnoreCase));
+
                 Mods.Add(new InstalledMod(
                     id,
-                    entry.RecipeName,
+                    current?.Name ?? entry.RecipeName,
                     entry.RecipeVersion,
                     broken == 0 ? $"{entry.Files.Count} file(s)" : $"{broken} file(s) changed or gone",
                     broken == 0,
