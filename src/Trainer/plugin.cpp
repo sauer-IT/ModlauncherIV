@@ -1,4 +1,4 @@
-// Modlauncher IV - Trainer, Stufe T2a
+﻿// Modlauncher IV - Trainer, Stufe T2c
 //
 // Die einzige Uebersetzungseinheit, die das IV-SDK einbindet. Das ist keine
 // Bequemlichkeit: IVSDK.cpp definiert Globals und ein eigenes DllMain. Wuerde
@@ -259,6 +259,184 @@ namespace
             Scripting::ADD_SCORE(LocalPlayer(), amount);
         }
 
+        /// Die Waffen, die es im Grundspiel wirklich gibt.
+        ///
+        /// Bewusst aufgezaehlt statt ueber den Enum-Bereich zu laufen: dort
+        /// stehen WEAPON_UNUSED0, zwoelf EPISODIC-Plaetze, WEAPON_CAMERA und
+        /// WEAPON_OBJECT dazwischen. Die durchzugeben faengt sich entweder
+        /// nichts ein oder Gegenstaende, die niemand im Waffenrad haben will.
+        const unsigned kWeapons[] = {
+            Scripting::WEAPON_BASEBALLBAT, Scripting::WEAPON_POOLCUE,
+            Scripting::WEAPON_KNIFE,       Scripting::WEAPON_GRENADE,
+            Scripting::WEAPON_MOLOTOV,     Scripting::WEAPON_ROCKET,
+            Scripting::WEAPON_PISTOL,      Scripting::WEAPON_DEAGLE,
+            Scripting::WEAPON_SHOTGUN,     Scripting::WEAPON_BARETTA,
+            Scripting::WEAPON_MICRO_UZI,   Scripting::WEAPON_MP5,
+            Scripting::WEAPON_AK47,        Scripting::WEAPON_M4,
+            Scripting::WEAPON_SNIPERRIFLE, Scripting::WEAPON_M40A1,
+            Scripting::WEAPON_RLAUNCHER,   Scripting::WEAPON_FTHROWER,
+            Scripting::WEAPON_MINIGUN,
+        };
+
+        void GiveAllWeapons()
+        {
+            const Scripting::Ped ped = LocalPed();
+            if (ped == 0)
+            {
+                return;
+            }
+
+            for (const unsigned weapon : kWeapons)
+            {
+                Scripting::GIVE_WEAPON_TO_CHAR(ped, weapon, 500, 0);
+            }
+        }
+
+        void RemoveAllWeapons()
+        {
+            const Scripting::Ped ped = LocalPed();
+            if (ped != 0)
+            {
+                Scripting::REMOVE_ALL_CHAR_WEAPONS(ped);
+            }
+        }
+
+        /// Fuellt die Munition der gerade gehaltenen Waffe wieder auf.
+        ///
+        /// Nur die aktuelle, nicht alle: das ist ein Native je Bild statt
+        /// neunzehn. Wer umschaltet, hat im naechsten Bild wieder volle
+        /// Munition - der Unterschied ist nicht wahrnehmbar, die Ersparnis
+        /// schon.
+        void RefillCurrentAmmo()
+        {
+            const Scripting::Ped ped = LocalPed();
+            if (ped == 0)
+            {
+                return;
+            }
+
+            unsigned weapon = 0;
+            if (!Scripting::GET_CURRENT_CHAR_WEAPON(ped, &weapon) ||
+                weapon == Scripting::WEAPON_UNARMED)
+            {
+                return;
+            }
+
+            unsigned maxAmmo = 0;
+            if (Scripting::GET_MAX_AMMO(ped, weapon, &maxAmmo) && maxAmmo > 0)
+            {
+                Scripting::SET_CHAR_AMMO(ped, weapon, maxAmmo);
+            }
+        }
+
+        // ------------------------------------------------------- Fahrzeuge
+
+        /// Das Fahrzeug, in dem der Spieler sitzt. 0, wenn er zu Fuss ist.
+        Scripting::Vehicle CurrentVehicle()
+        {
+            const Scripting::Ped ped = LocalPed();
+            if (ped == 0 || !Scripting::IS_CHAR_IN_ANY_CAR(ped))
+            {
+                return 0;
+            }
+
+            Scripting::Vehicle vehicle = 0;
+            Scripting::GET_CAR_CHAR_IS_USING(ped, &vehicle);
+
+            return vehicle;
+        }
+
+        void RepairVehicle()
+        {
+            const Scripting::Vehicle vehicle = CurrentVehicle();
+            if (vehicle != 0)
+            {
+                Scripting::FIX_CAR(vehicle);
+                Scripting::SET_CAR_HEALTH(vehicle, 1000);
+            }
+        }
+
+        /// Spawnt ein Fahrzeug vor dem Spieler und setzt ihn hinein.
+        ///
+        /// Der Umweg ueber das Streaming ist Pflicht: CREATE_CAR mit einem
+        /// nicht geladenen Modell erzeugt kein Fahrzeug, sondern beendet das
+        /// Spiel. REQUEST_MODEL ist im SDK auskommentiert, deshalb der direkte
+        /// Weg ueber CStreaming.
+        void SpawnVehicle(const char* modelName)
+        {
+            const Scripting::Ped ped = LocalPed();
+            if (ped == 0)
+            {
+                return;
+            }
+
+            const unsigned hash = Scripting::GET_HASH_KEY(modelName);
+
+            CStreaming::ScriptRequestModel(static_cast<int32_t>(hash));
+            CStreaming::LoadAllRequestedModels(false);
+
+            if (!Scripting::HAS_MODEL_LOADED(hash))
+            {
+                mliv::LogLine("Modell nicht geladen: %s", modelName);
+                return;
+            }
+
+            float x = 0.0f, y = 0.0f, z = 0.0f;
+            Scripting::GET_CHAR_COORDINATES(ped, &x, &y, &z);
+
+            Scripting::Vehicle vehicle = 0;
+            Scripting::CREATE_CAR(hash, x + 3.0f, y + 3.0f, z, &vehicle, 1);
+
+            if (vehicle != 0)
+            {
+                Scripting::WARP_CHAR_INTO_CAR(ped, vehicle);
+                mliv::LogLine("Fahrzeug gespawnt: %s", modelName);
+            }
+
+            // Ohne das haelt das Spiel das Modell dauerhaft im Speicher. Bei
+            // einem Trainer, mit dem man gern zwanzig Autos durchprobiert,
+            // summiert sich das.
+            Scripting::MARK_MODEL_AS_NO_LONGER_NEEDED(hash);
+        }
+
+        // ------------------------------------------------------------- Welt
+
+        void SetTime(const int hour)
+        {
+            Scripting::SET_TIME_OF_DAY(static_cast<unsigned>(hour), 0);
+        }
+
+        void SetWeather(const unsigned weather)
+        {
+            // FORCE_WEATHER_NOW statt FORCE_WEATHER: letzteres blendet langsam
+            // ueber, und im Menue haelt man das fuer wirkungslos.
+            Scripting::FORCE_WEATHER_NOW(weather);
+        }
+
+        /// Setzt den Spieler an eine Position und lasst ihn auf dem Boden landen.
+        ///
+        /// Ohne die Bodenhoehe faellt man entweder durch die Welt oder steht
+        /// in der Luft. GET_GROUND_Z_FOR_3D_COORD braucht allerdings geladene
+        /// Geometrie - deshalb zuerst grob hinsetzen, dann korrigieren.
+        void Teleport(const float x, const float y, const float z)
+        {
+            const Scripting::Ped ped = LocalPed();
+            if (ped == 0)
+            {
+                return;
+            }
+
+            Scripting::SET_CHAR_COORDINATES(ped, x, y, z);
+
+            float ground = 0.0f;
+            Scripting::GET_GROUND_Z_FOR_3D_COORD(x, y, z + 50.0f, &ground);
+
+            if (ground > 0.0f)
+            {
+                Scripting::SET_CHAR_COORDINATES(ped, x, y, ground + 1.0f);
+            }
+        }
+
         void SetWantedLevel(const int level)
         {
             const Scripting::Player player = LocalPlayer();
@@ -276,6 +454,47 @@ namespace
 
     bool g_godmode = false;
     bool g_neverWanted = false;
+    bool g_infiniteAmmo = false;
+    bool g_strongVehicle = false;
+
+    int g_vehicleChoice = 0;
+    int g_timeChoice = 2;
+    int g_weatherChoice = 1;
+    int g_placeChoice = 0;
+
+    /// Index der Stufe "unveraendert" - dort fassen wir die Dichte nicht an.
+    constexpr int kTrafficDefault = 2;
+    int g_trafficChoice = kTrafficDefault;
+
+    const float kTrafficDensities[] = {0.0f, 0.5f, 1.0f, 2.0f};
+    const int kTimes[] = {0, 6, 12, 18, 21};
+
+    const unsigned kWeathers[] = {
+        Scripting::WEATHER_EXTRA_SUNNY, Scripting::WEATHER_SUNNY,
+        Scripting::WEATHER_CLOUDY,      Scripting::WEATHER_RAINING,
+        Scripting::WEATHER_FOGGY,       Scripting::WEATHER_LIGHTNING,
+    };
+
+    /// Modellnamen aus der handling.dat des Spiels.
+    const char* const kVehicles[] = {
+        "infernus", "comet", "banshee", "turismo", "sultanrs",
+        "nrg900",   "sanchez", "patriot", "annihilator", "maverick",
+    };
+
+    /// Ein paar Orte in Liberty City. Koordinaten aus dem Spiel.
+    struct Place
+    {
+        const char* name;
+        float x, y, z;
+    };
+
+    const Place kPlaces[] = {
+        { "Broker",        -70.0f,  1210.0f,  19.0f },
+        { "Algonquin",    -350.0f,   970.0f,  15.0f },
+        { "Bohan",         640.0f,  1800.0f,  20.0f },
+        { "Flughafen",    1600.0f,  -400.0f,  15.0f },
+        { "Happiness I.",  -380.0f, 1450.0f,  15.0f },
+    };
     int  g_wantedChoice = 0;
     int  g_moneyChoice = 1;
 
@@ -310,6 +529,30 @@ namespace
         {
             Scripting::CLEAR_WANTED_LEVEL(player);
         }
+
+        if (g_infiniteAmmo)
+        {
+            game::RefillCurrentAmmo();
+        }
+
+        if (g_strongVehicle)
+        {
+            const Scripting::Vehicle vehicle = game::CurrentVehicle();
+            if (vehicle != 0)
+            {
+                Scripting::SET_CAR_STRONG(vehicle, 1);
+                Scripting::SET_CAR_PROOFS(vehicle, 1, 1, 1, 1, 1);
+            }
+        }
+
+        // Die Dichte-Regler setzt das Spiel jedes Bild auf 1.0 zurueck. Ein
+        // einmaliges Setzen im Menue haette keinerlei Wirkung.
+        if (g_trafficChoice != kTrafficDefault)
+        {
+            const float density = kTrafficDensities[g_trafficChoice];
+            Scripting::SET_CAR_DENSITY_MULTIPLIER(density);
+            Scripting::SET_PED_DENSITY_MULTIPLIER(density);
+        }
     }
 
     // --------------------------------------------------------------- Menue
@@ -339,6 +582,12 @@ namespace
         g_root->add({"Leben auffuellen", mliv::ItemKind::Action, game::RestoreHealth});
         g_root->add({"Panzerung auffuellen", mliv::ItemKind::Action, game::RestoreArmour});
 
+        // --- Waffen ---
+        g_root->add({"-- Waffen --", mliv::ItemKind::Label});
+        g_root->add({"Alle Waffen geben", mliv::ItemKind::Action, game::GiveAllWeapons});
+        g_root->add({"Waffen wegnehmen", mliv::ItemKind::Action, game::RemoveAllWeapons});
+        g_root->add({"Unendlich Munition", mliv::ItemKind::Toggle, nullptr, &g_infiniteAmmo});
+
         // --- Fahndung ---
         g_root->add({"-- Fahndung --", mliv::ItemKind::Label});
 
@@ -366,6 +615,80 @@ namespace
             game::AddMoney(kMoneyAmounts[g_moneyChoice]);
             mliv::LogLine("Geld gegeben: %d", kMoneyAmounts[g_moneyChoice]);
         }});
+
+        // --- Fahrzeuge ---
+        auto vehicles = std::make_shared<mliv::Menu>("Fahrzeuge");
+
+        mliv::MenuItem model;
+        model.label = "Modell";
+        model.kind = mliv::ItemKind::Choice;
+        model.choiceIndex = &g_vehicleChoice;
+        for (const char* name : kVehicles)
+        {
+            model.choices.emplace_back(name);
+        }
+
+        vehicles->add(model);
+        vehicles->add({"Spawnen", mliv::ItemKind::Action,
+                       [] { game::SpawnVehicle(kVehicles[g_vehicleChoice]); }});
+        vehicles->add({"Reparieren", mliv::ItemKind::Action, game::RepairVehicle});
+        vehicles->add({"Unkaputtbar", mliv::ItemKind::Toggle, nullptr, &g_strongVehicle});
+
+        mliv::MenuItem vehiclesEntry;
+        vehiclesEntry.label = "Fahrzeuge";
+        vehiclesEntry.kind = mliv::ItemKind::Submenu;
+        vehiclesEntry.submenu = vehicles;
+        g_root->add(vehiclesEntry);
+
+        // --- Welt ---
+        auto world = std::make_shared<mliv::Menu>("Welt");
+
+        mliv::MenuItem time;
+        time.label = "Uhrzeit";
+        time.kind = mliv::ItemKind::Choice;
+        time.choices = {"Mitternacht", "Morgen", "Mittag", "Abend", "Nacht"};
+        time.choiceIndex = &g_timeChoice;
+        time.onChoice = [](const int i) { game::SetTime(kTimes[i]); };
+        world->add(time);
+
+        mliv::MenuItem weather;
+        weather.label = "Wetter";
+        weather.kind = mliv::ItemKind::Choice;
+        weather.choices = {"Klar", "Sonnig", "Bewoelkt", "Regen", "Nebel", "Gewitter"};
+        weather.choiceIndex = &g_weatherChoice;
+        weather.onChoice = [](const int i) { game::SetWeather(kWeathers[i]); };
+        world->add(weather);
+
+        mliv::MenuItem traffic;
+        traffic.label = "Verkehr";
+        traffic.kind = mliv::ItemKind::Choice;
+        traffic.choices = {"Leer", "Wenig", "Normal", "Viel"};
+        traffic.choiceIndex = &g_trafficChoice;
+        world->add(traffic);
+
+        world->add({"-- Hinbringen --", mliv::ItemKind::Label});
+
+        mliv::MenuItem place;
+        place.label = "Ort";
+        place.kind = mliv::ItemKind::Choice;
+        place.choiceIndex = &g_placeChoice;
+        for (const Place& p : kPlaces)
+        {
+            place.choices.emplace_back(p.name);
+        }
+
+        world->add(place);
+        world->add({"Hinbringen", mliv::ItemKind::Action, [] {
+            const Place& p = kPlaces[g_placeChoice];
+            game::Teleport(p.x, p.y, p.z);
+            mliv::LogLine("Teleport: %s", p.name);
+        }});
+
+        mliv::MenuItem worldEntry;
+        worldEntry.label = "Welt";
+        worldEntry.kind = mliv::ItemKind::Submenu;
+        worldEntry.submenu = world;
+        g_root->add(worldEntry);
 
         g_menu = std::make_unique<mliv::MenuController>(g_root);
     }
@@ -411,7 +734,7 @@ void plugin::gameStartupEvent()
     GetModuleFileNameW(GetModuleHandleW(L"ModlauncherIV-Trainer.asi"), self, MAX_PATH);
     mliv::LogOpen(self);
 
-    mliv::LogLine("Modlauncher IV Trainer, Stufe T2a");
+    mliv::LogLine("Modlauncher IV Trainer, Stufe T2c");
 
     const mliv::GameInfo game = mliv::DetectGame();
     mliv::LogLine("Version: %ls (%s)",

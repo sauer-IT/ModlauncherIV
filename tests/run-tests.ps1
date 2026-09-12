@@ -19,6 +19,14 @@ $work = Join-Path $PSScriptRoot "work"
 $dotnet = (Get-Command dotnet -ErrorAction SilentlyContinue).Source
 if (-not $dotnet) { $dotnet = "C:\Program Files\dotnet\dotnet.exe" }
 
+# Ein laufendes GTA IV laesst jeden Pre-Flight blockieren - die Tests wuerden
+# dann reihenweise fehlschlagen, ohne dass am Code etwas falsch waere. Lieber
+# hier einmal klar abbrechen als vier raetselhafte FAILs weiter unten.
+if (Get-Process -Name GTAIV -ErrorAction SilentlyContinue) {
+    Write-Host "GTA IV laeuft. Erst schliessen, sonst blockiert jeder Pre-Flight." -ForegroundColor Red
+    exit 2
+}
+
 $script:passed = 0
 $script:failed = 0
 
