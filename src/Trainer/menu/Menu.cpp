@@ -231,11 +231,14 @@ namespace mliv
         }
 
         Menu& menu = active();
+        const auto& items = menu.items();
 
-        renderer.beginFrame();
+        // Die Anzahl geht voraus, weil ein Renderer den Hintergrund passend
+        // dimensionieren muss - und zwar bevor der Text darauf landet. Spaeter
+        // gezeichnete Flaechen laegen darueber.
+        renderer.beginFrame(static_cast<int>(items.size()));
         renderer.drawTitle(menu.title());
 
-        const auto& items = menu.items();
         for (size_t i = 0; i < items.size(); ++i)
         {
             renderer.drawItem(

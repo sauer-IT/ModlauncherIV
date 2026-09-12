@@ -96,7 +96,7 @@ namespace mliv
     public:
         virtual ~IMenuRenderer() = default;
 
-        virtual void beginFrame() = 0;
+        virtual void beginFrame(int itemCount) = 0;
         virtual void drawTitle(const std::string& text) = 0;
         virtual void drawItem(const std::string& label, const std::string& value, bool highlighted) = 0;
         virtual void endFrame() = 0;

@@ -38,63 +38,95 @@ namespace
     class NativeMenuRenderer final : public mliv::IMenuRenderer
     {
     public:
-        void beginFrame() override
+        void beginFrame(const int itemCount) override
         {
-            y_ = kTop;
+            // Kopfzeile plus Eintraege, beides in Zeilenhoehen gerechnet.
+            const float bodyHeight = static_cast<float>(itemCount) * kLine;
+            const float total = kTitleHeight + bodyHeight + 2.0f * kPadding;
 
-            // Hintergrund, damit der Text auf hellen Szenen lesbar bleibt.
-            Scripting::DRAW_RECT(kLeft - 0.01f, kTop - 0.02f,
-                                 kLeft + kWidth, kTop + kHeight,
-                                 0, 0, 0, 170);
+            titleY_ = kTop + kPadding;
+            y_ = titleY_ + kTitleHeight;
+
+            // Der Kasten zuerst: was spaeter gezeichnet wird, liegt darueber.
+            FillRect(kLeft, kTop, kWidth, total, 0, 0, 0, 190);
+
+            // Schmaler Streifen als Kopf, damit der Titel sich absetzt.
+            FillRect(kLeft, kTop, kWidth, kTitleHeight + kPadding, 158, 87, 16, 230);
         }
 
         void drawTitle(const std::string& text) override
         {
-            SetupText(255, 255, 255, 255, 0.36f);
-            Scripting::DISPLAY_TEXT_WITH_LITERAL_STRING(kLeft, y_, "STRING", text.c_str());
-            y_ += kLineHeight * 1.4f;
+            SetupText(255, 255, 255, 255, kTitleScale);
+            Scripting::DISPLAY_TEXT_WITH_LITERAL_STRING(
+                kLeft + kPadding, titleY_, "STRING", text.c_str());
         }
 
         void drawItem(const std::string& label, const std::string& value, const bool highlighted) override
         {
             if (highlighted)
             {
-                Scripting::DRAW_RECT(kLeft - 0.008f, y_ - 0.004f,
-                                     kLeft + kWidth - 0.012f, y_ + kLineHeight - 0.006f,
-                                     200, 120, 30, 200);
+                FillRect(kLeft, y_ - kPadding * 0.4f, kWidth, kLine, 224, 160, 74, 210);
             }
 
-            SetupText(255, 255, 255, 255, 0.30f);
-            Scripting::DISPLAY_TEXT_WITH_LITERAL_STRING(kLeft, y_, "STRING", label.c_str());
+            const unsigned tone = highlighted ? 20u : 235u;
+            SetupText(tone, tone, tone, 255, kItemScale);
+            Scripting::DISPLAY_TEXT_WITH_LITERAL_STRING(
+                kLeft + kPadding, y_, "STRING", label.c_str());
 
             if (!value.empty())
             {
-                SetupText(220, 220, 220, 255, 0.30f);
+                SetupText(tone, tone, tone, 255, kItemScale);
+
+                // Rechtsbuendig am rechten Rand des Kastens. SET_TEXT_WRAP legt
+                // fest, wo "rechts" liegt - ohne das richtet sich der Text am
+                // Bildschirmrand aus statt am Menue.
+                Scripting::SET_TEXT_RIGHT_JUSTIFY(1);
+                Scripting::SET_TEXT_WRAP(kLeft, kLeft + kWidth - kPadding);
                 Scripting::DISPLAY_TEXT_WITH_LITERAL_STRING(
-                    kLeft + kWidth - 0.10f, y_, "STRING", value.c_str());
+                    kLeft + kPadding, y_, "STRING", value.c_str());
+                Scripting::SET_TEXT_RIGHT_JUSTIFY(0);
             }
 
-            y_ += kLineHeight;
+            y_ += kLine;
         }
 
         void endFrame() override {}
 
     private:
-        static constexpr float kLeft = 0.03f;
-        static constexpr float kTop = 0.10f;
-        static constexpr float kWidth = 0.26f;
-        static constexpr float kHeight = 0.42f;
-        static constexpr float kLineHeight = 0.028f;
+        // Linke obere Ecke des Menues, in Bildanteilen (0..1).
+        static constexpr float kLeft = 0.025f;
+        static constexpr float kTop = 0.12f;
+        static constexpr float kWidth = 0.235f;
 
+        static constexpr float kLine = 0.026f;
+        static constexpr float kTitleHeight = 0.034f;
+        static constexpr float kPadding = 0.008f;
+
+        static constexpr float kTitleScale = 0.34f;
+        static constexpr float kItemScale = 0.26f;
+
+        float titleY_ = kTop;
         float y_ = kTop;
+
+        /// DRAW_RECT in GTA IV nimmt MITTELPUNKT und GROESSE, nicht zwei Ecken.
+        /// Die Parameternamen im SDK legen anderes nahe; mit Ecken gefuettert
+        /// landen die Flaechen sichtbar daneben. Diese Funktion rechnet von
+        /// links-oben plus Groesse um, weil sich Layout so denken laesst.
+        static void FillRect(const float left, const float top,
+                             const float width, const float height,
+                             const int r, const int g, const int b, const int a)
+        {
+            Scripting::DRAW_RECT(left + width * 0.5f, top + height * 0.5f,
+                                 width, height, r, g, b, a);
+        }
 
         static void SetupText(const unsigned r, const unsigned g, const unsigned b,
                               const unsigned a, const float scale)
         {
             Scripting::SET_TEXT_FONT(0);
-            Scripting::SET_TEXT_SCALE(scale, scale * 1.5f);
+            Scripting::SET_TEXT_SCALE(scale, scale * 1.6f);
             Scripting::SET_TEXT_COLOUR(r, g, b, a);
-            Scripting::SET_TEXT_DROPSHADOW(1, 0, 0, 0, 220);
+            Scripting::SET_TEXT_DROPSHADOW(0, 0, 0, 0, 0);
             Scripting::SET_TEXT_CENTRE(0);
             Scripting::SET_TEXT_PROPORTIONAL(1);
         }

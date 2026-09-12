@@ -37,7 +37,7 @@ namespace
     public:
         std::string output;
 
-        void beginFrame() override { output.clear(); }
+        void beginFrame(int) override { output.clear(); }
         void drawTitle(const std::string& text) override { output += "[" + text + "]\n"; }
 
         void drawItem(const std::string& label, const std::string& value, const bool highlighted) override
