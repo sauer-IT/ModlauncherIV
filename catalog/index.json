@@ -1,10 +1,14 @@
 {
   "FormatVersion": 1,
-  "GeneratedAt": "2026-09-12T20:24:05.9425615+02:00",
+  "GeneratedAt": "2026-09-12T20:26:03.2682726+02:00",
   "Entries": [
     {
       "File": "downgrade-ce-1070.json",
       "Sha256": "bac410fe035dbc06c9ac7257c3ea0e4e59edd1b700e4ffa6709d894f8d824723"
+    },
+    {
+      "File": "downgrade-ce-1080.json",
+      "Sha256": "136b603c32ad2cf4f2776c4d6a9ab0ea9fb5200b74792a3886063ffaa4ddba73"
     },
     {
       "File": "fusionfix.json",

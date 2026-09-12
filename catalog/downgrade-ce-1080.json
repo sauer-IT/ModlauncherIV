@@ -1,0 +1,27 @@
+{
+  "id": "downgrade-ce-1080",
+  "name": "Downgrade the Complete Edition to 1.0.8.0",
+  "version": "1.0.0",
+  "game": "GtaIV",
+  "description": "Replaces the Complete Edition game files with the 1.0.8.0 build. The alternative to 1.0.7.0, and the one to pick for FusionFix and everything that installs through its overloader: on 1.0.7.0 FusionFix corrupts the heap and takes the game down about ten seconds in. What it costs is the rest of the 1.0.7.0 catalog - most mods in this scene target that version. Radio songs Rockstar removed from the Complete Edition do NOT come back here either.",
+
+  "appliesToVersions": [ "1.2.0.59", "1.2.0.43", "1.2.0.32", "1.2.0.30" ],
+  "producesVersion": "1.0.8.0",
+
+  "sources": [
+    {
+      "id": "assets-1080",
+      "fileName": "1080FullFiles.zip",
+      "sha256": "0dbb0f5f7895bc3dff299d4cbdfa74181fd525cb48323393f0a1e55ac57dd956",
+      "sizeBytes": 109157160,
+      "urls": [
+        "https://github.com/gillian-guide/GTAIVFullDowngradeAssets/releases/download/Base/1080FullFiles.zip"
+      ],
+      "note": "Game files for 1.0.8.0, 213 entries, from the same GitHub release as the 1.0.7.0 package. Checked rather than assumed: the GTAIV.exe inside (SHA-256 3d90e7c516fa450ca002e5031e62c0f66b404590f33e6cc9793b0da4fffbfd0f, 15628696 bytes) reports 1.0.8.0 in its own version resource, which is what the launcher and the trainer both read."
+    }
+  ],
+
+  "steps": [
+    { "type": "extractArchive", "archive": "1080FullFiles.zip", "target": "" }
+  ]
+}

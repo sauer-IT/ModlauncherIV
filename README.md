@@ -23,7 +23,7 @@ The only thing that changes the game is the "Install" step in the wizard, or
 | `src/Launcher.Cli` | Headless front end (`mliv`). Dry runs, diagnostics, CI. |
 | `src/Launcher.App` | The program you start (WPF): home page and wizard. |
 | `src/Trainer` | C++ ASI plugin, x86, IV-SDK. Player, weapons, vehicles, world, movement, peds, time and physics. |
-| `catalog/` | The declarative recipes. Eleven of them, six proven. |
+| `catalog/` | The declarative recipes. Twelve of them, six proven. |
 | `tests/` | Fixtures and the test script. |
 
 **Journey planning** (`Core/Planning`) is the difference between the CLI and the
@@ -152,13 +152,14 @@ from that point on.
 
 ## The catalog - state and caveats
 
-Eleven recipes with **real, self-computed SHA-256 checksums**. Six of them have
+Twelve recipes with **real, self-computed SHA-256 checksums**. Six of them have
 **run against a real installation** - Complete Edition 1.2.0.59 through the
 Rockstar Games Launcher, downgraded to 1.0.7.0. The game starts.
 
 | Recipe | Source | Size | State |
 |---|---|---|---|
 | `downgrade-ce-1070` | GitHub release of the Gillian guide project | 111 MB | run |
+| `downgrade-ce-1080` | same release | 109 MB | untested |
 | `ultimate-asi-loader` | ThirteenAG, GitHub release | 928 KB | run |
 | `gfwl-stub` | FusionFix Legacy Addon, GitHub release | 4.0 MB | run |
 | `vc80-runtime` | Microsoft, signed redistributable | 1.8 MB | run |
@@ -209,6 +210,21 @@ That is the same mechanism that stops a 1.0.7.0 recipe from being applied to the
 Complete Edition. It only protects anyone if the recipes are honest about what
 they fit - a claim nobody checked is worse than no claim, because the machinery
 around it works perfectly and carries the wrong thing through.
+
+**Which leaves a choice, and the graph can now express it.** `downgrade-ce-1080`
+takes the Complete Edition to 1.0.8.0 instead, out of the same GitHub release as
+the 1.0.7.0 package, and the trainer runs on both. So:
+
+| | 1.0.7.0 | 1.0.8.0 |
+|---|---|---|
+| sauer trainer | yes, measured | yes, per the SDK's address set |
+| FusionFix and the three that need it | crashes | the version its users report working |
+| everything else in the scene | most mods target this | less |
+
+There is deliberately no edge between 1.0.7.0 and 1.0.8.0. Both come from the
+Complete Edition, and going from one to the other means restoring the Complete
+Edition first - which `remove downgrade-ce-1070` does from its snapshot, since
+that is what a snapshot is for.
 
 **Three recipes have no URL at all** - the two texture packs and Liberty's
 Legacy live only on Nexus. They are in the catalog anyway, with the checksum of
