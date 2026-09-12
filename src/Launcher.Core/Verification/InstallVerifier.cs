@@ -1,3 +1,4 @@
+using ModlauncherIV.Core.Catalog;
 using ModlauncherIV.Core.Backup;
 using ModlauncherIV.Core.Detection;
 
@@ -19,12 +20,23 @@ public enum OwnedFileState
 
 public sealed record VerifiedFile(string RecipeId, string RelativePath, OwnedFileState State);
 
+/// <param name="DowngradeRemoved">
+/// True when the version changed because the recipe that produced it is no
+/// longer installed - somebody took the downgrade back through this program.
+///
+/// The difference matters for what gets said. A version that no longer matches
+/// usually means the platform quietly patched the game; the same fact after a
+/// removal means the user did exactly what they meant to. Blaming Steam for
+/// something somebody just did themselves, in this window, is the kind of
+/// message that teaches people not to read them.
+/// </param>
 public sealed record VerificationResult(
     string GameRoot,
     string? CurrentVersion,
     string? ExpectedVersion,
     IReadOnlyList<VerifiedFile> Files,
-    IReadOnlyList<Note> Notes)
+    IReadOnlyList<Note> Notes,
+    bool DowngradeRemoved = false)
 {
     public int ModifiedCount => Files.Count(f => f.State == OwnedFileState.Modified);
 
@@ -56,7 +68,16 @@ public sealed record VerificationResult(
 /// </summary>
 public static class InstallVerifier
 {
-    public static VerificationResult Verify(GameInstall install, InstallLedger ledger)
+    /// <param name="catalog">
+    /// The recipes, so a version that no longer matches can be attributed. Left
+    /// out, the report still stands - it simply cannot tell a downgrade that was
+    /// taken back from a platform that patched the game, and says the more
+    /// careful of the two.
+    /// </param>
+    public static VerificationResult Verify(
+        GameInstall install,
+        InstallLedger ledger,
+        IReadOnlyList<Recipe>? catalog = null)
     {
         var files = new List<VerifiedFile>();
         var notes = new List<Note>();
@@ -96,7 +117,20 @@ public static class InstallVerifier
             ? install.Version.Raw
             : null;
 
-        var result = new VerificationResult(install.Path, current, expected, files, notes);
+        // Who changed the version? If the recipe that produced the expected one
+        // is still installed, then something outside this program moved the
+        // game. If it is gone while its dependants are still here, the user
+        // removed it - and is standing in front of the consequence rather than
+        // a mystery.
+        var producer = catalog?.FirstOrDefault(r =>
+            r.IsVersionTransition
+            && expected is not null
+            && string.Equals(r.ProducesVersion, expected, StringComparison.OrdinalIgnoreCase));
+
+        var removed = producer is not null && !ledger.IsInstalled(producer.Id);
+
+        var result = new VerificationResult(
+            install.Path, current, expected, files, notes, DowngradeRemoved: removed);
 
         AddInterpretation(result, notes);
         return result with { Notes = notes };
@@ -140,11 +174,19 @@ public static class InstallVerifier
 
         if (result.VersionReverted)
         {
-            notes.Add(new Note(
-                NoteLevel.Blocker,
-                $"The game version is {result.CurrentVersion}, {result.ExpectedVersion} was expected.",
-                "The platform reset the game. That undoes the downgrade, "
-                + "and mods building on it no longer run."));
+            notes.Add(result.DowngradeRemoved
+                ? new Note(
+                    NoteLevel.Warning,
+                    $"The game is on {result.CurrentVersion} again - the downgrade to "
+                    + $"{result.ExpectedVersion} was taken back.",
+                    "What is still installed was made for the older version and will not "
+                    + "load like this. Put a version back through the wizard, or remove "
+                    + "the rest on the home page.")
+                : new Note(
+                    NoteLevel.Blocker,
+                    $"The game version is {result.CurrentVersion}, {result.ExpectedVersion} was expected.",
+                    "The platform reset the game. That undoes the downgrade, "
+                    + "and mods building on it no longer run."));
         }
 
         if (result.MissingCount > 0)

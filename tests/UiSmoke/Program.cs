@@ -7,6 +7,7 @@ using ModlauncherIV.App;
 using ModlauncherIV.Core.Backup;
 using ModlauncherIV.Core.Catalog;
 using ModlauncherIV.Core.Detection;
+using ModlauncherIV.Core.Verification;
 
 namespace ModlauncherIV.UiSmoke;
 
@@ -87,6 +88,7 @@ internal static class Program
         CheckKnownInstallations();
         CheckTooltip(session);
         CheckReinspection(session);
+        CheckVersionAttribution(session);
 
         // Only when asked for: this one talks to somebody else's server, and a
         // test suite that fails because a stranger's host is down is a test
@@ -746,6 +748,76 @@ internal static class Program
         Report(
             "stale: the version list is built from the game, not from memory",
             step.Versions.All(v => !v.IsCurrent || v.Raw != "1.0.7.0"));
+    }
+
+    /// <summary>
+    /// Who changed the game version - the platform, or the person using this.
+    ///
+    /// Both look identical in the files: the version on disk is not the one the
+    /// ledger recorded. The difference is whether the recipe that produced that
+    /// version is still installed, and getting it wrong means telling somebody
+    /// who has just taken a downgrade back that Steam did it behind their back.
+    /// </summary>
+    private static void CheckVersionAttribution(Session session)
+    {
+        var recipes = session.Catalog?.Recipes ?? [];
+        var downgrade = recipes.FirstOrDefault(r => r.IsVersionTransition && r.ProducesVersion == "1.0.7.0");
+
+        if (downgrade is null || session.Install is null)
+        {
+            Report("attribution: there is a downgrade in the catalog to reason about", false);
+            return;
+        }
+
+        // The game is on the Complete Edition, and a mod for 1.0.7.0 is still
+        // installed. That is what removing a downgrade leaves behind.
+        var onCe = session.Install with { Version = KnownVersions.Resolve("1.2.0.59") };
+
+        var mod = new LedgerEntry(
+            "mliv-trainer", "sauer IV Trainer", "0.4.0", DateTimeOffset.Now, "snap",
+            [new OwnedFile(@"plugins\sauer.asi", null)],
+            GameVersionAfter: "1.0.7.0");
+
+        var withoutDowngrade = InstallLedger.Empty(onCe.Path) with { Entries = [mod] };
+
+        var taken = InstallVerifier.Verify(onCe, withoutDowngrade, recipes);
+        Report("attribution: the version no longer matches", taken.VersionReverted);
+        Report("attribution: and it was the downgrade being taken back", taken.DowngradeRemoved);
+        Report(
+            "attribution: the note says it was taken back",
+            taken.Notes.Any(n => n.Message.Contains("taken back", StringComparison.OrdinalIgnoreCase)));
+
+        // And it is not a blocker: doing what you meant to do is not a fault.
+        // The blocker is for the other case, where something else moved the
+        // game without being asked.
+        Report(
+            "attribution: and does not block",
+            taken.Notes.All(n => n.Level != NoteLevel.Blocker));
+
+        // The same mismatch with the downgrade still installed is the other
+        // case, and the one worth a blocker: something outside moved the game.
+        var stillThere = InstallLedger.Empty(onCe.Path) with
+        {
+            Entries =
+            [
+                new LedgerEntry(
+                    downgrade.Id, downgrade.Name, downgrade.Version, DateTimeOffset.Now, "snap",
+                    [new OwnedFile("GTAIV.exe", null)],
+                    GameVersionAfter: "1.0.7.0"),
+                mod,
+            ],
+        };
+
+        var reset = InstallVerifier.Verify(onCe, stillThere, recipes);
+        Report("attribution: with the downgrade still installed it is not ours", !reset.DowngradeRemoved);
+        Report(
+            "attribution: and that one is a blocker",
+            reset.Notes.Any(n => n.Level == NoteLevel.Blocker));
+
+        // And without a catalog nothing is attributed at all: the careful of
+        // the two answers, rather than a guess.
+        var blind = InstallVerifier.Verify(onCe, withoutDowngrade);
+        Report("attribution: without the catalog it claims nothing", !blind.DowngradeRemoved);
     }
 
     private static void CheckTooltip(Session session)

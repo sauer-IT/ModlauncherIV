@@ -69,7 +69,11 @@ internal static class StateCommands
     public static int Verify(GameInstall install)
     {
         var ledger = new LedgerStore(install.Path).Load();
-        var result = InstallVerifier.Verify(install, ledger);
+        // Only to tell a downgrade that was taken back from a platform that
+        // patched the game. Unsigned, it loads nothing and the report says the
+        // more careful of the two things - which is the right way round.
+        var catalog = RecipeCatalog.LoadFrom(AppPaths.CatalogDirectory, CatalogTrust.RequireSignature);
+        var result = InstallVerifier.Verify(install, ledger, catalog.Recipes);
 
         Console.WriteLine($"  Installation   {result.GameRoot}");
         Console.WriteLine($"  Version now    {result.CurrentVersion ?? "(unknown)"}");

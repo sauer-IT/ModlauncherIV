@@ -5,7 +5,7 @@ One file goes out. Everything else here is about what to say alongside it.
 ## Building it
 
 ```
-.\tests\run-tests.ps1                  270 tests, and they have to pass
+.\tests\run-tests.ps1                  277 tests, and they have to pass
 .\scripts\build-trainer.ps1 -Test      120 more, without the game
 .\scripts\check-sources.ps1            is everything still downloadable?
 .\scripts\package.ps1                  the release

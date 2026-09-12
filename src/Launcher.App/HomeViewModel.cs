@@ -420,7 +420,7 @@ public sealed class HomeViewModel : Observable
 
             // Checksums over hundreds of files — that does not belong on the
             // thread that draws the window.
-            var result = await Task.Run(() => InstallVerifier.Verify(install, ledger)).ConfigureAwait(true);
+            var result = await Task.Run(() => InstallVerifier.Verify(install, ledger, _session.Catalog?.Recipes)).ConfigureAwait(true);
 
             Mods.Clear();
 
@@ -622,8 +622,15 @@ public sealed class HomeViewModel : Observable
         // a consequence, and the cause would otherwise sit down in a list.
         if (result.VersionReverted)
         {
-            Status = $"The platform reset the game to {result.CurrentVersion}. "
-                   + $"{result.ExpectedVersion} was installed. The mods will not load like this.";
+            // The same fact, two causes, and only one of them is somebody
+            // else's doing. Saying "the platform reset the game" to a person who
+            // has just taken the downgrade back themselves, in this window, is
+            // how a program teaches people to stop reading its messages.
+            Status = result.DowngradeRemoved
+                ? $"The game is on {result.CurrentVersion} again - the downgrade was taken back. "
+                  + $"What is still installed was made for {result.ExpectedVersion} and will not load like this."
+                : $"The platform reset the game to {result.CurrentVersion}. "
+                  + $"{result.ExpectedVersion} was installed. The mods will not load like this.";
 
             Healthy = false;
             return;
