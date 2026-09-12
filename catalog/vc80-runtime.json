@@ -1,0 +1,25 @@
+{
+  "id": "vc80-runtime",
+  "name": "Visual-C++-2005-Laufzeit (neben der EXE)",
+  "version": "1.0.0",
+  "game": "GtaIV",
+  "description": "GTA IV 1.0.7.0 wurde gegen die Visual-C++-2005-Laufzeit gebaut und startet ohne sie nicht - Windows meldet dann 'Die Side-by-Side-Konfiguration ist ungueltig'. Auf heutigen Systemen fehlt sie, und das Downgrade-Paket bringt sie nicht mit. Hier wird sie neben die EXE gelegt statt systemweit installiert: das bleibt im Spielverzeichnis, ist umkehrbar, und es braucht keinen Rezeptschritt, der fremde Installer ausfuehren darf.",
+
+  "appliesToVersions": [ "1.0.7.0", "1.0.8.0", "1.0.4.0" ],
+
+  "sources": [
+    {
+      "id": "retail-1070",
+      "fileName": "Retail-1070.zip",
+      "sha256": "0c99315930c3a96f3f2a74e626b991e2d3e93ec3881adf847a103204c084062a",
+      "sizeBytes": 7096852,
+      "urls": [],
+      "note": "Enthaelt Microsoft.VC80.CRT und Microsoft.VC80.ATL. Keine hinterlegte Bezugsquelle - die Datei muss ins Arbeitsverzeichnis gelegt werden. Die ebenfalls enthaltene GTAIV.exe ist byteidentisch mit der aus dem Downgrade-Paket und wird hier nicht angefasst."
+    }
+  ],
+
+  "steps": [
+    { "type": "extractArchive", "archive": "Retail-1070.zip", "from": "Retail/Microsoft.VC80.CRT", "target": "Microsoft.VC80.CRT" },
+    { "type": "extractArchive", "archive": "Retail-1070.zip", "from": "Retail/Microsoft.VC80.ATL", "target": "Microsoft.VC80.ATL" }
+  ]
+}

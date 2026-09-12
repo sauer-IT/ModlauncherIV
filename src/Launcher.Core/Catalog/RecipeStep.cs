@@ -157,12 +157,37 @@ public sealed record DeleteFileStep(string Target) : RecipeStep
 /// </summary>
 /// <param name="Archive">Archivname im Arbeitsverzeichnis.</param>
 /// <param name="Target">Zielverzeichnis relativ zum Spiel. Leer = Spielwurzel.</param>
-public sealed record ExtractArchiveStep(string Archive, string Target = "") : RecipeStep
+/// <param name="From">
+/// Optionaler Teilbaum im Archiv. Nur Eintraege darunter werden entpackt, und
+/// zwar ohne dieses Praefix. Notwendig fuer Archive, die alles in einen
+/// Wrapper-Ordner legen: ohne das landete "Retail/xyz.dll" als
+/// "&lt;Spiel&gt;/Retail/xyz.dll" statt als "&lt;Spiel&gt;/xyz.dll".
+/// </param>
+public sealed record ExtractArchiveStep(string Archive, string Target = "", string From = "") : RecipeStep
 {
     private string TargetOrRoot => string.IsNullOrWhiteSpace(Target) ? "." : Target;
 
-    public override string Describe() =>
-        $"Entpacken: {Archive} -> {(string.IsNullOrWhiteSpace(Target) ? "(Spielwurzel)" : Target)}";
+    /// <summary>Das Praefix, normalisiert auf Schrägstriche und mit abschließendem Trenner.</summary>
+    private string Prefix
+    {
+        get
+        {
+            if (string.IsNullOrWhiteSpace(From))
+            {
+                return string.Empty;
+            }
+
+            var normalised = From.Replace('\\', '/').Trim('/');
+            return normalised.Length == 0 ? string.Empty : normalised + "/";
+        }
+    }
+
+    public override string Describe()
+    {
+        var source = Prefix.Length == 0 ? Archive : $"{Archive}:{Prefix}";
+        var target = string.IsNullOrWhiteSpace(Target) ? "(Spielwurzel)" : Target;
+        return $"Entpacken: {source} -> {target}";
+    }
 
     public override IReadOnlyList<string> AffectedGamePaths(RecipeContext context)
     {
@@ -173,28 +198,18 @@ public sealed record ExtractArchiveStep(string Archive, string Target = "") : Re
         }
 
         var targetRoot = context.ResolveGamePath(TargetOrRoot);
-        var paths = new List<string>();
 
         try
         {
             using var zip = ZipFile.OpenRead(archive);
-            foreach (var entry in zip.Entries)
-            {
-                // Verzeichniseinträge enden auf '/' und haben keinen Namen.
-                if (string.IsNullOrEmpty(entry.Name))
-                {
-                    continue;
-                }
-
-                paths.Add(ResolveEntry(targetRoot, entry.FullName));
-            }
+            return Selected(zip)
+                .Select(e => ResolveEntry(targetRoot, e.Relative))
+                .ToArray();
         }
         catch (InvalidDataException e)
         {
             throw new RecipeSecurityException($"Archiv nicht lesbar: {Archive} ({e.Message})");
         }
-
-        return paths;
     }
 
     public override void Apply(RecipeContext context)
@@ -211,14 +226,9 @@ public sealed record ExtractArchiveStep(string Archive, string Target = "") : Re
         using var zip = ZipFile.OpenRead(archive);
         var count = 0;
 
-        foreach (var entry in zip.Entries)
+        foreach (var (entry, relative) in Selected(zip))
         {
-            if (string.IsNullOrEmpty(entry.Name))
-            {
-                continue;
-            }
-
-            var destination = ResolveEntry(targetRoot, entry.FullName);
+            var destination = ResolveEntry(targetRoot, relative);
             var directory = Path.GetDirectoryName(destination);
             if (directory is not null)
             {
@@ -229,7 +239,43 @@ public sealed record ExtractArchiveStep(string Archive, string Target = "") : Re
             count++;
         }
 
+        if (count == 0)
+        {
+            // Ein Teilbaum, der nichts trifft, ist ein Rezeptfehler und kein
+            // stiller Erfolg — sonst meldet das Rezept "fertig" ohne Wirkung.
+            throw new FileNotFoundException(
+                $"Im Archiv {Archive} liegt nichts unter '{Prefix}'.", archive);
+        }
+
         context.Log.Info($"Entpackt: {Archive} ({count} Dateien) -> {TargetOrRoot}");
+    }
+
+    /// <summary>Die Eintraege, die dieser Schritt betrifft, samt Zielpfad ohne Praefix.</summary>
+    private IEnumerable<(ZipArchiveEntry Entry, string Relative)> Selected(ZipArchive zip)
+    {
+        var prefix = Prefix;
+
+        foreach (var entry in zip.Entries)
+        {
+            // Verzeichniseinträge enden auf '/' und haben keinen Namen.
+            if (string.IsNullOrEmpty(entry.Name))
+            {
+                continue;
+            }
+
+            var full = entry.FullName.Replace('\\', '/');
+
+            if (prefix.Length == 0)
+            {
+                yield return (entry, full);
+                continue;
+            }
+
+            if (full.StartsWith(prefix, StringComparison.OrdinalIgnoreCase))
+            {
+                yield return (entry, full[prefix.Length..]);
+            }
+        }
     }
 
     public override IReadOnlyList<string> Verify(RecipeContext context)
