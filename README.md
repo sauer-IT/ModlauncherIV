@@ -31,7 +31,9 @@ vorherigem Snapshot.
 ## Bauen und ausführen
 
 ```
-.\scripts\run.ps1 detect
+.scriptsun.ps1 detect        Launcher
+.scriptsplay.ps1            GTA IV starten, am Rockstar-Launcher vorbei
+.scriptsbuild-trainer.ps1 -Deploy   Trainer bauen und ins Spiel legen
 ```
 
 Befehle:

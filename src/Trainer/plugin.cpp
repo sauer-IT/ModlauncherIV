@@ -1,4 +1,4 @@
-// Modlauncher IV - Trainer, Stufe T1
+// Modlauncher IV - Trainer, Stufe T2a
 //
 // Die einzige Uebersetzungseinheit, die das IV-SDK einbindet. Das ist keine
 // Bequemlichkeit: IVSDK.cpp definiert Globals und ein eigenes DllMain. Wuerde
@@ -25,8 +25,6 @@ namespace
     std::shared_ptr<mliv::Menu> g_root;
     std::unique_ptr<mliv::MenuController> g_menu;
 
-    bool g_demoToggle = false;
-    int  g_demoChoice = 0;
 
     // ------------------------------------------------------------ Zeichnen
 
@@ -181,35 +179,167 @@ namespace
         }
     }
 
+    // -------------------------------------------------------- Spielzugriff
+
+    /// Die Spielfunktionen leben hier und nicht in einer eigenen Datei, weil
+    /// das IV-SDK nur in diese eine Uebersetzungseinheit darf. Die Menuelogik
+    /// bleibt davon unberuehrt - sie kennt nur Lambdas.
+    namespace game
+    {
+        Scripting::Player LocalPlayer()
+        {
+            return static_cast<Scripting::Player>(Scripting::GET_PLAYER_ID());
+        }
+
+        /// Der Ped des Spielers. 0, wenn gerade keiner da ist - etwa im Menue,
+        /// beim Laden oder in einer Zwischensequenz. Jeder Aufrufer muss das
+        /// pruefen: ein Native mit ungueltigem Handle ist kein harmloser
+        /// Fehlschlag.
+        Scripting::Ped LocalPed()
+        {
+            const Scripting::Player player = LocalPlayer();
+            if (!Scripting::IS_PLAYER_PLAYING(player))
+            {
+                return 0;
+            }
+
+            Scripting::Ped ped = 0;
+            Scripting::GET_PLAYER_CHAR(player, &ped);
+
+            return Scripting::DOES_CHAR_EXIST(ped) ? ped : 0;
+        }
+
+        void RestoreHealth()
+        {
+            const Scripting::Ped ped = LocalPed();
+            if (ped != 0)
+            {
+                // Das Spiel begrenzt selbst auf das Maximum der Figur; hoeher
+                // anzusetzen ist ungefaehrlich und erspart uns die Frage, wie
+                // hoch das Maximum gerade ist.
+                Scripting::SET_CHAR_HEALTH(ped, 200);
+            }
+        }
+
+        void RestoreArmour()
+        {
+            const Scripting::Ped ped = LocalPed();
+            if (ped != 0)
+            {
+                Scripting::ADD_ARMOUR_TO_CHAR(ped, 100);
+            }
+        }
+
+        void AddMoney(const int amount)
+        {
+            Scripting::ADD_SCORE(LocalPlayer(), amount);
+        }
+
+        void SetWantedLevel(const int level)
+        {
+            const Scripting::Player player = LocalPlayer();
+            Scripting::ALTER_WANTED_LEVEL(player, static_cast<unsigned>(level));
+
+            // Ohne das uebernimmt das Spiel die Aenderung erst irgendwann -
+            // der Stern im HUD bliebe stehen und man haelt es fuer kaputt.
+            Scripting::APPLY_WANTED_LEVEL_CHANGE_NOW(player);
+        }
+    }
+
+    // -------------------------------------------------------------- Zustand
+
+    bool g_godmode = false;
+    bool g_neverWanted = false;
+    int  g_wantedChoice = 0;
+    int  g_moneyChoice = 1;
+
+    const int kMoneyAmounts[] = {1000, 10000, 100000, 1000000};
+
+    /// Laeuft jeden Frame.
+    ///
+    /// Godmode und "nie gesucht" werden hier immer wieder gesetzt, nicht nur
+    /// beim Umschalten. Das Spiel setzt beides bei Respawn, Zwischensequenzen
+    /// und Missionswechseln zurueck - ein einmal gesetzter Schalter hoerte
+    /// stillschweigend auf zu wirken, und der Nutzer haelt den Trainer fuer
+    /// kaputt statt das Spiel fuer eigenwillig.
+    void EnforceToggles()
+    {
+        const Scripting::Player player = game::LocalPlayer();
+        if (!Scripting::IS_PLAYER_PLAYING(player))
+        {
+            return;
+        }
+
+        if (g_godmode)
+        {
+            const Scripting::Ped ped = game::LocalPed();
+            if (ped != 0)
+            {
+                Scripting::SET_CHAR_INVINCIBLE(ped, 1);
+                Scripting::SET_PLAYER_INVINCIBLE(player, 1);
+            }
+        }
+
+        if (g_neverWanted)
+        {
+            Scripting::CLEAR_WANTED_LEVEL(player);
+        }
+    }
+
     // --------------------------------------------------------------- Menue
 
     void BuildMenu()
     {
         g_root = std::make_shared<mliv::Menu>("Modlauncher IV");
 
-        g_root->add({"-- Stufe T1 --", mliv::ItemKind::Label});
+        // --- Spieler ---
+        g_root->add({"-- Spieler --", mliv::ItemKind::Label});
 
-        g_root->add({"Beispielschalter", mliv::ItemKind::Toggle, nullptr, &g_demoToggle});
+        // Beim Ausschalten muss die Unverwundbarkeit aktiv zurueckgenommen
+        // werden. EnforceToggles setzt sie nur noch nicht mehr - abschalten
+        // tut es nichts, und der Spieler bliebe unsterblich.
+        g_root->add({"Godmode", mliv::ItemKind::Toggle, [] {
+            if (!g_godmode)
+            {
+                const Scripting::Ped ped = game::LocalPed();
+                if (ped != 0)
+                {
+                    Scripting::SET_CHAR_INVINCIBLE(ped, 0);
+                    Scripting::SET_PLAYER_INVINCIBLE(game::LocalPlayer(), 0);
+                }
+            }
+        }, &g_godmode});
 
-        mliv::MenuItem choice;
-        choice.label = "Beispielauswahl";
-        choice.kind = mliv::ItemKind::Choice;
-        choice.choices = {"Eins", "Zwei", "Drei"};
-        choice.choiceIndex = &g_demoChoice;
-        g_root->add(choice);
+        g_root->add({"Leben auffuellen", mliv::ItemKind::Action, game::RestoreHealth});
+        g_root->add({"Panzerung auffuellen", mliv::ItemKind::Action, game::RestoreArmour});
 
-        g_root->add({"Ins Log schreiben", mliv::ItemKind::Action,
-                     [] { mliv::LogLine("Menue: Aktion ausgeloest."); }});
+        // --- Fahndung ---
+        g_root->add({"-- Fahndung --", mliv::ItemKind::Label});
 
-        auto about = std::make_shared<mliv::Menu>("Ueber");
-        about->add({"Stufe T1: Menue steht", mliv::ItemKind::Label});
-        about->add({"Features folgen ab T2", mliv::ItemKind::Label});
+        mliv::MenuItem wanted;
+        wanted.label = "Fahndungslevel";
+        wanted.kind = mliv::ItemKind::Choice;
+        wanted.choices = {"0", "1", "2", "3", "4", "5", "6"};
+        wanted.choiceIndex = &g_wantedChoice;
+        wanted.onChoice = [](const int level) { game::SetWantedLevel(level); };
+        g_root->add(wanted);
 
-        mliv::MenuItem sub;
-        sub.label = "Ueber";
-        sub.kind = mliv::ItemKind::Submenu;
-        sub.submenu = about;
-        g_root->add(sub);
+        g_root->add({"Nie gesucht", mliv::ItemKind::Toggle, nullptr, &g_neverWanted});
+
+        // --- Geld ---
+        g_root->add({"-- Geld --", mliv::ItemKind::Label});
+
+        mliv::MenuItem money;
+        money.label = "Betrag";
+        money.kind = mliv::ItemKind::Choice;
+        money.choices = {"1.000", "10.000", "100.000", "1.000.000"};
+        money.choiceIndex = &g_moneyChoice;
+        g_root->add(money);
+
+        g_root->add({"Geld geben", mliv::ItemKind::Action, [] {
+            game::AddMoney(kMoneyAmounts[g_moneyChoice]);
+            mliv::LogLine("Geld gegeben: %d", kMoneyAmounts[g_moneyChoice]);
+        }});
 
         g_menu = std::make_unique<mliv::MenuController>(g_root);
     }
@@ -220,6 +350,11 @@ namespace
     void OnDraw()
     {
         PollInput();
+
+        // Auch wenn das Menue zu ist: die Schalter sollen wirken, nicht nur
+        // solange man hinsieht.
+        EnforceToggles();
+
         g_menu->draw(g_renderer);
     }
 }
@@ -236,7 +371,7 @@ void plugin::gameStartupEvent()
     GetModuleFileNameW(GetModuleHandleW(L"ModlauncherIV-Trainer.asi"), self, MAX_PATH);
     mliv::LogOpen(self);
 
-    mliv::LogLine("Modlauncher IV Trainer, Stufe T1");
+    mliv::LogLine("Modlauncher IV Trainer, Stufe T2a");
 
     const mliv::GameInfo game = mliv::DetectGame();
     mliv::LogLine("Version: %ls (%s)",
