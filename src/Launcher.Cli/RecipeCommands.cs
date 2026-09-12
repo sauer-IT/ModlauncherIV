@@ -11,12 +11,7 @@ internal static class RecipeCommands
 
     public static int ShowCatalog(CliOptions options)
     {
-        var result = RecipeCatalog.LoadFrom(ResolveCatalogPath(options));
-
-        foreach (var error in result.Errors)
-        {
-            Console.Error.WriteLine($"Katalogfehler: {error}");
-        }
+        var result = LoadCatalog(options);
 
         if (result.Recipes.Count == 0)
         {
@@ -51,7 +46,9 @@ internal static class RecipeCommands
             Console.WriteLine();
         }
 
-        return ExitCode.Ok;
+        // Auch wenn Rezepte geladen wurden: ein Fehler im Katalog kann bedeuten,
+        // dass eine Datei manipuliert wurde. Das darf nicht als Erfolg durchgehen.
+        return result.Errors.Count > 0 ? ExitCode.Failed : ExitCode.Ok;
     }
 
     // ------------------------------------------------------------------- plan
@@ -184,12 +181,7 @@ internal static class RecipeCommands
             return null;
         }
 
-        var catalog = RecipeCatalog.LoadFrom(ResolveCatalogPath(options));
-        foreach (var error in catalog.Errors)
-        {
-            Console.Error.WriteLine($"Katalogfehler: {error}");
-        }
-
+        var catalog = LoadCatalog(options);
         var recipe = catalog.Find(options.Argument);
         if (recipe is null)
         {
@@ -239,6 +231,30 @@ internal static class RecipeCommands
 
     private static string ResolveCatalogPath(CliOptions options) =>
         options.CatalogPath ?? Path.Combine(Directory.GetCurrentDirectory(), "catalog");
+
+    /// <summary>
+    /// Lädt den Katalog und meldet Warnungen und Fehler auf stderr. Ohne
+    /// --allow-unsigned muss die Signatur stimmen.
+    /// </summary>
+    private static CatalogLoadResult LoadCatalog(CliOptions options)
+    {
+        var result = RecipeCatalog.LoadFrom(
+            ResolveCatalogPath(options),
+            options.AllowUnsigned ? CatalogTrust.AllowUnsigned : CatalogTrust.RequireSignature,
+            options.PublicKey);
+
+        foreach (var warning in result.Warnings)
+        {
+            Console.Error.WriteLine($"Achtung: {warning}");
+        }
+
+        foreach (var error in result.Errors)
+        {
+            Console.Error.WriteLine($"Katalogfehler: {error}");
+        }
+
+        return result;
+    }
 
     private static void PrintPlan(ExecutionPlan plan, GameInstall install)
     {

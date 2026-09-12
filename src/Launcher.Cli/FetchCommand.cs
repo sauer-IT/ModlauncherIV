@@ -1,0 +1,157 @@
+using ModlauncherIV.Core.Acquisition;
+using ModlauncherIV.Core.Backup;
+using ModlauncherIV.Core.Catalog;
+using ModlauncherIV.Core.Execution;
+
+namespace ModlauncherIV.Cli;
+
+internal static class FetchCommand
+{
+    public static async Task<int> RunAsync(CliOptions options, CatalogLoadResult catalog)
+    {
+        if (string.IsNullOrWhiteSpace(options.Argument))
+        {
+            Console.Error.WriteLine("Es fehlt die Rezept-ID. Verfügbare Rezepte: mliv catalog");
+            return ExitCode.BadUsage;
+        }
+
+        var recipe = catalog.Find(options.Argument);
+        if (recipe is null)
+        {
+            Console.Error.WriteLine($"Rezept nicht gefunden: {options.Argument}");
+            return ExitCode.NothingFound;
+        }
+
+        if (recipe.RequiredFiles.Count == 0)
+        {
+            Console.WriteLine($"{recipe.Id} braucht keine externen Dateien.");
+            return ExitCode.Ok;
+        }
+
+        var cache = options.CachePath ?? AppPaths.Cache;
+        Directory.CreateDirectory(cache);
+
+        Console.WriteLine($"  Arbeitsverzeichnis  {Path.GetFullPath(cache)}");
+        Console.WriteLine($"  Benötigt            {recipe.RequiredFiles.Count} Datei(en)");
+        Console.WriteLine();
+
+        using var http = new HttpClient { Timeout = TimeSpan.FromMinutes(30) };
+        http.DefaultRequestHeaders.UserAgent.ParseAdd("ModlauncherIV/0.1");
+
+        var log = new ExecutionLog(line => Console.WriteLine($"  {line}"));
+        var acquirer = new SourceAcquirer(http, cache, log);
+        var progress = new ConsoleProgress();
+
+        var results = await acquirer.AcquireAllAsync(recipe, progress, CancellationToken.None)
+            .ConfigureAwait(false);
+
+        progress.Finish();
+        Console.WriteLine();
+
+        return Report(results);
+    }
+
+    private static int Report(IReadOnlyList<AcquisitionResult> results)
+    {
+        var missing = results.Where(r => !r.Ok).ToArray();
+
+        Console.WriteLine("  ERGEBNIS");
+        Console.WriteLine("  --------------");
+        foreach (var result in results)
+        {
+            var status = result.Status switch
+            {
+                AcquisitionStatus.AlreadyPresent => "lag bereits vor",
+                AcquisitionStatus.Downloaded => "geladen",
+                AcquisitionStatus.NeedsUserAction => "FEHLT",
+                _ => "FEHLER",
+            };
+
+            Console.WriteLine($"  {status,-16} {result.Source.FileName}");
+        }
+
+        if (missing.Length == 0)
+        {
+            Console.WriteLine();
+            Console.WriteLine("  Alle Dateien vorhanden und verifiziert.");
+            return ExitCode.Ok;
+        }
+
+        // Der Notausgang: wenn keine Quelle liefert, muss der Nutzer wissen, was
+        // genau er wohin legen soll — mit Prüfsumme, sonst kann er es nicht prüfen.
+        Console.WriteLine();
+        Console.WriteLine("  VON HAND ABZULEGEN");
+        Console.WriteLine("  ------------------------");
+
+        foreach (var result in missing)
+        {
+            Console.WriteLine();
+            Console.WriteLine($"  {result.Source.FileName}");
+            Console.WriteLine($"      SHA-256  {result.Source.Sha256}");
+            Console.WriteLine($"      Größe    {result.Source.SizeBytes:N0} Bytes");
+
+            if (result.Source.Note is not null)
+            {
+                Console.WriteLine($"      Hinweis  {result.Source.Note}");
+            }
+
+            foreach (var attempt in result.Attempts)
+            {
+                Console.WriteLine($"      versucht {attempt}");
+            }
+
+            if (result.Error is not null)
+            {
+                Console.WriteLine($"      {result.Error}");
+            }
+        }
+
+        Console.WriteLine();
+        Console.WriteLine("  Datei ins Arbeitsverzeichnis legen und fetch erneut aufrufen.");
+        Console.WriteLine("  Die Prüfsumme wird dabei geprüft — eine falsche Datei wird abgelehnt.");
+
+        return ExitCode.Failed;
+    }
+}
+
+/// <summary>Fortschritt in einer Zeile, ohne die Ausgabe zuzumüllen.</summary>
+internal sealed class ConsoleProgress : IProgress<AcquisitionProgress>
+{
+    private string _current = string.Empty;
+    private int _lastPercent = -1;
+    private bool _wrote;
+
+    public void Report(AcquisitionProgress value)
+    {
+        if (value.FileName != _current)
+        {
+            Finish();
+            _current = value.FileName;
+            _lastPercent = -1;
+        }
+
+        var percent = value.Percent ?? -1;
+        if (percent == _lastPercent)
+        {
+            return;
+        }
+
+        _lastPercent = percent;
+        _wrote = true;
+
+        var shown = percent >= 0
+            ? $"{percent,3} %"
+            : $"{value.BytesRead / 1024 / 1024,6} MB";
+
+        Console.Write($"\r  {value.FileName,-32} {shown}   ");
+    }
+
+    public void Finish()
+    {
+        if (_wrote)
+        {
+            Console.WriteLine();
+            _wrote = false;
+        }
+    }
+}
