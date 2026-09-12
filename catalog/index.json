@@ -1,6 +1,6 @@
 {
   "FormatVersion": 1,
-  "GeneratedAt": "2026-09-12T18:05:34.4868658+02:00",
+  "GeneratedAt": "2026-09-12T18:29:58.7895638+02:00",
   "Entries": [
     {
       "File": "downgrade-ce-1070.json",
@@ -12,7 +12,7 @@
     },
     {
       "File": "mliv-trainer.json",
-      "Sha256": "5587536c886128b5932b76b11e3fca76326ede80cc8ad1cf77d538c7f477fab7"
+      "Sha256": "b8301a7ad1e3928f261018a0b08b282efccdc308cadb74b6088a0a73686d76fc"
     },
     {
       "File": "scripthook-dotnet.json",
@@ -24,7 +24,7 @@
     },
     {
       "File": "vc80-runtime.json",
-      "Sha256": "9858ebb4ab87345205341f36b60949778ec39ea6885bce2a93bd7e750c64242a"
+      "Sha256": "6557e4e19890c4c084f268eacd9952f739dd73bfec798ac53415deac60cca2fc"
     }
   ]
 }

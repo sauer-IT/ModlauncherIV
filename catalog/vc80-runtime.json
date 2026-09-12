@@ -1,25 +1,71 @@
-{
+﻿{
   "id": "vc80-runtime",
   "name": "Visual C++ 2005 runtime (next to the EXE)",
-  "version": "1.0.0",
+  "version": "6195.0.0+id8050727762",
   "game": "GtaIV",
-  "description": "GTA IV 1.0.7.0 was built against the Visual C++ 2005 runtime and does not start without it - Windows then only reports that the side-by-side configuration is incorrect. It is missing on todays systems, and the downgrade package does not bring it. Here it is placed next to the EXE rather than installed system-wide: that stays inside the game directory, is reversible, and needs no recipe step allowed to run foreign installers.",
+  "description": "GTA IV 1.0.7.0 was built against the Visual C++ 2005 runtime and does not start without it - Windows then only reports that the side-by-side configuration is incorrect. It is missing on todays systems, and the downgrade package does not bring it. The files come from Microsofts signed redistributable and are placed next to the EXE rather than installed system-wide: that stays inside the game directory, is reversible, and needs no recipe step allowed to run foreign installers.",
 
   "appliesToVersions": [ "1.0.7.0", "1.0.8.0", "1.0.4.0" ],
 
   "sources": [
     {
-      "id": "retail-1070",
-      "fileName": "Retail-1070.zip",
-      "sha256": "0c99315930c3a96f3f2a74e626b991e2d3e93ec3881adf847a103204c084062a",
-      "sizeBytes": 7096852,
+      "id": "microsoft-vc80-crt-manifest",
+      "fileName": "Microsoft.VC80.CRT.manifest",
+      "sha256": "d605d36e16536a651c252116fd199bf38a18cde23b9df9a5d56702eb2a02421a",
+      "sizeBytes": 1866,
       "urls": [],
-      "note": "Contains Microsoft.VC80.CRT and Microsoft.VC80.ATL. No source recorded - the file has to be placed in the working directory by hand. The GTAIV.exe it also contains is byte-identical to the one from the downgrade package and is not touched here."
+      "note": "Microsoft's own manifest from the same package, with the declared version set to 8.0.50727.762 - the identity GTAIV.exe asks for. Windows binds a private assembly on this identity; 8.0.50727.6195 as shipped is refused."
+    },
+    {
+      "id": "msvcr80-dll",
+      "fileName": "msvcr80.dll",
+      "sha256": "c3ac989c8489a23bb96400b1856f5325ffc67e844f04651ea5d61bc20a991c6d",
+      "sizeBytes": 632656,
+      "urls": [],
+      "note": "Verbatim from Microsoft's signed vcredist_x86.exe (8.0.50727.6195, MS11-025)."
+    },
+    {
+      "id": "msvcp80-dll",
+      "fileName": "msvcp80.dll",
+      "sha256": "372af797353f9335915cd06d4076bab8410775dcaf2dac0593197d7c41bbffb2",
+      "sizeBytes": 554832,
+      "urls": [],
+      "note": "Verbatim from Microsoft's signed vcredist_x86.exe (8.0.50727.6195, MS11-025)."
+    },
+    {
+      "id": "msvcm80-dll",
+      "fileName": "msvcm80.dll",
+      "sha256": "7dcb3c45938d31854e46b5e5b0e16d538e29230d1bc81086d40c8db3bdf510bc",
+      "sizeBytes": 479232,
+      "urls": [],
+      "note": "Verbatim from Microsoft's signed vcredist_x86.exe (8.0.50727.6195, MS11-025)."
+    },
+    {
+      "id": "microsoft-vc80-atl-manifest",
+      "fileName": "Microsoft.VC80.ATL.manifest",
+      "sha256": "8ae4f4a713e279d39d85a1b44179663afe75e2b41f88a7f5638710fb1942c341",
+      "sizeBytes": 467,
+      "urls": [],
+      "note": "Microsoft's own manifest from the same package, with the declared version set to 8.0.50727.762 - the identity GTAIV.exe asks for. Windows binds a private assembly on this identity; 8.0.50727.6195 as shipped is refused."
+    },
+    {
+      "id": "atl80-dll",
+      "fileName": "ATL80.dll",
+      "sha256": "fcab2130fab57b6728c50d5b9e9924f001c43538de4f675de03537ff0d9b84bd",
+      "sizeBytes": 97280,
+      "urls": [],
+      "note": "Verbatim from Microsoft's signed vcredist_x86.exe (8.0.50727.6195, MS11-025)."
     }
   ],
 
   "steps": [
-    { "type": "extractArchive", "archive": "Retail-1070.zip", "from": "Retail/Microsoft.VC80.CRT", "target": "Microsoft.VC80.CRT" },
-    { "type": "extractArchive", "archive": "Retail-1070.zip", "from": "Retail/Microsoft.VC80.ATL", "target": "Microsoft.VC80.ATL" }
+    { "type": "ensureDirectory", "target": "Microsoft.VC80.CRT" },
+    { "type": "copyFile", "source": "Microsoft.VC80.CRT.manifest", "target": "Microsoft.VC80.CRT\\Microsoft.VC80.CRT.manifest" },
+    { "type": "copyFile", "source": "msvcr80.dll", "target": "Microsoft.VC80.CRT\\msvcr80.dll" },
+    { "type": "copyFile", "source": "msvcp80.dll", "target": "Microsoft.VC80.CRT\\msvcp80.dll" },
+    { "type": "copyFile", "source": "msvcm80.dll", "target": "Microsoft.VC80.CRT\\msvcm80.dll" },
+    { "type": "ensureDirectory", "target": "Microsoft.VC80.ATL" },
+    { "type": "copyFile", "source": "Microsoft.VC80.ATL.manifest", "target": "Microsoft.VC80.ATL\\Microsoft.VC80.ATL.manifest" },
+    { "type": "copyFile", "source": "ATL80.dll", "target": "Microsoft.VC80.ATL\\ATL80.dll" }
   ]
 }

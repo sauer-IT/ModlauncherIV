@@ -61,6 +61,7 @@ through `mliv journey`.
 .\scripts\run.ps1 detect               call the CLI
 .\scripts\play.ps1                     start GTA IV, past the Rockstar launcher
 .\scripts\pack-trainer.ps1             build the trainer and make it installable
+.\scripts\pack-vc80.ps1                fetch the VC++ 2005 runtime from Microsoft
 .\scripts\build-trainer.ps1 -Deploy    build the trainer and drop it in by hand
 .\scripts\make-icon.ps1                regenerate the application icon
 ```
@@ -156,7 +157,7 @@ Rockstar Games Launcher, downgraded to 1.0.7.0. The game starts.
 | `downgrade-ce-1070` | GitHub release of the Gillian guide project | 111 MB | run |
 | `ultimate-asi-loader` | ThirteenAG, GitHub release | 928 KB | run |
 | `gfwl-stub` | FusionFix Legacy Addon, GitHub release | 4.0 MB | run |
-| `vc80-runtime` | supplied by the user | 7.1 MB | run |
+| `vc80-runtime` | Microsoft, signed redistributable | 1.8 MB | run |
 | `mliv-trainer` | shipped, self-built | 205 KB | run |
 | `scripthook-dotnet` | ClonkAndre, GitHub release | 647 KB | untested |
 
@@ -189,6 +190,37 @@ configuration is invalid", which gives away nothing about the actual reason. The
 runtime is placed next to the EXE rather than installed system-wide - that stays
 inside the game directory, is reversible, and needs no recipe step allowed to run
 foreign installers.
+
+This used to be the one step a stranger could not get past: the recipe had no
+source at all and expected the file to be supplied by hand. It is now fetched
+from Microsoft by `scripts\pack-vc80.ps1` - an .exe with a valid Authenticode
+signature, pinned to a checksum, and the signature is checked as well, because a
+checksum only says the bytes are the ones we saw last time.
+
+There is one twist, and it is the reason that script exists. GTAIV.exe asks for
+`Microsoft.VC80.CRT` **8.0.50727.42** and `Microsoft.VC80.ATL` **8.0.50727.762**.
+Microsoft ships neither any more: every current download, the SP1 page included,
+serves **8.0.50727.6195** from the MS11-025 security update. And Windows does not
+accept it. Measured against the real GTAIV.exe, assembly folders next to it,
+nothing else changed:
+
+| Next to the EXE | Result |
+|---|---|
+| nothing | side-by-side error |
+| Microsoft 6195, as shipped | side-by-side error |
+| 6195 binaries, manifest declaring 762 | starts |
+
+For a private, app-local assembly Windows binds on the identity in the manifest
+next to the binary - not on the version resource of the DLL, and not on the hash
+attributes in the manifest either. Those do not even match in Microsoft's own
+signed package; they are not checked. (That is worth knowing before suspecting a
+file: a hash mismatch there is normal, not a sign of tampering.)
+
+So the manifest declares the identity the game asks for and the binaries are
+Microsoft's current ones. That is what a publisher policy does system-wide, done
+app-locally instead - and it means the game gets the serviced runtime rather than
+the unpatched 2007 build that is otherwise passed around. Those two manifests are
+the only files this project authors here; the four DLLs are verbatim Microsoft.
 
 **Why not the usual downgrader.** The widespread GTAIVDowngrader (v2.2, January
 2025) pulls its game packages from a Dropbox. Those links now serve nothing but a
@@ -460,10 +492,11 @@ as well.
   T3 configuration ✔ · T4-T6 movement, tuning, peds, time and physics ✔ ← *here*
 - **M6** profiles, catalog update · uninstaller · mirrors for third-party sources
 
-Open before a public release: `vc80-runtime` has **no source URL** - it is
-supplied by the user, and a stranger cannot get past that step. Beyond that:
-SmartScreen without a real code-signing certificate, third-party download sources
-that can vanish (the Dropbox already did), and no uninstaller yet.
+Open before a public release: SmartScreen without a real code-signing
+certificate, third-party download sources that can vanish (the Dropbox already
+did) with no mirrors of our own, only ever tested on one machine, and no
+uninstaller yet. The `vc80-runtime` step, which used to be the hard blocker
+because a stranger could not supply the file, now comes from Microsoft.
 
 The full project plan with architecture, risks and open questions exists as a
 separate document.

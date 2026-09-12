@@ -40,7 +40,14 @@ $out = Join-Path $root "artifacts\release"
 # --------------------------------------------------- 1. Trainer and catalog
 
 if (-not $SkipTrainer) {
-    Write-Host "== Building the trainer and signing the catalog ==" -ForegroundColor Cyan
+    # The runtime first, the trainer second: pack-trainer signs the catalog at
+    # the end, and a signature over a catalog that changes afterwards is worth
+    # nothing - the launcher would then load no recipe at all.
+    Write-Host "== Fetching the VC++ 2005 runtime ==" -ForegroundColor Cyan
+    & (Join-Path $PSScriptRoot "pack-vc80.ps1")
+    if ($LASTEXITCODE -ne 0) { throw "pack-vc80 failed." }
+
+    Write-Host "`n== Building the trainer and signing the catalog ==" -ForegroundColor Cyan
     & (Join-Path $PSScriptRoot "pack-trainer.ps1") -Key $Key
     if ($LASTEXITCODE -ne 0) { throw "pack-trainer failed." }
 }

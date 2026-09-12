@@ -1,7 +1,7 @@
 ﻿{
   "id": "mliv-trainer",
   "name": "Modlauncher IV Trainer",
-  "version": "0.4.0+4cb76c68",
+  "version": "0.4.0+e4995012",
   "game": "GtaIV",
   "description": "The trainer menu of this project. In game F7 opens it; it is operated with the numpad or the arrow keys. Player, weapons, vehicles and world. Key bindings and menu position live in ModlauncherIV-Trainer.ini, which is created on the first start.",
 
@@ -13,7 +13,7 @@
     {
       "id": "asi",
       "fileName": "ModlauncherIV-Trainer.asi",
-      "sha256": "4cb76c689fe4db5610a4b8eb54cd0057f7f632fee8920d3d833f5fbb5ede5c6f",
+      "sha256": "e4995012e1f029b10aa30977b7ddf4f97f1e83ac55a17d64116955c7acc1dbf8",
       "sizeBytes": 363784,
       "urls": [],
       "note": "Shipped with the launcher rather than downloaded. This file is produced by scripts\\pack-trainer.ps1; the checksum is measured at build time."
