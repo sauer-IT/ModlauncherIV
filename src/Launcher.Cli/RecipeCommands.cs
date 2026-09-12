@@ -207,7 +207,7 @@ internal static class RecipeCommands
 
     public static GameInstall? FindInstall(CliOptions options)
     {
-        var installs = DetectCommand.Collect(options.GamePath, out _);
+        var installs = DetectCommand.Collect(options, out _);
 
         switch (installs.Count)
         {

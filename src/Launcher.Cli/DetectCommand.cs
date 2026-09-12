@@ -16,7 +16,7 @@ internal static class DetectCommand
 
     public static int Run(CliOptions options)
     {
-        var installs = Collect(options.GamePath, out var explicitFailed);
+        var installs = Collect(options, out var explicitFailed);
         if (explicitFailed)
         {
             // Deliberately no report: we searched nowhere, so nothing may be
@@ -54,17 +54,18 @@ internal static class DetectCommand
     }
 
     /// <summary>Looks for installations, or inspects exactly the one that was named.</summary>
-    public static IReadOnlyList<GameInstall> Collect(string? explicitPath, out bool explicitFailed)
+    public static IReadOnlyList<GameInstall> Collect(CliOptions options, out bool explicitFailed)
     {
         explicitFailed = false;
         var inspector = new InstallInspector();
+        var sources = LocatorSources.Override(options.SteamPath, options.EpicManifests);
 
-        if (explicitPath is null)
+        if (options.GamePath is null)
         {
-            return new InstallLocator().Locate().Select(inspector.Inspect).ToArray();
+            return new InstallLocator(sources).Locate().Select(inspector.Inspect).ToArray();
         }
 
-        var candidate = ResolveExplicit(explicitPath);
+        var candidate = ResolveExplicit(options.GamePath);
         if (candidate is null)
         {
             explicitFailed = true;
@@ -96,11 +97,21 @@ internal static class DetectCommand
             return null;
         }
 
-        if (!File.Exists(Path.Combine(path, InstallInspector.ExecutableName)))
+        // Somebody pointing at a Complete Edition points at the folder the store
+        // shows them, which holds GTAIV\ and EFLC\ rather than an EXE. Say where
+        // we went instead of turning them away over one folder.
+        var resolved = InstallLocator.ResolveGameFolder(path);
+        if (resolved is null)
         {
             Console.Error.WriteLine(
                 $"There is no {InstallInspector.ExecutableName} in {path} - that is not a GTA IV directory.");
             return null;
+        }
+
+        if (!string.Equals(resolved, path, StringComparison.OrdinalIgnoreCase))
+        {
+            Console.Error.WriteLine($"The game is one folder down: {resolved}");
+            path = resolved;
         }
 
         // A folder named by hand gives away its origin too - otherwise we would not

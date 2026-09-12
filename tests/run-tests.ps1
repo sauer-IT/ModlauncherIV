@@ -952,6 +952,118 @@ Assert ($r.ExitCode -eq 0) "shared: the counter-check stays quiet about a shared
 $r = Invoke-Mliv (@("remove", "--all", "--yes") + $common)
 Remove-Item (Join-Path $catalog "test-rename.json"), (Join-Path $catalog "test-shared.json") -Force
 
+# --------------------------------------------------------- Steam and Epic
+
+Write-Host "`n== Steam and Epic ==" -ForegroundColor Cyan
+
+# This is code that had never once been executed: the machine it was written on
+# has the Rockstar launcher, and neither store was ever asked anything. So both
+# get built out of paper here - a libraryfolders.vdf as Steam writes it, an
+# appmanifest beside it, an Epic manifest - and detection is pointed at them.
+
+$steam = Join-Path $work "steam"
+$library = Join-Path $work "steam-library"
+$epicManifests = Join-Path $work "epic-manifests"
+$epicGame = Join-Path $work "epic-games\GTAIV"
+
+# The Complete Edition - which is what both stores sell - keeps the game one
+# folder below what it calls the install folder: GTAIV\ next to EFLC\.
+$steamGame = Join-Path $library "steamapps\common\Grand Theft Auto IV\GTAIV"
+
+New-Item -ItemType Directory -Force -Path (Join-Path $steam "steamapps"), $steamGame, $epicManifests, $epicGame | Out-Null
+Set-Content -Path (Join-Path $steamGame "GTAIV.exe") -Value "fake game file" -NoNewline -Encoding utf8
+Set-Content -Path (Join-Path $epicGame "GTAIV.exe") -Value "fake game file" -NoNewline -Encoding utf8
+
+# Steam doubles its backslashes in the vdf, keeps the game in whichever library
+# had room - here the second one - and leaves entries behind for disks that are
+# no longer plugged in. All three have to survive being read.
+function Vdf($path) { $path -replace '\\', '\\' }
+
+@"
+"libraryfolders"
+{
+	"0"
+	{
+		"path"		"$(Vdf $steam)"
+		"apps"
+		{
+		}
+	}
+	"1"
+	{
+		"path"		"$(Vdf $library)"
+		"apps"
+		{
+			"12210"		"18375927296"
+		}
+	}
+	"2"
+	{
+		"path"		"$(Vdf (Join-Path $work 'disk-that-is-gone'))"
+	}
+}
+"@ | Set-Content -Path (Join-Path $steam "steamapps\libraryfolders.vdf") -Encoding utf8
+
+@"
+"AppState"
+{
+	"appid"		"12210"
+	"name"		"Grand Theft Auto IV: The Complete Edition"
+	"installdir"		"Grand Theft Auto IV"
+}
+"@ | Set-Content -Path (Join-Path $library "steamapps\appmanifest_12210.acf") -Encoding utf8
+
+@"
+{
+  "FormatVersion": 0,
+  "DisplayName": "Fortnite",
+  "InstallLocation": "$(Vdf (Join-Path $work 'epic-games\Fortnite'))"
+}
+"@ | Set-Content -Path (Join-Path $epicManifests "0000deadbeef.item") -Encoding utf8
+
+@"
+{
+  "FormatVersion": 0,
+  "DisplayName": "Grand Theft Auto IV: The Complete Edition",
+  "InstallLocation": "$(Vdf $epicGame)",
+  "AppName": "Ghost"
+}
+"@ | Set-Content -Path (Join-Path $epicManifests "1111c0ffee.item") -Encoding utf8
+
+# Not even valid JSON - a half-written manifest must not take the search down
+# with it, because everything found so far would be lost along with it.
+Set-Content -Path (Join-Path $epicManifests "2222broken.item") -Value "{ not json" -Encoding utf8
+
+$reportFile = Join-Path $work "detect.json"
+$r = Invoke-Mliv @("detect", "--json", "--out", $reportFile,
+                   "--steam-path", $steam, "--epic-manifests", $epicManifests)
+
+$report = Get-Content $reportFile -Raw | ConvertFrom-Json
+$steamFound = $report.Installs | Where-Object { $_.Path -eq $steamGame }
+$epicFound = $report.Installs | Where-Object { $_.Path -eq $epicGame }
+
+Assert ($null -ne $steamFound) "steam: the game is found in the second library"
+Assert ($steamFound.Platform -eq "Steam") "steam: and is recognised as Steam"
+Assert ($steamFound.FoundVia -match "appmanifest_12210") "steam: the report says which file said so"
+Assert ($null -ne $epicFound) "epic: the game is found through the manifest"
+Assert ($epicFound.Platform -eq "Epic") "epic: and is recognised as Epic"
+Assert (-not ($report.Installs | Where-Object { $_.Path -match "Fortnite" })) "epic: another game's manifest is ignored"
+
+# The folder both stores show the user is the one above the game. Whoever picks
+# it by hand has to end up at the game, not at an error message.
+$parent = Split-Path -Parent $steamGame
+$r = Invoke-Mliv @("detect", "--json", "--out", $reportFile, "--path", $parent)
+$report = Get-Content $reportFile -Raw | ConvertFrom-Json
+Assert ($report.Installs.Count -eq 1 -and $report.Installs[0].Path -eq $steamGame) `
+    "complete edition: a folder named by hand leads down into GTAIV"
+
+# Found by hand, and still recognised as Steam - the update guard depends on
+# it, and the manifest sits four levels above the EXE on this layout.
+Assert ($report.Installs[0].Platform -eq "Steam") "complete edition: the manifest above it still gives Steam away"
+
+$r = Invoke-Mliv @("guard", "--path", $steamGame)
+Assert ($r.Output -match "appmanifest_12210") "complete edition: the update guard finds the manifest too"
+
 # ------------------------------------------------------------------- Result
 
 Write-Host "`n$('=' * 50)"

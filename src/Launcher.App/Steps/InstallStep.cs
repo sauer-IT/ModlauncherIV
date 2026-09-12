@@ -96,11 +96,16 @@ public sealed class InstallStep(Session session) : WizardStep(session)
     {
         Error = null;
 
-        if (!File.Exists(Path.Combine(path, InstallInspector.ExecutableName)))
+        // The Complete Edition keeps the game in a GTAIV subfolder, and the folder
+        // the store names is the one above it. Picking that in the file dialog is
+        // the obvious thing to do, so follow it down rather than refuse.
+        if (InstallLocator.ResolveGameFolder(path) is not { } resolved)
         {
             Error = $"There is no {InstallInspector.ExecutableName} in {path}.";
             return;
         }
+
+        path = resolved;
 
         if (Found.Any(f => string.Equals(f.Path, path, StringComparison.OrdinalIgnoreCase)))
         {

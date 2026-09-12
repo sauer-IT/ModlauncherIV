@@ -14,6 +14,14 @@ public sealed class InstallLocator
     /// <summary>Steam app id of Grand Theft Auto IV.</summary>
     public const int SteamAppId = 12210;
 
+    /// <summary>
+    /// The Complete Edition installs one level higher than the game: what Steam,
+    /// Epic and the Rockstar launcher call the install folder is the parent of
+    /// GTAIV\ and EFLC\, and GTAIV.exe is inside the first of those. Looking only
+    /// for the EXE in the folder itself finds nothing on those installations.
+    /// </summary>
+    private const string CompleteEditionSubfolder = "GTAIV";
+
     private static readonly string[] CommonRelativePaths =
     [
         @"Rockstar Games\Grand Theft Auto IV",
@@ -21,6 +29,19 @@ public sealed class InstallLocator
         @"Epic Games\GTAIV",
         @"Grand Theft Auto IV",
     ];
+
+    private readonly LocatorSources _sources;
+
+    /// <param name="sources">
+    /// Where Steam and Epic are to be looked for. Left out, the system is asked —
+    /// which is the normal case. Given, it wins over the system: a Steam that
+    /// belongs to another Windows account, or one carried on an external disk,
+    /// is not in this user's registry and would otherwise stay invisible.
+    /// </param>
+    public InstallLocator(LocatorSources? sources = null)
+    {
+        _sources = sources ?? LocatorSources.System;
+    }
 
     /// <summary>Returns every candidate found, deduplicated by path.</summary>
     public IReadOnlyList<InstallCandidate> Locate()
@@ -34,7 +55,8 @@ public sealed class InstallLocator
 
         // First hit per path wins — the order above is the order of reliability.
         return found
-            .Where(c => LooksLikeGameFolder(c.Path))
+            .Select(c => ResolveGameFolder(c.Path) is { } resolved ? c with { Path = resolved } : null)
+            .OfType<InstallCandidate>()
             .GroupBy(c => NormalisePath(c.Path), StringComparer.OrdinalIgnoreCase)
             .Select(g => g.First())
             .ToArray();
@@ -72,9 +94,9 @@ public sealed class InstallLocator
 
     // ------------------------------------------------------------------- Steam
 
-    private static IEnumerable<InstallCandidate> FromSteam()
+    private IEnumerable<InstallCandidate> FromSteam()
     {
-        var steamPath = ReadSteamPath();
+        var steamPath = _sources.SteamPath;
         if (steamPath is null)
         {
             yield break;
@@ -99,13 +121,6 @@ public sealed class InstallLocator
                 GamePlatform.Steam,
                 $"Steam appmanifest_{SteamAppId}.acf");
         }
-    }
-
-    private static string? ReadSteamPath()
-    {
-        using var key = Registry.CurrentUser.OpenSubKey(@"SOFTWARE\Valve\Steam");
-        var path = key?.GetValue("SteamPath") as string;
-        return string.IsNullOrWhiteSpace(path) ? null : path.Replace('/', '\\');
     }
 
     private static IEnumerable<string> EnumerateSteamLibraries(string steamPath)
@@ -153,13 +168,11 @@ public sealed class InstallLocator
 
     // -------------------------------------------------------------------- Epic
 
-    private static IEnumerable<InstallCandidate> FromEpic()
+    private IEnumerable<InstallCandidate> FromEpic()
     {
-        var manifestDir = Path.Combine(
-            Environment.GetFolderPath(Environment.SpecialFolder.CommonApplicationData),
-            "Epic", "EpicGamesLauncher", "Data", "Manifests");
+        var manifestDir = _sources.EpicManifestDirectory;
 
-        if (!Directory.Exists(manifestDir))
+        if (manifestDir is null || !Directory.Exists(manifestDir))
         {
             yield break;
         }
@@ -204,7 +217,11 @@ public sealed class InstallLocator
                 continue;
             }
 
-            if (name.Contains("Grand Theft Auto IV", StringComparison.OrdinalIgnoreCase))
+            // Epic calls it "Grand Theft Auto IV: The Complete Edition" today. The
+            // short forms cost nothing and cover a store that renames its entry.
+            if (name.Contains("Grand Theft Auto IV", StringComparison.OrdinalIgnoreCase)
+                || name.Contains("GTA IV", StringComparison.OrdinalIgnoreCase)
+                || name.Contains("GTAIV", StringComparison.OrdinalIgnoreCase))
             {
                 yield return new InstallCandidate(
                     location.TrimEnd('\\'),
@@ -312,8 +329,25 @@ public sealed class InstallLocator
         return null;
     }
 
-    /// <summary>A folder only counts as a hit when the main EXE is inside it.</summary>
-    private static bool LooksLikeGameFolder(string path)
+    /// <summary>
+    /// The folder the game actually runs from, or null when there is no game here.
+    ///
+    /// Usually that is the folder itself. On the Complete Edition it is the GTAIV
+    /// subfolder, because what the store calls the install folder holds GTAIV\ and
+    /// EFLC\ side by side and no EXE of its own.
+    /// </summary>
+    public static string? ResolveGameFolder(string path)
+    {
+        if (HasExecutable(path))
+        {
+            return path;
+        }
+
+        var below = Path.Combine(path, CompleteEditionSubfolder);
+        return HasExecutable(below) ? below : null;
+    }
+
+    private static bool HasExecutable(string path)
     {
         try
         {
@@ -324,6 +358,10 @@ public sealed class InstallLocator
             return false;
         }
         catch (UnauthorizedAccessException)
+        {
+            return false;
+        }
+        catch (ArgumentException)
         {
             return false;
         }

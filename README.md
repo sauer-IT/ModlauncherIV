@@ -164,7 +164,7 @@ Exit codes: `0` success - `1` nothing found - `2` wrong invocation -
 .\tests\run-tests.ps1
 ```
 
-163 tests against fake game directories. No real installation is touched. If GTA
+172 tests against fake game directories. No real installation is touched. If GTA
 IV happens to be running, the script aborts up front - otherwise every pre-flight
 rightly blocks and four tests fail without anything being wrong with the code.
 Among the things covered:
@@ -193,6 +193,13 @@ Among the things covered:
   leftover nor reported as changed by the counter-check
 - empty folders: the folders a recipe created go with it when it is removed, and
   a folder that was already there stays even when it ends up empty
+- Steam and Epic: a library folder list as Steam writes it - escaped
+  backslashes, the game in the second library, an entry for a disk that is gone
+  - plus an Epic manifest folder in which one manifest belongs to another game
+  and one is not even valid JSON. The Complete Edition's layout is in there
+  too: the game sits in `GTAIV\` below the folder the store calls the
+  installation, and both the search and a folder picked by hand have to arrive
+  at the right one
 
 **The script is deliberately pure ASCII.** PowerShell 5.1 reads a `.ps1` without
 a BOM as CP1252; a UTF-8 em dash becomes, among other things, `”`, and that

@@ -130,7 +130,9 @@ Tell me what the screen said and send these two, if they exist:
 Known and not yet fixed:
 
   - Only ever run on one machine, with the Rockstar Games Launcher version of
-    the game. Steam and Epic are untried.
+    the game. Steam and Epic installations are found by tested code, but no
+    real one has ever been in front of it. If yours is not found, the wizard
+    takes a folder you pick yourself - and that path works.
   - Three of the mods cannot be downloaded automatically - Nexus does not allow
     it. The program says which file to fetch and where to put it.
   - FusionFix and the three that build on it are limited to game version

@@ -5,7 +5,7 @@ One file goes out. Everything else here is about what to say alongside it.
 ## Building it
 
 ```
-.\tests\run-tests.ps1                  163 tests, and they have to pass
+.\tests\run-tests.ps1                  172 tests, and they have to pass
 .\scripts\build-trainer.ps1 -Test      120 more, without the game
 .\scripts\package.ps1                  the release
 ```
@@ -62,8 +62,11 @@ snapshot, mod by mod, with Remove on the home page. It removes itself through
       means never signing a catalog again that the copies already out there
       accept - the public half is compiled into every one of them.
 - [ ] Tested on a machine that is not the one it was built on. Steam and Epic
-      detection is code nobody has ever executed; only the Rockstar Games
-      Launcher path has been run.
+      detection now runs against store layouts built out of paper in the tests -
+      a libraryfolders.vdf, an appmanifest, an Epic manifest, and the Complete
+      Edition's habit of keeping the game one folder further down. That is
+      enough to know the parsing works; it is not the same as a real store
+      installation, which nobody here owns.
 - [ ] Decide what happens when a third-party download disappears. The Dropbox
       the usual downgrader used is already gone; everything here points at
       GitHub releases, and those can be deleted too. There are no mirrors.

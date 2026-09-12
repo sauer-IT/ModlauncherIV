@@ -28,6 +28,8 @@ internal sealed record CliOptions(
     string? CatalogPath = null,
     string? CachePath = null,
     string? OutputFile = null,
+    string? SteamPath = null,
+    string? EpicManifests = null,
     string? Error = null);
 
 /// <summary>Minimal argument handling — this needs no library.</summary>
@@ -62,6 +64,8 @@ internal static class CommandLine
 
         Options:
           --path <folder>        Game directory, instead of searching for it.
+          --steam-path <folder>  Steam's own folder, when it is not this user's.
+          --epic-manifests <d>   Epic's manifest folder, likewise.
           --catalog <folder>     Recipe directory. Default: ./catalog
           --cache <folder>       Working directory for acquired files.
           --key <file>           Private key for catalog-sign.
@@ -185,6 +189,24 @@ internal static class CommandLine
                     }
 
                     options = options with { GamePath = path };
+                    break;
+
+                case "--steam-path":
+                    if (!TryValue(args, ref i, out var steam))
+                    {
+                        return options with { Error = "--steam-path expects a folder." };
+                    }
+
+                    options = options with { SteamPath = steam };
+                    break;
+
+                case "--epic-manifests":
+                    if (!TryValue(args, ref i, out var epic))
+                    {
+                        return options with { Error = "--epic-manifests expects a folder." };
+                    }
+
+                    options = options with { EpicManifests = epic };
                     break;
 
                 case "--catalog":
