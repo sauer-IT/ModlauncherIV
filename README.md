@@ -222,7 +222,13 @@ Vertrauenskette. Deterministisch löst das nur ein echtes Codesigning-Zertifikat
 dessen Reputation aufgebaut ist — `MLIV_SIGN_THUMBPRINT` setzen, dann greift der
 Release-Pfad in `sign.ps1`.
 
-**Weiterhin offen für M4:** Für den Trainer hilft das Single-File-Verfahren
+**Für den Trainer beantwortet (T0):** Ein unsigniertes — genauer: selbstsigniertes —
+ASI wurde bei aktivem Smart App Control (`State = 1`) anstandslos in `GTAIV.exe`
+geladen, ohne eine einzige Code-Integrity-Meldung. Das ist ein Datenpunkt, keine
+Garantie: SAC entscheidet reputationsbasiert, und ob die Selbstsignatur dabei
+etwas beigetragen hat, lässt sich weiterhin nicht messen.
+
+**Alter Stand, überholt:** Für den Trainer hilft das Single-File-Verfahren
 nicht. Eine `.asi` ist definitionsgemäß eine unsignierte DLL, die in `GTAIV.exe`
 geladen wird — genau der Vorgang, den SAC unterbindet. Betrifft auch jeden
 Endnutzer mit aktivem Smart App Control.
@@ -233,7 +239,7 @@ Endnutzer mit aktivem Smart App Control.
 - **M1** Rezept-Engine, Snapshot, Rollback, Ledger, Dry-Run ✔
 - **M2** Beschaffung, Hash-Prüfung, Mirror, Katalogsignatur ✔
 - **M3** Downgrade-Rezepte, Versionsgraph, Update-Sperre, Gegenprobe, Rückbau ✔
-- **M4** Trainer T0: leeres ASI, das lädt und ins Logfile schreibt ← *hier*
+- **M4** Trainer T0 ✔ · Basis-Stack · T1 Menügerüst ← *hier*
 - **M5** WPF-Wizard und Dev-Modus · Trainer T1
 - **M6** Profile, Deinstallation, Katalog-Update · Trainer T2/T3
 

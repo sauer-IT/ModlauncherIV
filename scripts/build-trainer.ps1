@@ -38,22 +38,34 @@ $asiName = "ModlauncherIV-Trainer.asi"
 
 # ---------------------------------------------------------------- Toolchain
 
+# vswhere ist der saubere Weg, aber es fehlt manchmal - etwa direkt nach einer
+# noch nicht abgeschlossenen Installation. Dann suchen wir vcvarsall.bat selbst,
+# statt an einem Hilfswerkzeug zu scheitern, waehrend der Compiler laengst da ist.
+$vcvars = $null
+
 $vswhere = "${env:ProgramFiles(x86)}\Microsoft Visual Studio\Installer\vswhere.exe"
-if (-not (Test-Path $vswhere)) {
-    throw "vswhere nicht gefunden. Visual Studio Build Tools mit C++ (x86) installieren."
+if (Test-Path $vswhere) {
+    $vsPath = & $vswhere -latest -products * `
+        -requires Microsoft.VisualStudio.Component.VC.Tools.x86.x64 `
+        -property installationPath
+    if ($vsPath) {
+        $candidate = Join-Path $vsPath "VC\Auxiliary\Build\vcvarsall.bat"
+        if (Test-Path $candidate) { $vcvars = $candidate }
+    }
 }
 
-$vsPath = & $vswhere -latest -products * `
-    -requires Microsoft.VisualStudio.Component.VC.Tools.x86.x64 `
-    -property installationPath
-if (-not $vsPath) {
-    throw "Keine Installation mit C++-Werkzeugen gefunden (Workload 'VCTools')."
+if (-not $vcvars) {
+    $vcvars = Get-ChildItem -Path "C:\Program Files\Microsoft Visual Studio",
+                                  "C:\Program Files (x86)\Microsoft Visual Studio" `
+                            -Filter "vcvarsall.bat" -Recurse -ErrorAction SilentlyContinue |
+              Select-Object -First 1 -ExpandProperty FullName
 }
 
-$vcvars = Join-Path $vsPath "VC\Auxiliary\Build\vcvarsall.bat"
-if (-not (Test-Path $vcvars)) { throw "vcvarsall.bat fehlt unter $vsPath" }
+if (-not $vcvars) {
+    throw "vcvarsall.bat nicht gefunden. Visual Studio Build Tools mit C++ (x86) installieren."
+}
 
-Write-Host "Toolchain: $vsPath" -ForegroundColor Cyan
+Write-Host "Toolchain: $vcvars" -ForegroundColor Cyan
 
 # ------------------------------------------------------------------- Bauen
 
@@ -69,23 +81,48 @@ $flags = if ($Configuration -eq "Release") { "/O2 /DNDEBUG" } else { "/Od /Zi /D
 
 # /MT statt /MD: statische Laufzeit, keine Redistributable noetig.
 # /EHsc: ein Wurf im Tick darf das Spiel nicht mitnehmen.
-$compile = @(
-    "cl.exe",
-    "/nologo /std:c++20 /W4 /WX /EHsc /MT /LD $flags",
-    "/permissive- /Zc:__cplusplus",
-    "/I`"$source`"",
-    "/Fo`"$obj\\`"",
-    "/Fe`"$out\$asiName`"",
-    ($sources | ForEach-Object { "`"$_`"" }) -join " ",
-    "/link /MACHINE:X86 /SUBSYSTEM:WINDOWS"
-) -join " "
+# Bewusst als durchgehende Zeichenkette und nicht als Array mit -join:
+# in einem Array-Literal frisst "-join" das folgende Komma als Teil seines
+# rechten Operanden, macht daraus ein Trennzeichen-Array und baut damit einen
+# stillen Unsinn, den erst die erzeugte Batch-Datei sichtbar macht.
+$sourceArgs = ($sources | ForEach-Object { '"' + $_ + '"' }) -join ' '
+
+$compile = "cl.exe /nologo /std:c++20 /W4 /WX /EHsc /MT /LD $flags " +
+           "/permissive- /Zc:__cplusplus " +
+           "/I`"$source`" /Fo`"$obj\\`" /Fe`"$out\$asiName`" " +
+           "$sourceArgs " +
+           "/link /MACHINE:X86 /SUBSYSTEM:WINDOWS"
 
 Write-Host "Baue $asiName ($Configuration, x86) ..." -ForegroundColor Cyan
 
-# x86 zwingend - das ist keine Bequemlichkeit, sondern Voraussetzung.
-$cmd = "`"$vcvars`" x86 >nul && $compile"
-& cmd.exe /c $cmd
-if ($LASTEXITCODE -ne 0) { throw "Compiler-Aufruf fehlgeschlagen (Exitcode $LASTEXITCODE)." }
+# Ueber eine Batch-Datei statt ueber "cmd /c <langer String>": der Aufruf
+# enthaelt Pfade mit Leerzeichen, Anfuehrungszeichen und && - beim Durchreichen
+# durch PowerShell an cmd zerfaellt das zuverlaessig, und zwar ohne jede
+# Fehlermeldung des Compilers. Eine Datei hat dieses Problem nicht.
+$batch = Join-Path $out "build.cmd"
+@(
+    "@echo off",
+    "call `"$vcvars`" x86 >nul",
+    "if errorlevel 1 exit /b 1",
+    $compile,
+    "exit /b %ERRORLEVEL%"
+) | Set-Content -Path $batch -Encoding ASCII
+
+# Unter Windows PowerShell 5.1 macht "Stop" aus jeder stderr-Zeile eines nativen
+# Programms einen abbrechenden NativeCommandError. vcvarsall.bat warnt auf
+# stderr ueber ein fehlendes vswhere.exe und arbeitet trotzdem korrekt weiter -
+# ohne diese Ausnahme scheitert der Build an einer blossen Warnung.
+$previous = $ErrorActionPreference
+$ErrorActionPreference = "Continue"
+try {
+    & cmd.exe /c $batch 2>&1 | ForEach-Object { "  $_" }
+    $code = $LASTEXITCODE
+}
+finally {
+    $ErrorActionPreference = $previous
+}
+
+if ($code -ne 0) { throw "Compiler-Aufruf fehlgeschlagen (Exitcode $code)." }
 
 $asi = Join-Path $out $asiName
 if (-not (Test-Path $asi)) { throw "Kein $asiName erzeugt." }

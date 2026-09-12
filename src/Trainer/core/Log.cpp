@@ -16,6 +16,30 @@ namespace
         const auto slash = path.find_last_of(L"\\/");
         return slash == std::wstring::npos ? L"." : path.substr(0, slash);
     }
+
+    /// Legt das Logfile an. FILE_SHARE_READ, damit man waehrend des Spielens
+    /// mitlesen kann. CREATE_ALWAYS, weil jeder Spielstart ein frisches Log
+    /// beginnen soll - eine mitwachsende Datei waere beim Suchen nach dem
+    /// letzten Absturz nur im Weg.
+    bool TryOpen(const std::wstring& file)
+    {
+        const HANDLE handle = CreateFileW(
+            file.c_str(),
+            GENERIC_WRITE,
+            FILE_SHARE_READ,
+            nullptr,
+            CREATE_ALWAYS,
+            FILE_ATTRIBUTE_NORMAL,
+            nullptr);
+
+        if (handle == INVALID_HANDLE_VALUE)
+        {
+            return false;
+        }
+
+        g_file = handle;
+        return true;
+    }
 }
 
 namespace mliv
@@ -28,19 +52,26 @@ namespace mliv
             return;
         }
 
-        const std::wstring file = DirectoryOf(dllPath) + L"\\ModlauncherIV-Trainer.log";
+        // Zuerst neben der DLL: dort sucht man es, und dort erwartet es jeder,
+        // der schon einmal ein ASI-Plugin benutzt hat.
+        //
+        // Das Spiel liegt aber haeufig unter Program Files und laeuft ohne
+        // erhoehte Rechte. Dann schlaegt das Anlegen fehl - und ein Trainer
+        // ohne Logfile ist bei einem Problem genau so stumm wie einer, der gar
+        // nicht geladen hat. Deshalb der Ausweichpfad unter LOCALAPPDATA, wo
+        // auch der Launcher seinen Zustand haelt.
+        if (TryOpen(DirectoryOf(dllPath) + L"\\ModlauncherIV-Trainer.log"))
+        {
+            return;
+        }
 
-        // Bewusst CREATE_ALWAYS: jeder Spielstart beginnt ein frisches Log.
-        // Eine mitwachsende Datei waere beim Suchen nach dem letzten Absturz
-        // nur im Weg.
-        g_file = CreateFileW(
-            file.c_str(),
-            GENERIC_WRITE,
-            FILE_SHARE_READ,   // damit man beim Spielen mitlesen kann
-            nullptr,
-            CREATE_ALWAYS,
-            FILE_ATTRIBUTE_NORMAL,
-            nullptr);
+        wchar_t appData[MAX_PATH]{};
+        if (GetEnvironmentVariableW(L"LOCALAPPDATA", appData, MAX_PATH) != 0)
+        {
+            const std::wstring folder = std::wstring(appData) + L"\\ModlauncherIV";
+            CreateDirectoryW(folder.c_str(), nullptr);
+            TryOpen(folder + L"\\Trainer.log");
+        }
     }
 
     void LogLine(const char* format, ...)
