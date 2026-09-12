@@ -198,6 +198,19 @@ Exit codes: `0` success - `1` nothing found - `2` wrong invocation -
 `3` blockers found, nothing executed - `4` output not writable -
 `5` execution failed.
 
+## What a version change leaves behind
+
+Recipes are checked against the game version when they are installed, so
+everything in the ledger fitted the game as it was. Move the game underneath
+them - a downgrade, or a switch from 1.0.7.0 to 1.0.8.0 - and some of them no
+longer do, while every file they installed stays exactly where it was put. The
+installation looks untouched and the mods are silent.
+
+The plan page names them now, under *left behind by this*, with the versions
+each was made for. Not a blocker: changing version anyway is a legitimate wish,
+and taking somebody's mods out because a planner thinks they are in the way is
+not a decision a planner gets to make. `mliv journey` prints the same list.
+
 ## When a mod has moved on
 
 The home page compares what is installed against what the catalog has, and says
@@ -237,7 +250,7 @@ because it could not write its own log would be a bad joke.
 .\tests\run-tests.ps1
 ```
 
-277 tests against fake game directories. No real installation is touched. If GTA
+282 tests against fake game directories. No real installation is touched. If GTA
 IV happens to be running, the script aborts up front - otherwise every pre-flight
 rightly blocks and four tests fail without anything being wrong with the code.
 Among the things covered:

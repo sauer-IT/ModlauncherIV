@@ -485,6 +485,22 @@ Assert ($r.Output -match "Open: 1") "update: and becomes an open step"
 # Reset so the following sections find the same catalog.
 (Get-Content (Join-Path $catalog "test-j-base.json") -Raw).Replace('"version": "2.0.0"', '"version": "1.0.0"') |
     Set-Content (Join-Path $catalog "test-j-base.json") -Encoding utf8 -NoNewline
+
+# test-j-base is installed and is for 1.0.7.0. A journey that ends on 1.0.8.0
+# leaves it exactly where it is - installed, listed, and not loading - and
+# nothing used to say so. It is not a blocker: changing version anyway is a
+# legitimate wish, and taking somebody's mods out uninvited is not the
+# planner's decision.
+$r = Invoke-Mliv (@("journey", "--assume-version", "1.2.0.59", "--target", "1.0.8.0") + $jArgs)
+Assert ($r.Output -match "LEFT BEHIND") "stranded: a version change names what it leaves behind"
+Assert ($r.Output -match "Test recipe, foundation") "stranded: by name"
+Assert ($r.Output -match "made for 1\.0\.7\.0") "stranded: and says what it was made for"
+Assert ($r.ExitCode -ne 3) "stranded: but does not block the journey"
+
+# The same journey back to the version it fits says nothing of the sort.
+$r = Invoke-Mliv (@("journey", "--assume-version", "1.2.0.59", "--target", "1.0.7.0") + $jArgs)
+Assert (-not ($r.Output -match "LEFT BEHIND")) "stranded: nothing is left behind when the version still fits"
+
 $r = Invoke-Mliv (@("remove", "test-j-base", "--yes") + $jArgs)
 Assert ($r.ExitCode -eq 0) "update: test recipe removed again"
 

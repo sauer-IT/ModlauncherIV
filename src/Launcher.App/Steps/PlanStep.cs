@@ -38,6 +38,20 @@ public sealed class PlanStep(Session session) : WizardStep(session)
 
     public ObservableCollection<JourneyProblem> Problems { get; } = [];
 
+    /// <summary>
+    /// What this run would leave installed and not working. Only a version
+    /// change produces any: everything in the ledger fitted the game when it
+    /// was installed, and moving the game underneath it is what breaks that.
+    /// </summary>
+    public ObservableCollection<StrandedRecipe> LeftBehind { get; } = [];
+
+    public bool HasLeftBehind => LeftBehind.Count > 0;
+
+    /// <summary>The sentence above that list. Names the version being moved to.</summary>
+    public string LeftBehindLead =>
+        $"These are installed and were made for another version than {Session.TargetVersion}. "
+        + "They stay on disk and stop working - take them back on the home page if that is not what you want.";
+
     public string Summary { get; private set; } = string.Empty;
 
     public bool HasProblems => Problems.Count > 0;
@@ -51,6 +65,7 @@ public sealed class PlanStep(Session session) : WizardStep(session)
     {
         Rows.Clear();
         Problems.Clear();
+        LeftBehind.Clear();
 
         var journey = JourneyPlanner.Plan(
             new JourneyRequest(Session.TargetVersion, Session.Wanted),
@@ -70,6 +85,11 @@ public sealed class PlanStep(Session session) : WizardStep(session)
             Problems.Add(problem);
         }
 
+        foreach (var left in journey.LeftBehind)
+        {
+            LeftBehind.Add(left);
+        }
+
         var open = journey.Remaining.Count;
         Summary = open switch
         {
@@ -81,6 +101,8 @@ public sealed class PlanStep(Session session) : WizardStep(session)
 
         Raise(nameof(Summary));
         Raise(nameof(HasProblems));
+        Raise(nameof(HasLeftBehind));
+        Raise(nameof(LeftBehindLead));
         Raise(nameof(NothingToDo));
         NotifyChanged();
 

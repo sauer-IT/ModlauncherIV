@@ -82,6 +82,23 @@ internal static class JourneyCommand
 
         Console.WriteLine();
 
+        if (journey.LeftBehind.Count > 0)
+        {
+            Console.WriteLine("  LEFT BEHIND BY THIS");
+            Console.WriteLine("  ---------------------");
+            Console.WriteLine($"  These are installed and were made for another version than {journey.TargetVersion}.");
+            Console.WriteLine("  They stay on disk and stop working. Take them back first if that is not wanted.");
+            Console.WriteLine();
+
+            foreach (var left in journey.LeftBehind)
+            {
+                Console.WriteLine($"  {left.Name}  ({left.RecipeId})");
+                Console.WriteLine($"      made for {string.Join(", ", left.FitsVersions)}");
+            }
+
+            Console.WriteLine();
+        }
+
         if (journey.Problems.Count > 0)
         {
             Console.WriteLine("  FINDINGS");
