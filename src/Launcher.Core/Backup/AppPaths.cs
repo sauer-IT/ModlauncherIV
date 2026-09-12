@@ -32,6 +32,15 @@ public static class AppPaths
     public static string Cache => Path.Combine(Root, "cache");
 
     /// <summary>
+    /// Der mitgelieferte Rezeptkatalog, neben dem Programm.
+    ///
+    /// Bewusst nicht das aktuelle Arbeitsverzeichnis: ein über eine Verknüpfung
+    /// oder aus dem Startmenü gestartetes Programm hat irgendeins, und dann fände
+    /// der Launcher seine eigenen Rezepte nicht.
+    /// </summary>
+    public static string CatalogDirectory { get; } = Path.Combine(AppContext.BaseDirectory, "catalog");
+
+    /// <summary>
     /// Kurzer, stabiler Bezeichner für einen Spielpfad. Der Pfad selbst taugt
     /// nicht als Ordnername, und ein reiner Hash wäre beim Draufschauen nutzlos —
     /// deshalb lesbarer Name plus Hash gegen Kollisionen.

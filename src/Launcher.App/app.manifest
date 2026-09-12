@@ -1,0 +1,41 @@
+<?xml version="1.0" encoding="utf-8"?>
+<assembly manifestVersion="1.0" xmlns="urn:schemas-microsoft-com:asm.v1">
+
+  <assemblyIdentity version="1.0.0.0" name="ModlauncherIV.app" />
+
+  <!--
+    Der Launcher verlangt Administratorrechte.
+
+    GTA IV liegt bei Steam wie bei Rockstar unter C:\Program Files. Dorthin
+    schreiben heisst erhoehte Rechte, und zwar nicht nur beim Einbauen: auch
+    der Snapshot, ohne den es keinen Rueckbau gibt, wird dort abgelegt.
+
+    Die Alternative waere, ohne Rechte zu starten und sich erst beim Schreiben
+    neu zu starten. Das hiesse: Assistent von vorn, Auswahl weg, und im
+    schlimmsten Fall ein halb angewendetes Rezept, weil die Erhoehung mitten
+    in einer Transaktion kommt. Eine Abfrage am Anfang ist ehrlicher.
+  -->
+  <trustInfo xmlns="urn:schemas-microsoft-com:asm.v2">
+    <security>
+      <requestedPrivileges xmlns="urn:schemas-microsoft-com:asm.v3">
+        <requestedExecutionLevel level="requireAdministrator" uiAccess="false" />
+      </requestedPrivileges>
+    </security>
+  </trustInfo>
+
+  <compatibility xmlns="urn:schemas-microsoft-com:compatibility.v1">
+    <application>
+      <!-- Windows 10 und 11. Ohne diesen Eintrag meldet Windows aeltere
+           Versionsnummern, und die Erkennung liefe ins Leere. -->
+      <supportedOS Id="{8e0f7a12-bfb3-4fe8-b9a5-48fd50a15a9a}" />
+    </application>
+  </compatibility>
+
+  <application xmlns="urn:schemas-microsoft-com:asm.v3">
+    <windowsSettings>
+      <dpiAwareness xmlns="http://schemas.microsoft.com/SMI/2016/WindowsSettings">PerMonitorV2</dpiAwareness>
+      <longPathAware xmlns="http://schemas.microsoft.com/SMI/2016/WindowsSettings">true</longPathAware>
+    </windowsSettings>
+  </application>
+
+</assembly>

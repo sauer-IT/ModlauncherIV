@@ -649,7 +649,7 @@ Assert (Test-Path (Join-Path $catalog "index.json.sig")) "catalog-sign: Signatur
 
 $r = Invoke-Mliv @("catalog", "--catalog", $catalog, "--public-key", $publicKey)
 Assert ($r.ExitCode -eq 0) "signatur: signierter Katalog wird akzeptiert"
-Assert ($r.Output -match "8 Rezept") "signatur: laedt alle Rezepte aus dem Index"
+Assert ($r.Output -match "13 Rezept") "signatur: laedt alle Rezepte aus dem Index"
 Assert (-not ($r.Output -match "NICHT auf eine Signatur")) "signatur: keine Unsigniert-Warnung"
 
 # Eine Rezeptdatei nach dem Signieren aendern. Der Index ist signiert, also muss

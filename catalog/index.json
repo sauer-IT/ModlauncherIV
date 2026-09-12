@@ -1,0 +1,26 @@
+{
+  "FormatVersion": 1,
+  "GeneratedAt": "2026-09-12T14:47:28.831329+02:00",
+  "Entries": [
+    {
+      "File": "downgrade-ce-1070.json",
+      "Sha256": "3f794db58f1bbb677f7ff0496712f45238acf95e713d949a4ba1a3ea09812071"
+    },
+    {
+      "File": "gfwl-stub.json",
+      "Sha256": "bd2417bc16d8a2e655207068bdab598983e26beeddfa0d84bffa8d582e6c90f4"
+    },
+    {
+      "File": "scripthook-dotnet.json",
+      "Sha256": "ee079e33c41d332506645c41d8f75437b1afb1b8203b02d145b912a6e1fa1f82"
+    },
+    {
+      "File": "ultimate-asi-loader.json",
+      "Sha256": "88ecf58a8912fccde0b14e6f07432b81979cfc27e6d22afd29c55b9aa22783c8"
+    },
+    {
+      "File": "vc80-runtime.json",
+      "Sha256": "83853d242cdf4c2b1a3f6619e73ee8ca47d1f52c95962f9869a0f6d7f709539a"
+    }
+  ]
+}

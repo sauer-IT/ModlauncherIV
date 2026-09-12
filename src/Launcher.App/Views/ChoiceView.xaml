@@ -1,0 +1,78 @@
+<UserControl x:Class="ModlauncherIV.App.ChoiceView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+
+    <StackPanel Margin="0,4,0,20">
+
+        <TextBlock Text="SPIELVERSION" Style="{StaticResource Dim}" Margin="0,0,0,8" />
+
+        <ListBox ItemsSource="{Binding Versions}" SelectedItem="{Binding Target}">
+            <ListBox.ItemContainerStyle>
+                <Style TargetType="ListBoxItem">
+                    <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+                    <Setter Property="Padding" Value="0" />
+                    <Setter Property="Margin" Value="0,0,0,6" />
+                    <Setter Property="Cursor" Value="Hand" />
+                    <Setter Property="Template">
+                        <Setter.Value>
+                            <ControlTemplate TargetType="ListBoxItem">
+                                <Border x:Name="Bd"
+                                        Background="{StaticResource Panel}"
+                                        BorderBrush="{StaticResource Line}"
+                                        BorderThickness="1"
+                                        CornerRadius="4"
+                                        Padding="14,11">
+                                    <ContentPresenter />
+                                </Border>
+                                <ControlTemplate.Triggers>
+                                    <Trigger Property="IsSelected" Value="True">
+                                        <Setter TargetName="Bd" Property="BorderBrush" Value="{StaticResource Accent}" />
+                                        <Setter TargetName="Bd" Property="Background" Value="{StaticResource PanelHi}" />
+                                    </Trigger>
+                                </ControlTemplate.Triggers>
+                            </ControlTemplate>
+                        </Setter.Value>
+                    </Setter>
+                </Style>
+            </ListBox.ItemContainerStyle>
+
+            <ListBox.ItemTemplate>
+                <DataTemplate>
+                    <StackPanel>
+                        <TextBlock Text="{Binding Label}" Style="{StaticResource Head}" />
+                        <TextBlock Text="{Binding Reason}" Style="{StaticResource Dim}" Margin="0,3,0,0" />
+                    </StackPanel>
+                </DataTemplate>
+            </ListBox.ItemTemplate>
+        </ListBox>
+
+        <TextBlock Text="MODS" Style="{StaticResource Dim}" Margin="0,18,0,8" />
+
+        <TextBlock Text="Der Katalog ist leer. Ohne gültige Signatur lädt der Assistent keine Rezepte — siehe die Meldung im vorigen Schritt."
+                   Style="{StaticResource Dim}"
+                   Foreground="{StaticResource Bad}"
+                   Visibility="{Binding Recipes.Count, Converter={StaticResource Hide}}" />
+
+        <ItemsControl ItemsSource="{Binding Recipes}">
+            <ItemsControl.ItemTemplate>
+                <DataTemplate>
+                    <Border Style="{StaticResource Card}" Margin="0,0,0,6" Padding="12">
+                        <StackPanel>
+                            <CheckBox IsChecked="{Binding Selected}" Content="{Binding Name}" FontWeight="SemiBold" />
+                            <TextBlock Text="{Binding Description}"
+                                       Style="{StaticResource Dim}"
+                                       Margin="24,4,0,0"
+                                       Visibility="{Binding Description, Converter={StaticResource HasContent}}" />
+                            <TextBlock Text="{Binding State}"
+                                       Foreground="{StaticResource Good}"
+                                       FontSize="11"
+                                       Margin="24,4,0,0"
+                                       Visibility="{Binding Installed, Converter={StaticResource Show}}" />
+                        </StackPanel>
+                    </Border>
+                </DataTemplate>
+            </ItemsControl.ItemTemplate>
+        </ItemsControl>
+
+    </StackPanel>
+</UserControl>

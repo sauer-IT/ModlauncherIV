@@ -51,12 +51,16 @@ public static class CatalogSignature
     /// <summary>
     /// Der öffentliche Schlüssel, dem dieser Build vertraut (Base64, SPKI).
     ///
-    /// Noch leer: solange hier kein Schlüssel steht, gibt es keinen signierten
-    /// Katalog, und RequireSignature lehnt konsequenterweise alles ab. Sobald ein
-    /// Schlüsselpaar erzeugt wurde (mliv catalog-key), kommt der öffentliche Teil
-    /// hierher — der private gehört NICHT ins Repository.
+    /// Der zugehörige private Schlüssel liegt außerhalb des Repositorys und wird
+    /// nicht weitergegeben — wer ihn hat, kann Kataloge signieren, denen jeder
+    /// Launcher mit diesem eingebauten Schlüssel vertraut, und damit bestimmen,
+    /// welche Dateien in fremde Spielverzeichnisse geschrieben werden.
+    ///
+    /// Ein Wechsel des Schlüssels macht jeden bisher signierten Katalog
+    /// ungültig. Das ist gewollt: es ist derselbe Vorgang wie ein Rückruf.
     /// </summary>
-    public const string EmbeddedPublicKey = "";
+    public const string EmbeddedPublicKey =
+        "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAErYJ9SF8sVJWiPILvCWQy/+SzE1/bQWJXGOiaAAlpLv0+PgDLufqQ2zHvWTCsxmkOzoU+eD2ZFaYcFp+Lb4SSPw==";
 
     private static readonly JsonSerializerOptions JsonOptions = new() { WriteIndented = true };
 

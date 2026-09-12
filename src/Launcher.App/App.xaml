@@ -1,0 +1,45 @@
+<Application x:Class="ModlauncherIV.App.App"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:local="clr-namespace:ModlauncherIV.App"
+             StartupUri="MainWindow.xaml">
+    <Application.Resources>
+        <ResourceDictionary>
+            <ResourceDictionary.MergedDictionaries>
+                <ResourceDictionary Source="Theme.xaml" />
+            </ResourceDictionary.MergedDictionaries>
+
+            <local:ShowConverter x:Key="Show" />
+            <local:HideConverter x:Key="Hide" />
+            <local:HasContentConverter x:Key="HasContent" />
+
+            <!--
+                Die Zuordnung Schritt -> Ansicht. Der Rahmen kennt nur WizardStep;
+                welches Bild dazu gehoert, entscheidet WPF anhand des Typs. So
+                muss der Rahmen beim Hinzufuegen eines Schritts nicht angefasst
+                werden.
+            -->
+            <DataTemplate DataType="{x:Type local:WelcomeStep}">
+                <local:WelcomeView />
+            </DataTemplate>
+            <DataTemplate DataType="{x:Type local:InstallStep}">
+                <local:InstallView />
+            </DataTemplate>
+            <DataTemplate DataType="{x:Type local:ChoiceStep}">
+                <local:ChoiceView />
+            </DataTemplate>
+            <DataTemplate DataType="{x:Type local:PlanStep}">
+                <local:PlanView />
+            </DataTemplate>
+            <DataTemplate DataType="{x:Type local:AcquireStep}">
+                <local:AcquireView />
+            </DataTemplate>
+            <DataTemplate DataType="{x:Type local:RunStep}">
+                <local:RunView />
+            </DataTemplate>
+            <DataTemplate DataType="{x:Type local:DoneStep}">
+                <local:DoneView />
+            </DataTemplate>
+        </ResourceDictionary>
+    </Application.Resources>
+</Application>
