@@ -23,7 +23,7 @@ The only thing that changes the game is the "Install" step in the wizard, or
 | `src/Launcher.Cli` | Headless front end (`mliv`). Dry runs, diagnostics, CI. |
 | `src/Launcher.App` | The program you start (WPF): home page and wizard. |
 | `src/Trainer` | C++ ASI plugin, x86, IV-SDK. Player, weapons, vehicles, world, movement, peds, time and physics. |
-| `catalog/` | The declarative recipes. Nine of them, six proven. |
+| `catalog/` | The declarative recipes. Twelve of them, six proven. |
 | `tests/` | Fixtures and the test script. |
 
 **Journey planning** (`Core/Planning`) is the difference between the CLI and the
@@ -152,7 +152,7 @@ from that point on.
 
 ## The catalog - state and caveats
 
-Nine recipes with **real, self-computed SHA-256 checksums**. Six of them have
+Twelve recipes with **real, self-computed SHA-256 checksums**. Six of them have
 **run against a real installation** - Complete Edition 1.2.0.59 through the
 Rockstar Games Launcher, downgraded to 1.0.7.0. The game starts.
 
@@ -167,6 +167,9 @@ Rockstar Games Launcher, downgraded to 1.0.7.0. The game starts.
 | `fusionfix` | ThirteenAG, GitHub release | 197 MB | run |
 | `xbox-rain-droplets` | ThirteenAG, GitHub release | 365 KB | untested |
 | `various-fixes` | valentyn-l, GitHub release | 1.7 GB | untested |
+| `hires-vehicle-pack` | Ash735, supplied by hand | 140 MB | untested |
+| `hires-misc-pack` | Ash735, supplied by hand | 365 MB | untested |
+| `libertys-legacy` | Const96b, supplied by hand | 0.7 MB | untested |
 
 **FusionFix** is the largest mod in here and the one that shows what the
 dependency chain is for. Its own readme is explicit: *only The Complete Edition
@@ -193,6 +196,20 @@ Its download is not offered by [the page most people find it
 on](https://www.nexusmods.com/gta4/mods/716): Nexus refuses plain requests and
 hands out links that expire with a session, so no recipe could fetch it. The
 project publishes the same files on GitHub, and that is where ours come from.
+
+**Three recipes have no URL at all** - the two texture packs and Liberty's
+Legacy live only on Nexus. They are in the catalog anyway, with the checksum of
+the exact file the page serves and a note naming the page and the file. The
+launcher then says what to download and where to put it, and refuses anything
+whose checksum does not match. That is the same "supplied by hand" path
+`vc80-runtime` used to take, and it is acceptable here for the reason it was not
+acceptable there: without these the game still starts. They are cosmetic.
+
+**What is not in the catalog, and why.** The radio restoration for the Complete
+Edition is published as a `.rar` that contains an installer - `IVCERadioRestoration.exe`
+plus a 970 MB `data1.dat` only that program can unpack. There are no game files
+in it to copy. Running a foreign installer is deliberately not a recipe step, so
+this one cannot be done here at all, whatever archive format it came in.
 
 **The trainer is shipped, not downloaded.** It is the only file in the catalog
 this project produces itself; putting it somewhere so that our own launcher can

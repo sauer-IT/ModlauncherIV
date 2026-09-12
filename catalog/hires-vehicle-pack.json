@@ -1,0 +1,26 @@
+{
+  "id": "hires-vehicle-pack",
+  "name": "Higher Resolution Vehicle Pack",
+  "version": "2.4",
+  "game": "GtaIV",
+  "description": "Higher resolution textures for every vehicle in the game, inside and out, including the dirt and the graffiti. Covers GTA IV and both episodes. By Ash735, 15th Anniversary Edition.",
+
+  "appliesToVersions": [ "1.0.7.0", "1.0.8.0" ],
+
+  "requires": [ "fusionfix" ],
+
+  "sources": [
+    {
+      "id": "pack",
+      "fileName": "Complete Edition Vehicle Pack-282-2-4-1776557186.zip",
+      "sha256": "9916167a4350ca4bc9530dc0ceea0027ff89ba63f17091c8d059a3c32fa74a1b",
+      "sizeBytes": 146238699,
+      "urls": [],
+      "note": "Has to be supplied by hand: published only on https://www.nexusmods.com/gta4/mods/282, and Nexus hands out links that expire with a session. Take the file called 'Complete Edition Vehicle Pack' and drop it into the working directory exactly as it comes - the name above is the one Nexus gives version 2.4. Despite that name it is not tied to the Complete Edition: it is nothing but textures under update\\, which FusionFix's overloader reads on 1.0.7.0 just as well."
+    }
+  ],
+
+  "steps": [
+    { "type": "extractArchive", "archive": "Complete Edition Vehicle Pack-282-2-4-1776557186.zip", "target": "" }
+  ]
+}

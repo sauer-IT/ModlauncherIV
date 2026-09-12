@@ -1,6 +1,6 @@
 {
   "FormatVersion": 1,
-  "GeneratedAt": "2026-09-12T19:33:03.4616294+02:00",
+  "GeneratedAt": "2026-09-12T19:51:00.0761133+02:00",
   "Entries": [
     {
       "File": "downgrade-ce-1070.json",
@@ -15,8 +15,20 @@
       "Sha256": "d755fb5d5e5f112003a9732d7dc8e1c1725ca21954a082f8ae60e4adda9c0cd6"
     },
     {
+      "File": "hires-misc-pack.json",
+      "Sha256": "43634fbfdbda2c659a4188187051cf7033d61daee25fd4c528ddb5429b0cee77"
+    },
+    {
+      "File": "hires-vehicle-pack.json",
+      "Sha256": "82e3dcb54dfaf208ac940616b3ee38c7d93dcc8ae65882cede49fda1070f8938"
+    },
+    {
+      "File": "libertys-legacy.json",
+      "Sha256": "88a023d70bd85f1c0693d900d82b772f2f36941173eb2aba86a7d7737028acd1"
+    },
+    {
       "File": "mliv-trainer.json",
-      "Sha256": "2f287cd1f722f6c24d7905f81404244c5080e26a097f1be24ff94821ce996c48"
+      "Sha256": "7782aea2c02419d642c35e4ac9f1d79762ffa4e05f6db5b65e32ce6319f8749c"
     },
     {
       "File": "scripthook-dotnet.json",

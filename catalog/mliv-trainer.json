@@ -1,7 +1,7 @@
 ﻿{
   "id": "mliv-trainer",
   "name": "sauer IV Trainer",
-  "version": "0.4.0+b01178e9",
+  "version": "0.4.0+e09faedc",
   "game": "GtaIV",
   "description": "The trainer menu of this project. In game F7 opens it, on a controller L3+R3; it is operated with the numpad or the arrow keys. Player, weapons, wanted level, money, vehicles, world, movement and pedestrians, each in its own submenu. Key bindings and menu position live in sauer.ini, which is created next to the game on the first start.",
 
@@ -13,7 +13,7 @@
     {
       "id": "asi",
       "fileName": "sauer.asi",
-      "sha256": "b01178e91d99c466fb3da6b93f81d1aa4d2dcd7a3022d600cbe45e47a1b5615c",
+      "sha256": "e09faedc6d276a69001199d62f37420b18bc66065e1b4f4cb2d4d52143022516",
       "sizeBytes": 376072,
       "urls": [],
       "note": "Shipped with the launcher rather than downloaded. This file is produced by scripts\\pack-trainer.ps1; the checksum is measured at build time."
