@@ -1,4 +1,4 @@
-﻿// Modlauncher IV - Trainer, Stufe T5
+﻿// Modlauncher IV - Trainer, Stufe T6
 //
 // Die einzige Uebersetzungseinheit, die das IV-SDK einbindet. Das ist keine
 // Bequemlichkeit: IVSDK.cpp definiert Globals und ein eigenes DllMain. Wuerde
@@ -959,6 +959,97 @@ namespace
             Scripting::ADD_ARMOUR_TO_CHAR(ped, 100);
         }
 
+        // ------------------------------------------------- Dauerhafte Flags
+
+        /// Die Schalter, die sich an den Spieler heften.
+        ///
+        /// Alle hier landen pro Bild neu im Spiel, obwohl die meisten Natives
+        /// dauerhaft wirken. Der Grund ist nicht das Spiel, sondern der Ped:
+        /// bei Tod, Modellwechsel oder Missionsstart bekommt der Spieler eine
+        /// neue Ped-Handle, und alles, was auf der alten gesetzt war, ist weg.
+        /// Ein Schalter, der nach dem ersten Krankenhausbesuch still aufhoert
+        /// zu wirken, ist schlimmer als keiner.
+        struct PlayerFlags
+        {
+            bool neverTired;
+            bool fastReload;
+            bool waterproof;
+            bool fireproof;
+            bool invisibleToAi;
+            bool cantBeDragged;
+            bool stayOnBike;
+            bool shootInCar;
+            bool drunk;
+            bool noCriticalHits;
+            int weaponSkill;
+        };
+
+        void ApplyPlayerFlags(const PlayerFlags& flags)
+        {
+            const Scripting::Player player = LocalPlayer();
+            const Scripting::Ped ped = LocalPed();
+
+            if (ped == 0)
+            {
+                return;
+            }
+
+            Scripting::SET_PLAYER_NEVER_GETS_TIRED(player, flags.neverTired ? 1 : 0);
+            Scripting::SET_PLAYER_FAST_RELOAD(player, flags.fastReload ? 1 : 0);
+            Scripting::SET_PLAYER_INVISIBLE_TO_AI(flags.invisibleToAi ? 1 : 0);
+
+            Scripting::SET_CHAR_DROWNS_IN_WATER(ped, flags.waterproof ? 0 : 1);
+            Scripting::SET_CHAR_DIES_INSTANTLY_IN_WATER(ped, flags.waterproof ? 0 : 1);
+            Scripting::SET_CHAR_MAX_TIME_UNDERWATER(ped, flags.waterproof ? 10000.0f : 10.0f);
+
+            Scripting::SET_CHAR_FIRE_DAMAGE_MULTIPLIER(ped, flags.fireproof ? 0.0f : 1.0f);
+
+            Scripting::SET_CHAR_CANT_BE_DRAGGED_OUT(ped, flags.cantBeDragged ? 1 : 0);
+            Scripting::SET_CHAR_CAN_BE_KNOCKED_OFF_BIKE(ped, flags.stayOnBike ? 0 : 1);
+            Scripting::SET_CHAR_CAN_BE_SHOT_IN_VEHICLE(ped, flags.shootInCar ? 1 : 0);
+            Scripting::SET_PLAYER_CAN_DO_DRIVE_BY(player, flags.shootInCar ? 1 : 0);
+
+            Scripting::SET_CHAR_DRUGGED_UP(ped, flags.drunk ? 1 : 0);
+            Scripting::SET_CHAR_SUFFERS_CRITICAL_HITS(ped, flags.noCriticalHits ? 0 : 1);
+            Scripting::SET_CHAR_WEAPON_SKILL(ped, flags.weaponSkill);
+        }
+
+        struct VehicleFlags
+        {
+            bool watertight;
+            bool noVisibleDamage;
+            bool noCollision;
+            bool alwaysSkids;
+        };
+
+        void ApplyVehicleFlags(const VehicleFlags& flags)
+        {
+            const Scripting::Vehicle vehicle = CurrentVehicle();
+            if (vehicle == 0)
+            {
+                return;
+            }
+
+            Scripting::SET_CAR_WATERTIGHT(vehicle, flags.watertight ? 1 : 0);
+            Scripting::SET_CAR_CAN_BE_VISIBLY_DAMAGED(vehicle, flags.noVisibleDamage ? 0 : 1);
+            Scripting::SET_CAR_COLLISION(vehicle, flags.noCollision ? 0 : 1);
+            Scripting::SET_CAR_ALWAYS_CREATE_SKIDS(vehicle, flags.alwaysSkids ? 1 : 0);
+        }
+
+        void ClearCopsNearby()
+        {
+            const Scripting::Ped ped = LocalPed();
+            if (ped == 0)
+            {
+                return;
+            }
+
+            float x = 0.0f, y = 0.0f, z = 0.0f;
+            Scripting::GET_CHAR_COORDINATES(ped, &x, &y, &z);
+
+            Scripting::CLEAR_AREA_OF_COPS(x, y, z, 150.0f);
+        }
+
         // ------------------------------------------------------------- Zeit
 
         void SetTimeScale(const float scale)
@@ -1013,6 +1104,20 @@ namespace
     bool g_invisible = false;
     bool g_frozenVehicle = false;
     bool g_invisibleVehicle = false;
+
+    game::PlayerFlags g_player{};
+    game::VehicleFlags g_vehicleFlags{};
+
+    bool g_noHud = false;
+    bool g_noRadar = false;
+    bool g_noVehicleLights = false;
+
+    int g_skillChoice = 0;
+    int g_maxWantedChoice = 6;
+    int g_parkedChoice = kTrafficDefault;
+
+    /// Waffenfertigkeit des Spielers. 100 heisst kein Zittern und kein Streuen.
+    const int kSkills[] = {50, 75, 100};
     bool g_peacefulPeds = false;
     bool g_noCops = false;
 
@@ -1133,6 +1238,31 @@ namespace
         {
             Scripting::SET_CREATE_RANDOM_COPS(0);
         }
+
+        if (g_parkedChoice != kTrafficDefault)
+        {
+            Scripting::SET_PARKED_CAR_DENSITY_MULTIPLIER(kTrafficDensities[g_parkedChoice]);
+        }
+
+        g_player.weaponSkill = kSkills[g_skillChoice];
+        game::ApplyPlayerFlags(g_player);
+        game::ApplyVehicleFlags(g_vehicleFlags);
+
+        // HUD und Radar schaltet das Spiel bei jedem Szenenwechsel wieder ein.
+        if (g_noHud)
+        {
+            Scripting::DISPLAY_HUD(0);
+        }
+
+        if (g_noRadar)
+        {
+            Scripting::DISPLAY_RADAR(0);
+        }
+
+        if (g_noVehicleLights)
+        {
+            Scripting::FORCE_ALL_VEHICLE_LIGHTS_OFF(1);
+        }
     }
 
     // ------------------------------------------------------------ Fliegen
@@ -1231,6 +1361,33 @@ namespace
                      [] { game::SetInvisible(g_invisible); }, &g_invisible});
         g_root->add({"Zur Kamera springen", mliv::ItemKind::Action, game::TeleportToCamera});
 
+        // --- Eigenschaften ---
+        auto traits = std::make_shared<mliv::Menu>("Eigenschaften");
+
+        traits->add({"Wird nie muede", mliv::ItemKind::Toggle, nullptr, &g_player.neverTired});
+        traits->add({"Schnell nachladen", mliv::ItemKind::Toggle, nullptr, &g_player.fastReload});
+        traits->add({"Ertrinkt nicht", mliv::ItemKind::Toggle, nullptr, &g_player.waterproof});
+        traits->add({"Feuerfest", mliv::ItemKind::Toggle, nullptr, &g_player.fireproof});
+        traits->add({"Keine Kopfschuesse", mliv::ItemKind::Toggle, nullptr, &g_player.noCriticalHits});
+        traits->add({"Fuer die KI unsichtbar", mliv::ItemKind::Toggle, nullptr, &g_player.invisibleToAi});
+        traits->add({"Wird nicht rausgezogen", mliv::ItemKind::Toggle, nullptr, &g_player.cantBeDragged});
+        traits->add({"Faellt nicht vom Motorrad", mliv::ItemKind::Toggle, nullptr, &g_player.stayOnBike});
+        traits->add({"Schiessen im Auto", mliv::ItemKind::Toggle, nullptr, &g_player.shootInCar});
+        traits->add({"Betrunken", mliv::ItemKind::Toggle, nullptr, &g_player.drunk});
+
+        mliv::MenuItem skill;
+        skill.label = "Waffenfertigkeit";
+        skill.kind = mliv::ItemKind::Choice;
+        skill.choices = {"Normal", "Gut", "Perfekt"};
+        skill.choiceIndex = &g_skillChoice;
+        traits->add(skill);
+
+        mliv::MenuItem traitsEntry;
+        traitsEntry.label = "Eigenschaften";
+        traitsEntry.kind = mliv::ItemKind::Submenu;
+        traitsEntry.submenu = traits;
+        g_root->add(traitsEntry);
+
         // --- Waffen ---
         g_root->add({"-- Waffen --", mliv::ItemKind::Label});
         g_root->add({"Alle Waffen geben", mliv::ItemKind::Action, game::GiveAllWeapons});
@@ -1249,6 +1406,18 @@ namespace
         g_root->add(wanted);
 
         g_root->add({"Nie gesucht", mliv::ItemKind::Toggle, nullptr, &g_neverWanted});
+
+        mliv::MenuItem maxWanted;
+        maxWanted.label = "Hoechstens";
+        maxWanted.kind = mliv::ItemKind::Choice;
+        maxWanted.choices = {"0", "1", "2", "3", "4", "5", "6"};
+        maxWanted.choiceIndex = &g_maxWantedChoice;
+        maxWanted.onChoice = [](const int level) {
+            Scripting::SET_MAX_WANTED_LEVEL(static_cast<unsigned>(level));
+        };
+        g_root->add(maxWanted);
+
+        g_root->add({"Polizei im Umkreis aufloesen", mliv::ItemKind::Action, game::ClearCopsNearby});
 
         // --- Geld ---
         g_root->add({"-- Geld --", mliv::ItemKind::Label});
@@ -1342,6 +1511,10 @@ namespace
             if (v != 0) { for (unsigned t = 0; t < 4; ++t) { Scripting::BURST_CAR_TYRE(v, t); } }
         }});
         vehicles->add({"Ins naechste Auto", mliv::ItemKind::Action, game::EnterNearestCar});
+        vehicles->add({"Schwimmt", mliv::ItemKind::Toggle, nullptr, &g_vehicleFlags.watertight});
+        vehicles->add({"Bleibt heil", mliv::ItemKind::Toggle, nullptr, &g_vehicleFlags.noVisibleDamage});
+        vehicles->add({"Faehrt durch alles", mliv::ItemKind::Toggle, nullptr, &g_vehicleFlags.noCollision});
+        vehicles->add({"Zieht immer Spuren", mliv::ItemKind::Toggle, nullptr, &g_vehicleFlags.alwaysSkids});
         vehicles->add({"Umstehende sprengen", mliv::ItemKind::Action, [] {
             game::ForNearbyCars(40.0f, 24, [](const Scripting::Vehicle car) {
                 Scripting::EXPLODE_CAR(car, 1, 0);
@@ -1409,6 +1582,25 @@ namespace
         // legte sich mit Zwischensequenzen an.
         timeScale.onChoice = [](const int i) { game::SetTimeScale(kTimeScales[i]); };
         world->add(timeScale);
+
+        mliv::MenuItem parked;
+        parked.label = "Geparkte Autos";
+        parked.kind = mliv::ItemKind::Choice;
+        parked.choices = {"Keine", "Wenige", "Normal", "Viele"};
+        parked.choiceIndex = &g_parkedChoice;
+        world->add(parked);
+
+        world->add({"-- Anzeige --", mliv::ItemKind::Label});
+
+        // Beim Ausschalten muss aktiv zurueckgenommen werden: EnforceToggles
+        // setzt dann nur nicht mehr, und die Anzeige bliebe fuer immer weg.
+        world->add({"HUD ausblenden", mliv::ItemKind::Toggle,
+                    [] { if (!g_noHud) { Scripting::DISPLAY_HUD(1); } }, &g_noHud});
+        world->add({"Radar ausblenden", mliv::ItemKind::Toggle,
+                    [] { if (!g_noRadar) { Scripting::DISPLAY_RADAR(1); } }, &g_noRadar});
+        world->add({"Alle Scheinwerfer aus", mliv::ItemKind::Toggle,
+                    [] { if (!g_noVehicleLights) { Scripting::FORCE_ALL_VEHICLE_LIGHTS_OFF(0); } },
+                    &g_noVehicleLights});
 
         mliv::MenuItem worldEntry;
         worldEntry.label = "Welt";
@@ -1525,7 +1717,7 @@ void plugin::gameStartupEvent()
     GetModuleFileNameW(GetModuleHandleW(L"ModlauncherIV-Trainer.asi"), self, MAX_PATH);
     mliv::LogOpen(self);
 
-    mliv::LogLine("Modlauncher IV Trainer, Stufe T5");
+    mliv::LogLine("Modlauncher IV Trainer, Stufe T6");
 
     const mliv::GameInfo game = mliv::DetectGame();
     mliv::LogLine("Version: %ls (%s)",
