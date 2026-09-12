@@ -25,3 +25,13 @@ src/Launcher.App/bundled/
 
 # Preview images from the icon script
 artifacts/icon-preview.png
+
+# Private keys, wherever somebody puts one.
+#
+# The catalog key lives under %LOCALAPPDATA% and has no business here, but a
+# key committed once stays in the history even after it is deleted - and a
+# private key in a repository is a published private key, whether or not the
+# repository is public today. Cheaper to make it impossible.
+*.pem
+*.pfx
+*.key
