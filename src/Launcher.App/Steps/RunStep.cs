@@ -179,7 +179,8 @@ public sealed class RunStep(Session session) : WizardStep(session)
         }
     }
 
-    private static ExecutionOutcome ApplyOne(string gameRoot, JourneyStep step, string version)
+    /// <summary>One recipe, through the whole transaction. The home page's Update uses it too.</summary>
+    internal static ExecutionOutcome ApplyOne(string gameRoot, JourneyStep step, string version)
     {
         var context = new RecipeContext(
             gameRoot: gameRoot,

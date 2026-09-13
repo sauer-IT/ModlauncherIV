@@ -270,20 +270,140 @@ public sealed class HomeViewModel : Observable
     }
 
     /// <summary>
-    /// Hands one mod to the wizard to be brought up to date.
+    /// Brings one mod up to date, right here, when that is all there is to it.
     ///
-    /// Not installed from here, deliberately. Bringing a recipe up to date is an
-    /// ordinary run: dependencies may have moved with it, files it no longer
-    /// installs have to be cleaned up, and there is a plan to read and a
-    /// question to answer before anything is written. All of that lives in the
-    /// wizard. What this saves is finding the right tick box.
+    /// It used to open the wizard every time, which meant clicking through
+    /// version, mods, plan and files to install the one thing the button had
+    /// already named. Most updates are exactly that: one recipe, a newer release,
+    /// nothing else moving. Those run from this click - through the same
+    /// planner, the same checksum-checked files and the same snapshot as the
+    /// wizard, so nothing about safety is skipped, only the pages.
+    ///
+    /// The wizard still gets it when there is more to it than that: a
+    /// dependency that has to come along, or a plan the planner cannot make.
+    /// Those are the cases with something to read before anything is written.
     /// </summary>
-    private void Update(string recipeId)
+    private async void Update(string recipeId)
+    {
+        if (_busy || _session.Install is not { } install)
+        {
+            return;
+        }
+
+        var journey = JourneyPlanner.Plan(
+            new JourneyRequest(null, [recipeId]),
+            _session.Catalog?.Recipes ?? [],
+            install.Version.Raw,
+            _session.Ledger);
+
+        if (SingleUpdate(journey, recipeId) is not { } step)
+        {
+            HandToWizard(recipeId, "more than this one recipe is involved");
+            return;
+        }
+
+        _busy = true;
+        Status = $"Updating {step.Recipe.Name} ...";
+        Healthy = true;
+        Diary.Info($"Update of {recipeId} {step.InstalledVersion} -> {step.Recipe.Version}, straight from the home page.");
+
+        var fetched = false;
+
+        try
+        {
+            using var http = new HttpClient { Timeout = TimeSpan.FromMinutes(10) };
+            var acquirer = new SourceAcquirer(
+                http, _session.CacheRoot, new ExecutionLog(Diary.Line), AppPaths.BundledDirectory);
+
+            var missing = new List<string>();
+
+            foreach (var source in step.Recipe.RequiredFiles)
+            {
+                var result = await acquirer.AcquireAsync(source).ConfigureAwait(true);
+                if (!result.Ok)
+                {
+                    missing.Add(source.FileName);
+                }
+            }
+
+            // A file that cannot be had is the wizard's page to explain: it
+            // says which file, where it goes, and lets you try again.
+            if (missing.Count > 0)
+            {
+                Diary.Warn($"Update of {recipeId}: could not get {string.Join(", ", missing)}.");
+                return;
+            }
+
+            fetched = true;
+
+            var outcome = await Task.Run(() => RunStep.ApplyOne(install.Path, step, install.Version.Raw))
+                .ConfigureAwait(true);
+
+            if (outcome.Success)
+            {
+                Diary.Info($"{recipeId} {step.Recipe.Version} installed, snapshot {outcome.SnapshotId}.");
+                return;
+            }
+
+            Diary.Error($"{recipeId} update failed: {string.Join(" ", outcome.Errors)}");
+
+            MessageBox.Show(
+                $"{step.Recipe.Name} could not be updated:\n\n"
+                + string.Join("\n", outcome.Errors.Select(e => "- " + e))
+                + (outcome.RolledBack
+                    ? "\n\nThe previous state was restored."
+                    : "\n\nNothing was changed."),
+                SelfInstall.ProgramName,
+                MessageBoxButton.OK,
+                MessageBoxImage.Warning);
+        }
+        catch (Exception e) when (e is IOException or UnauthorizedAccessException or HttpRequestException)
+        {
+            Diary.Error($"Update of {recipeId}: {e.Message}");
+
+            MessageBox.Show(
+                $"{step.Recipe.Name} could not be updated:\n\n{e.Message}",
+                SelfInstall.ProgramName, MessageBoxButton.OK, MessageBoxImage.Warning);
+        }
+        finally
+        {
+            _busy = false;
+
+            if (fetched)
+            {
+                await VerifyAsync().ConfigureAwait(true);
+            }
+        }
+
+        if (!fetched)
+        {
+            HandToWizard(recipeId, "a file it needs is not there");
+        }
+    }
+
+    /// <summary>
+    /// The one step to run when updating <paramref name="recipeId"/> is nothing
+    /// more than that; null when the wizard should have it.
+    /// </summary>
+    public static JourneyStep? SingleUpdate(Journey journey, string recipeId)
+    {
+        if (!journey.IsPossible || journey.Remaining is not [var only])
+        {
+            return null;
+        }
+
+        return only.State == JourneyStepState.NeedsUpdate
+               && string.Equals(only.Recipe.Id, recipeId, StringComparison.OrdinalIgnoreCase)
+            ? only
+            : null;
+    }
+
+    private void HandToWizard(string recipeId, string why)
     {
         _session.Wanted.Clear();
         _session.Wanted.Add(recipeId);
 
-        Diary.Info($"Update wanted for {recipeId}; handing over to the wizard.");
+        Diary.Info($"Update wanted for {recipeId}; {why}, handing over to the wizard.");
 
         _openWizard();
     }

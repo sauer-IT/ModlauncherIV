@@ -7,6 +7,7 @@ using ModlauncherIV.App;
 using ModlauncherIV.Core.Backup;
 using ModlauncherIV.Core.Catalog;
 using ModlauncherIV.Core.Detection;
+using ModlauncherIV.Core.Planning;
 using ModlauncherIV.Core.Verification;
 
 namespace ModlauncherIV.UiSmoke;
@@ -665,6 +666,30 @@ internal static class Program
             Report("mods: and never offered as an update", aheadRow is { CanUpdate: false });
 
             Check("home with a newer mod than the catalog", ahead);
+
+            // Update from the home page runs at once when it is only that one
+            // recipe - and goes to the wizard when anything else is involved.
+            JourneyStep Step(JourneyStepState state, Recipe r) =>
+                new(r, JourneyReason.Requested, state, "1.0.7.0", "0.4.0");
+
+            var loader = session.Catalog!.Recipes.FirstOrDefault(r => r.Id == "ultimate-asi-loader") ?? recipe;
+
+            var alone = new Journey("1.0.7.0", "1.0.7.0", [Step(JourneyStepState.NeedsUpdate, recipe)], []);
+            Report("update: one recipe, newer release - runs straight away",
+                HomeViewModel.SingleUpdate(alone, recipe.Id) is not null);
+
+            var withDependency = new Journey("1.0.7.0", "1.0.7.0",
+                [Step(JourneyStepState.Pending, loader), Step(JourneyStepState.NeedsUpdate, recipe)], []);
+            Report("update: a dependency along with it - the wizard has it",
+                HomeViewModel.SingleUpdate(withDependency, recipe.Id) is null);
+
+            var nothing = new Journey("1.0.7.0", "1.0.7.0", [Step(JourneyStepState.AlreadyInstalled, recipe)], []);
+            Report("update: nothing to update - nothing runs",
+                HomeViewModel.SingleUpdate(nothing, recipe.Id) is null);
+
+            var impossible = alone with { Problems = [new JourneyProblem("no")] };
+            Report("update: an impossible plan - the wizard explains it",
+                HomeViewModel.SingleUpdate(impossible, recipe.Id) is null);
         }
         finally
         {
