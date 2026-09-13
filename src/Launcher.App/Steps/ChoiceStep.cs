@@ -4,6 +4,7 @@ using System.IO;
 using ModlauncherIV.Core.Backup;
 using ModlauncherIV.Core.Catalog;
 using ModlauncherIV.Core.Detection;
+using ModlauncherIV.Core.Planning;
 
 namespace ModlauncherIV.App;
 
@@ -309,8 +310,7 @@ public sealed class ChoiceStep(Session session) : WizardStep(session)
         // that exist: a version no recipe produces is not a choice, it is a
         // dead end with a nice name. 1.0.4.0 is exactly that today.
         var recipes = Session.Catalog?.Recipes ?? [];
-        var graph = VersionGraph.Build(recipes);
-        var reachable = graph.ReachableFrom(current.Raw);
+        var ledger = Session.Ledger;
 
         var produced = recipes
             .Where(r => r.IsVersionTransition && r.Game == GameTitle.GtaIV)
@@ -327,13 +327,29 @@ public sealed class ChoiceStep(Session session) : WizardStep(session)
             // what is reachable - and greying everything out would strand the
             // user here. The planner says it properly one page on, where the
             // unknown version is its own finding rather than a consequence.
-            var canGetThere = !current.IsKnown
-                              || reachable.Contains(version, StringComparer.OrdinalIgnoreCase);
+            //
+            // Asked of the planner rather than of the version graph: the graph
+            // only knows edges, and 1.0.7.0 to 1.0.8.0 has none. The planner
+            // also knows the way back through an installed downgrade, and the
+            // wizard walks that way itself now instead of sending anyone to the
+            // home page to press Remove first.
+            var path = current.IsKnown
+                ? JourneyPlanner.Plan(new JourneyRequest(version, []), recipes, current.Raw, ledger)
+                : null;
+
+            var canGetThere = path is null || path.IsPossible;
+            var takesBack = path?.Steps.FirstOrDefault(s => s.Reason == JourneyReason.TakeBack);
+
+            var reason = !canGetThere
+                ? $"No recipe leads from {current.Raw} to {version}."
+                : takesBack is not null
+                    ? $"{info.DisplayName} - \"{takesBack.Recipe.Name}\" is taken back first, from its snapshot."
+                    : info.DisplayName;
 
             Versions.Add(new VersionChoice(
                 version,
                 canGetThere ? $"switch to {version}" : $"{version} - not from here",
-                canGetThere ? info.DisplayName : WhyNot(version, current.Raw),
+                reason,
                 isCurrent: false,
                 reachable: canGetThere));
         }
@@ -342,32 +358,6 @@ public sealed class ChoiceStep(Session session) : WizardStep(session)
         // Anyone wanting something else clicks elsewhere.
         Target = Versions.FirstOrDefault(v => v is { Raw: "1.0.7.0", Reachable: true })
                  ?? Versions.FirstOrDefault(v => v.Reachable);
-    }
-
-    /// <summary>
-    /// Why a version cannot be had from where the game stands - and, where
-    /// there is one, the way to it anyway.
-    ///
-    /// The usual case is somebody on 1.0.7.0 looking at four mods that want
-    /// 1.0.8.0. There is no edge between the two downgrades and there should
-    /// not be one: both start from the Complete Edition, and the way back to it
-    /// is the snapshot the downgrade took. That is one click on the home page,
-    /// so it is worth naming rather than leaving as "no path".
-    /// </summary>
-    private string WhyNot(string wanted, string current)
-    {
-        var back = Session.Catalog?.Recipes.FirstOrDefault(r =>
-            r.IsVersionTransition
-            && string.Equals(r.ProducesVersion, current, StringComparison.OrdinalIgnoreCase)
-            && Session.Ledger.IsInstalled(r.Id));
-
-        if (back is not null)
-        {
-            return $"The game is on {current} through \"{back.Name}\". Remove that on the home page - "
-                   + $"it puts the original version back from its snapshot - and {wanted} is one step from there.";
-        }
-
-        return $"No recipe leads from {current} to {wanted}.";
     }
 
     private void BuildRecipes()

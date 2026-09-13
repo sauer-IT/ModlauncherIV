@@ -123,7 +123,8 @@ public sealed class AcquireStep(Session session) : WizardStep(session)
             return;
         }
 
-        var needed = journey.Remaining
+        // A downgrade being taken back needs nothing: its snapshot has the files.
+        var needed = journey.ToInstall
             .SelectMany(s => s.Recipe.RequiredFiles.Select(f => new SourceRow(f, s.Recipe.Name)))
             .ToList();
 

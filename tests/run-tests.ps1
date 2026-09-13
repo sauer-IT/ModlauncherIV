@@ -465,6 +465,25 @@ $r = Invoke-Mliv (@("journey", "--assume-version", "1.0.7.0") + $jArgs)
 Assert ($r.ExitCode -eq 0) "journey: with nothing wanted there is nothing to do"
 Assert ($r.Output -match "nothing to do") "journey: and says so"
 
+# From one downgrade to another. There is no edge from 1.0.7.0 to 1.0.8.0 and
+# should not be one - but a game that is on 1.0.7.0 because a downgrade put it
+# there has a way back through that downgrade's snapshot, and the planner takes
+# it instead of sending anyone to press Remove first.
+$r = Invoke-Mliv (@("journey", "--assume-version", "1.0.7.0", "--target", "1.0.8.0") + $jArgs)
+Assert ($r.ExitCode -eq 3) "take back: with no downgrade installed, 1.0.7.0 does not lead to 1.0.8.0"
+
+$r = Invoke-Mliv (@("apply", "test-down-108-107", "--yes", "--assume-version", "1.0.8.0", "--cache", $cache) + $jArgs)
+Assert ($r.ExitCode -eq 0) "take back: the fixture downgrade to 1.0.7.0 installs"
+
+$r = Invoke-Mliv (@("journey", "--assume-version", "1.0.7.0", "--target", "1.0.8.0") + $jArgs)
+Assert ($r.ExitCode -eq 0) "take back: with it installed, 1.0.8.0 is reachable"
+Assert ($r.Output -match "\[take back\]") "take back: the installed downgrade is taken back"
+Assert ($r.Output -match "Open: 1 of 1") "take back: and that is the whole way"
+Assert ($r.Output -notmatch "\[BLOCK\]") "take back: without a finding"
+
+$r = Invoke-Mliv (@("remove", "test-down-108-107", "--yes", "--cache", $cache) + $jArgs)
+Assert ($r.ExitCode -eq 0) "take back: the fixture is removed again"
+
 # An installed recipe at a newer release. Without comparing versions the planner
 # would consider it done, and every user would be stuck on the release they
 # first installed.

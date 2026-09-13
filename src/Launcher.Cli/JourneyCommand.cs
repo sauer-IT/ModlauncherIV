@@ -65,10 +65,11 @@ internal static class JourneyCommand
             {
                 var step = journey.Steps[i];
 
-                var mark = step.State switch
+                var mark = step switch
                 {
-                    JourneyStepState.AlreadyInstalled => "[already there]",
-                    JourneyStepState.NeedsUpdate => $"[update {step.InstalledVersion} -> {step.Recipe.Version}]",
+                    { Reason: JourneyReason.TakeBack } => "[take back]",
+                    { State: JourneyStepState.AlreadyInstalled } => "[already there]",
+                    { State: JourneyStepState.NeedsUpdate } => $"[update {step.InstalledVersion} -> {step.Recipe.Version}]",
                     _ => "[open]",
                 };
 
@@ -121,6 +122,7 @@ internal static class JourneyCommand
     private static string Describe(JourneyReason reason) => reason switch
     {
         JourneyReason.VersionTransition => "version change",
+        JourneyReason.TakeBack => "restored from its snapshot, so the next version change can start",
         JourneyReason.Dependency => "required by another",
         _ => "selected",
     };

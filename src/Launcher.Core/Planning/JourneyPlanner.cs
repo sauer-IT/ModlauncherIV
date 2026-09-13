@@ -15,6 +15,16 @@ public enum JourneyReason
 
     /// <summary>Another recipe requires it.</summary>
     Dependency,
+
+    /// <summary>
+    /// Installed, and taken back from its snapshot before anything else runs.
+    ///
+    /// Only a downgrade ever is: the two downgrades both start from the Complete
+    /// Edition, so the way from one to the other leads back through the
+    /// original files. Nothing is installed by this step and nothing is fetched
+    /// for it.
+    /// </summary>
+    TakeBack,
 }
 
 public enum JourneyStepState
@@ -88,6 +98,10 @@ public sealed record Journey(
     public IReadOnlyList<JourneyStep> Remaining =>
         Steps.Where(s => s.State != JourneyStepState.AlreadyInstalled).ToArray();
 
+    /// <summary>The open steps that install something - the ones that need files.</summary>
+    public IReadOnlyList<JourneyStep> ToInstall =>
+        Remaining.Where(s => s.Reason != JourneyReason.TakeBack).ToArray();
+
     public bool IsComplete => IsPossible && Remaining.Count == 0;
 }
 
@@ -150,7 +164,7 @@ public static class JourneyPlanner
         // files; anything installed before it would afterwards be overwritten —
         // or, worse, half overwritten.
 
-        var versionSteps = PlanVersionPath(catalog, game, from, fromInfo.IsKnown, target, problems);
+        var versionSteps = PlanVersionPath(catalog, game, from, fromInfo.IsKnown, target, ledger, problems);
         steps.AddRange(versionSteps);
 
         // From here on we reckon with the version the game has AFTER the change.
@@ -283,6 +297,7 @@ public static class JourneyPlanner
         string from,
         bool fromIsKnown,
         string target,
+        InstallLedger ledger,
         List<JourneyProblem> problems)
     {
         if (string.Equals(from, target, StringComparison.OrdinalIgnoreCase))
@@ -297,27 +312,70 @@ public static class JourneyPlanner
             return [];
         }
 
-        var path = VersionGraph.Build(catalog, game).FindPath(from, target);
+        var graph = VersionGraph.Build(catalog, game);
+        var path = graph.FindPath(from, target);
 
-        if (path is null)
+        if (path is not null)
         {
-            problems.Add(new JourneyProblem(
-                $"No known path leads from {from} to {target}.",
-                "The catalog is missing a recipe for this version change."));
-
-            return [];
+            return Edges(path);
         }
 
-        // The starting node travels along: after the first edge the game sits on
-        // that edge's target version, and the next edge starts from there.
-        return path
+        // No edge leads there from here - but the game may only be here because
+        // a downgrade put it here, and that downgrade's snapshot is a way back.
+        // 1.0.7.0 to 1.0.8.0 is exactly this: both downgrades start from the
+        // Complete Edition, and there is no edge between them and should not be
+        // one. Taking the first back and running the second used to be two
+        // trips, one of them to the home page to press Remove.
+        var back = catalog.FirstOrDefault(r =>
+            r.Game == game
+            && r.IsVersionTransition
+            && string.Equals(r.ProducesVersion, from, StringComparison.OrdinalIgnoreCase)
+            && ledger.IsInstalled(r.Id));
+
+        if (back is not null)
+        {
+            // Which of the versions it applies to it was installed over is not
+            // written down. It does not have to be: after the take-back the game
+            // is read again, and the recipes that follow are checked against
+            // what is actually there. Here it is enough that one of them leads on.
+            foreach (var original in back.AppliesTo)
+            {
+                var onward = string.Equals(original, target, StringComparison.OrdinalIgnoreCase)
+                    ? []
+                    : graph.FindPath(original, target);
+
+                if (onward is null)
+                {
+                    continue;
+                }
+
+                var steps = new List<JourneyStep>
+                {
+                    new(back, JourneyReason.TakeBack, JourneyStepState.Pending, from, ledger.Find(back.Id)?.RecipeVersion),
+                };
+
+                steps.AddRange(Edges(onward));
+                return steps;
+            }
+        }
+
+        problems.Add(new JourneyProblem(
+            $"No known path leads from {from} to {target}.",
+            "The catalog is missing a recipe for this version change."));
+
+        return [];
+    }
+
+    // The starting node travels along: after the first edge the game sits on
+    // that edge's target version, and the next edge starts from there.
+    private static List<JourneyStep> Edges(IReadOnlyList<VersionEdge> path) =>
+        path
             .Select(edge => new JourneyStep(
                 edge.Recipe,
                 JourneyReason.VersionTransition,
                 JourneyStepState.Pending,
                 edge.From))
             .ToList();
-    }
 
     /// <summary>
     /// Resolves dependencies and orders the recipes so that each one comes after
@@ -418,10 +476,14 @@ public static class JourneyPlanner
             names[step.Recipe.Id] = step.Recipe.Name;
         }
 
+        // What is being taken back is on its way out, not in the way.
+        var leaving = steps.Where(s => s.Reason == JourneyReason.TakeBack).Select(s => s.Recipe.Id);
+
         var present = new HashSet<string>(names.Keys, StringComparer.OrdinalIgnoreCase);
+        present.ExceptWith(leaving);
         var reported = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
-        foreach (var step in steps)
+        foreach (var step in steps.Where(s => s.Reason != JourneyReason.TakeBack))
         {
             foreach (var other in step.Recipe.Conflicts.Where(present.Contains))
             {

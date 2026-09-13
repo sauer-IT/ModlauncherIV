@@ -1,5 +1,6 @@
 using System.Collections.ObjectModel;
 using ModlauncherIV.Core.Backup;
+using ModlauncherIV.Core.Catalog;
 using ModlauncherIV.Core.Execution;
 using ModlauncherIV.Core.Planning;
 
@@ -119,17 +120,39 @@ public sealed class RunStep(Session session) : WizardStep(session)
         // different one, and the next recipe's pre-flight has to check the new
         // one, not the one we started with.
         var version = install.Version.Raw;
+        var recipes = Session.Catalog?.Recipes ?? [];
 
         foreach (var step in journey.Remaining)
         {
             var row = rows[step.Recipe.Id];
             row.State = RunState.Running;
 
-            var outcome = await Task.Run(() => ApplyOne(install.Path, step, version)).ConfigureAwait(true);
+            var takingBack = step.Reason == JourneyReason.TakeBack;
+
+            var outcome = takingBack
+                ? await Task.Run(() => TakeBackOne(install.Path, step.Recipe.Id, recipes)).ConfigureAwait(true)
+                : await Task.Run(() => ApplyOne(install.Path, step, version)).ConfigureAwait(true);
 
             foreach (var line in outcome.Log)
             {
                 Log.Add(line);
+            }
+
+            if (outcome.Success && takingBack)
+            {
+                row.State = RunState.Done;
+                row.Detail = $"restored from snapshot {outcome.SnapshotId}";
+
+                Diary.Info($"{step.Recipe.Id} taken back from snapshot {outcome.SnapshotId}.");
+
+                // The game is another version now. Which of the ones the
+                // downgrade applied to is read from the files rather than
+                // assumed, and the next version change is checked against that.
+                Session.Reinspect();
+                version = Session.Install?.Version.Raw ?? version;
+
+                Diary.Info($"The game reads as {version} after taking it back.");
+                continue;
             }
 
             if (outcome.Success)
@@ -162,9 +185,11 @@ public sealed class RunStep(Session session) : WizardStep(session)
                 Log.Add(error);
             }
 
-            Log.Add(outcome.RolledBack
-                ? "The previous state was restored."
-                : "Nothing was changed.");
+            Log.Add(takingBack
+                ? "Taking it back did not complete - the paths named above were not restored."
+                : outcome.RolledBack
+                    ? "The previous state was restored."
+                    : "Nothing was changed.");
 
             // Do not carry on after a failure: the recipes that follow build on
             // what just did not happen.
@@ -177,6 +202,42 @@ public sealed class RunStep(Session session) : WizardStep(session)
 
             return;
         }
+    }
+
+    /// <summary>
+    /// One installed recipe taken back from its snapshot - the same as Remove on
+    /// the home page, with the same checks before it.
+    /// </summary>
+    internal static ExecutionOutcome TakeBackOne(string gameRoot, string recipeId, IReadOnlyList<Recipe> catalog)
+    {
+        var context = new RecipeContext(
+            gameRoot: gameRoot,
+            sourceRoot: AppPaths.Cache,
+            log: new ExecutionLog(Diary.Line),
+            dryRun: false);
+
+        var uninstaller = new Uninstaller(new SnapshotStore(gameRoot), new LedgerStore(gameRoot));
+        var plan = uninstaller.Plan(recipeId, context, catalog);
+
+        if (plan is null)
+        {
+            return new ExecutionOutcome(false, null, false, [$"{recipeId} is not installed any more."], []);
+        }
+
+        if (!plan.CanRun)
+        {
+            return new ExecutionOutcome(
+                Success: false,
+                SnapshotId: null,
+                RolledBack: false,
+                Errors: plan.Issues
+                    .Where(i => i.Severity == IssueSeverity.Fatal)
+                    .Select(i => i.Detail is null ? i.Message : $"{i.Message} {i.Detail}")
+                    .ToArray(),
+                Log: []);
+        }
+
+        return uninstaller.Remove(plan, context);
     }
 
     /// <summary>One recipe, through the whole transaction. The home page's Update uses it too.</summary>

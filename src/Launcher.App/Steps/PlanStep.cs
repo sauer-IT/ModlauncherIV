@@ -10,12 +10,16 @@ public sealed class PlanRow(int number, JourneyStep step)
 
     public string Name => step.Recipe.Name;
 
-    public string Detail => step.Recipe.Description ?? step.Recipe.Id;
+    public string Detail => step.Reason == JourneyReason.TakeBack
+        ? "Taken back first: the files it replaced come back from the snapshot taken when it was installed. "
+          + "That is the original game the next version change starts from - nothing is downloaded for this."
+        : step.Recipe.Description ?? step.Recipe.Id;
 
     public bool IsDone => step.State == JourneyStepState.AlreadyInstalled;
 
     public string State => step switch
     {
+        { Reason: JourneyReason.TakeBack } => "taken back",
         { State: JourneyStepState.AlreadyInstalled } => "already there",
         { State: JourneyStepState.NeedsUpdate } => $"update to {step.Recipe.Version}",
         { Reason: JourneyReason.VersionTransition } => "version change",

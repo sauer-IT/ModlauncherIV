@@ -277,6 +277,52 @@ internal static class Program
             var mark = version.Reachable ? " " : "-";
             Console.WriteLine($"    {mark} {version.Label,-28} {version.Reason}");
         }
+
+        // The same game, on 1.0.7.0 because the launcher's own downgrade put it
+        // there. Then 1.0.8.0 is one click: the wizard takes that downgrade back
+        // from its snapshot and runs the other one, instead of sending anyone
+        // to the home page to press Remove first.
+        var through = On(session, "1.0.7.0");
+        var store = new LedgerStore(through.Install!.Path);
+
+        try
+        {
+            store.Save(InstallLedger.Empty(through.Install.Path) with
+            {
+                Entries = [new LedgerEntry("downgrade-ce-1070", "Downgrade to 1.0.7.0", "1.0.0", DateTimeOffset.Now, "x", [])],
+            });
+
+            var switching = new ChoiceStep(through);
+            switching.EnterAsync().GetAwaiter().GetResult();
+
+            var viaBack = switching.Versions.FirstOrDefault(v => v.Raw == "1.0.8.0");
+
+            Report("switch: with the downgrade installed, 1.0.8.0 can be picked", viaBack is { Reachable: true });
+            Report("switch: and says what is taken back first", viaBack?.Reason.Contains("taken back") == true);
+
+            var journey = JourneyPlanner.Plan(
+                new JourneyRequest("1.0.8.0", []),
+                through.Catalog!.Recipes,
+                "1.0.7.0",
+                through.Ledger);
+
+            Report("switch: the plan has no findings", journey.IsPossible);
+            Report("switch: the installed downgrade is taken back first",
+                journey.Steps.FirstOrDefault() is { Reason: JourneyReason.TakeBack, Recipe.Id: "downgrade-ce-1070" });
+            Report("switch: then the other one runs",
+                journey.Steps.Skip(1).FirstOrDefault() is { Reason: JourneyReason.VersionTransition, Recipe.Id: "downgrade-ce-1080" });
+            Report("switch: and nothing is downloaded for the take-back",
+                journey.ToInstall.All(s => s.Reason != JourneyReason.TakeBack) && journey.ToInstall.Count == 1);
+
+            through.TargetVersion = "1.0.8.0";
+            var plan = new PlanStep(through);
+            plan.EnterAsync().GetAwaiter().GetResult();
+            Report("switch: the plan page names the take-back", plan.Rows.FirstOrDefault()?.State == "taken back");
+        }
+        finally
+        {
+            store.Save(InstallLedger.Empty(through.Install.Path));
+        }
     }
 
     /// <summary>
