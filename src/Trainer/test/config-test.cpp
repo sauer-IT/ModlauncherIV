@@ -110,6 +110,21 @@ int main()
         Check(config.problems().empty(), "a clean file has nothing to report");
     }
 
+    // A byte order mark is invisible in every editor that writes one, and it
+    // sits in front of the first character - so the first line stops being a
+    // comment and starts being a complaint. Found when the trainer objected to
+    // its own template after the file had been through a PowerShell one-liner.
+    {
+        mliv::Config config;
+        config.parse(
+            "\xEF\xBB\xBF# sauer\n"
+            "[Log]\n"
+            "Enabled = no\n");
+
+        Check(config.problems().empty(), "a file with a byte order mark reports nothing");
+        Check(config.flag("Log.Enabled", true) == false, "and is read like any other");
+    }
+
     std::printf("\n== Upper and lower case ==\n");
     {
         mliv::Config config;

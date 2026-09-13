@@ -43,7 +43,7 @@ namespace mliv
         ///
         /// One entry per chord: "L3+R3, Back" gives two, of which the first
         /// needs both sticks clicked and the second only Back.
-        std::vector<unsigned short> chords(const std::string& action) const;
+        std::vector<unsigned> chords(const std::string& action) const;
 
         bool flag(const std::string& name, bool fallback) const;
 
@@ -86,7 +86,7 @@ namespace mliv
         struct PadBinding
         {
             std::string action; ///< lower case
-            std::vector<unsigned short> chords;
+            std::vector<unsigned> chords;
         };
 
         std::vector<Entry> entries_;

@@ -19,6 +19,7 @@
 #include "menu/Menu.h"
 
 #include <cmath>
+#include <cstring>
 #include <cstdlib>
 #include <fstream>
 #include <memory>
@@ -334,13 +335,28 @@ namespace
     XInputGetStateFn g_xinput = nullptr;
     bool g_padEnabled = true;
 
+    /// Writes every control the game sees while the menu is open into the log.
+    /// Off unless Log.Inputs says otherwise: it exists for one question at a
+    /// time, and the answer belongs in a report rather than in everyone's log.
+    bool g_watchInputs = false;
+
     /// XINPUT_STATE, only as far as we read it: a packet counter, then the pad
     /// with its button mask. Declared here for the same reason the button values
     /// are in Pad.h - so that no header has to be present at build time.
+    /// XINPUT_STATE, as far as we read it: a packet counter, the button mask,
+    /// the two triggers and the four stick axes. Declared here for the same
+    /// reason the button values are in Pad.h - so that no header has to be
+    /// present at build time. The layout is a published ABI.
     struct XInputStateHead
     {
         unsigned long packet;
         unsigned short buttons;
+        unsigned char leftTrigger;
+        unsigned char rightTrigger;
+        short leftX;
+        short leftY;
+        short rightX;
+        short rightY;
     };
 
     void LoadXInput()
@@ -373,12 +389,16 @@ namespace
     ///
     /// All four slots are asked, because a single pad does not have to sit in
     /// slot 0 - after a reconnect it usually does not.
-    unsigned short ReadPad()
+    unsigned ReadPad()
     {
         if (g_xinput == nullptr)
         {
             return mliv::PadNone;
         }
+
+        // What the sticks said last time, so a direction held near the
+        // threshold does not flicker. See StickDirections.
+        static unsigned previous = 0;
 
         for (unsigned long slot = 0; slot < 4; ++slot)
         {
@@ -387,10 +407,24 @@ namespace
             // ERROR_SUCCESS. Anything else means nothing is plugged in there.
             if (g_xinput(slot, &state) == 0)
             {
-                return state.buttons;
+                unsigned mask = state.buttons;
+
+                mask |= mliv::StickDirections(
+                    state.leftX, state.leftY, previous,
+                    mliv::PadLStickUp, mliv::PadLStickDown,
+                    mliv::PadLStickLeft, mliv::PadLStickRight);
+
+                mask |= mliv::StickDirections(
+                    state.rightX, state.rightY, previous,
+                    mliv::PadRStickUp, mliv::PadRStickDown,
+                    mliv::PadRStickLeft, mliv::PadRStickRight);
+
+                previous = mask;
+                return mask;
             }
         }
 
+        previous = 0;
         return mliv::PadNone;
     }
 
@@ -401,7 +435,7 @@ namespace
     /// confirming because a thumb stayed on the button would be unusable.
     struct PadBinding
     {
-        unsigned short chord;
+        unsigned chord;
         mliv::MenuInput input;
         bool repeats;
         bool wasDown = false;
@@ -419,7 +453,7 @@ namespace
     {
         const char* action;
         mliv::MenuInput input;
-        unsigned short chord;
+        unsigned chord;
         bool repeats;
     };
 
@@ -437,17 +471,18 @@ namespace
     {
         g_pad.clear();
         g_padEnabled = config.flag("Pad.Enabled", true);
+        g_watchInputs = config.flag("Log.Inputs", false);
 
         for (const PadDefault& fallback : kPadDefaults)
         {
-            std::vector<unsigned short> chords = config.chords(fallback.action);
+            std::vector<unsigned> chords = config.chords(fallback.action);
 
             if (chords.empty())
             {
                 chords.push_back(fallback.chord);
             }
 
-            for (const unsigned short chord : chords)
+            for (const unsigned chord : chords)
             {
                 g_pad.push_back({chord, fallback.input, fallback.repeats});
             }
@@ -456,7 +491,6 @@ namespace
 
     bool g_lockInput = false;
     bool g_controlTaken = false;
-    bool g_phoneHeld = false;
 
     /// Removes what earlier versions of this trainer left lying around.
     ///
@@ -519,7 +553,7 @@ namespace
             return;
         }
 
-        const unsigned short buttons = ReadPad();
+        const unsigned buttons = ReadPad();
         const unsigned now = GetTickCount();
 
         for (PadBinding& binding : g_pad)
@@ -1982,9 +2016,11 @@ namespace
     /// menu also does something in the game, and scrolling through it switches
     /// weapons underneath.
     ///
-    /// Off by default all the same. Freezing the player is the more drastic of
-    /// the two annoyances if it happens in traffic, and which one somebody
-    /// prefers is not ours to decide.
+    /// Off by default. Freezing the player is the more drastic of the two
+    /// annoyances if it happens in traffic, and which one somebody prefers is
+    /// not ours to decide - it was briefly made the default to stop the phone on
+    /// a controller, and rightly thrown out again: a fix that costs the steering
+    /// is not a fix.
     void ApplyInputLock()
     {
         const bool want = g_lockInput && g_menu->visible();
@@ -2007,40 +2043,142 @@ namespace
     /// through this menu - so every scroll took the phone out, over the top of
     /// the thing being scrolled. On a pad it is d-pad up, with the same result.
     ///
-    /// Two halves, because one is not enough. SCRIPT_IS_USING_MOBILE_PHONE is
-    /// what the game's own scripts set while they have the phone: the player's
-    /// own button stops working for as long as it is on. And if one press got
-    /// through anyway - the frame the menu opened, say - the phone is already
-    /// out, and only putting it away helps. Both are undone the moment the menu
-    /// closes; a trainer that leaves the phone disabled behind it would look
-    /// exactly like a broken save.
-    void HoldThePhone()
+    /// The first attempt used two natives - SCRIPT_IS_USING_MOBILE_PHONE, which
+    /// the game's own scripts set while they have the phone, and
+    /// TASK_USE_MOBILE_PHONE to put it away again. Neither did anything: the
+    /// phone still came out, on both keyboard and pad. Reported from the game,
+    /// which is the only place it could have been.
+    ///
+    /// So this goes one floor down, to where the game reads its input. CPad
+    /// keeps one entry per control, and both the keyboard and the pad end up in
+    /// the same one - INPUT_PHONE_TAKE_OUT - which is why one line covers both.
+    /// Zeroing it while the menu is open means the press never happened as far
+    /// as the game is concerned. The last value goes with it: a control the game
+    /// sees held from the frame before would still count as an edge.
+    ///
+    /// Nothing is remembered and nothing is restored, because nothing is
+    /// changed for longer than one frame. The game refills these values every
+    /// frame from the actual hardware; closing the menu simply stops the
+    /// clearing, and the very next frame has the real state in it again.
+    /// <summary>
+    /// Writes down what the game put into a pad this frame, before anything is
+    /// taken away again.
+    ///
+    /// Only real presses: a stick at rest reads around 128 on a dozen entries
+    /// every frame, and that noise buried the two lines that mattered last time.
+    /// Off unless Log.Inputs says otherwise, and it stops after sixty lines -
+    /// it exists to answer one question, not to keep a diary.
+    /// </summary>
+    /// The three entries this is about, watched through a whole frame.
+    const int kWatched[] = {INPUT_PHONE_TAKE_OUT, INPUT_FRONTEND_UP, INPUT_KB_UP};
+
+    int g_watchLines = 0;
+
+    /// Reads those three at one point in the frame and writes them down.
+    ///
+    /// The question is no longer which entry the pad uses - that is known. It is
+    /// when: clearing them in the pad hook, one instruction after the game
+    /// writes them, does not stop the phone. Either something fills them in
+    /// again afterwards, or the decision is already made by then. Three readings
+    /// in one frame, in order, tell which.
+    void WatchPad(CPad* pad, const char* where)
     {
-        const bool want = g_menu->visible();
-
-        if (!game::g_frame.playing)
+        if (!g_watchInputs || pad == nullptr || g_watchLines > 120)
         {
             return;
         }
 
-        if (want != g_phoneHeld)
+        int values[3]{};
+        bool anything = false;
+
+        for (int i = 0; i < 3; ++i)
         {
-            Scripting::SCRIPT_IS_USING_MOBILE_PHONE(want ? 1 : 0);
-            g_phoneHeld = want;
+            values[i] = pad->m_aValues[kWatched[i]].m_nCurrentValue;
+            anything = anything || values[i] != 0;
         }
 
-        if (!want || game::g_frame.ped == 0)
+        if (!anything)
         {
             return;
         }
 
-        // Out already? Then put it away - once per frame is harmless, the task
-        // simply ends, and doing it unconditionally spares asking the game a
-        // second question about a state it changes underneath us anyway.
-        int subTask = 0;
-        if (Scripting::GET_MOBILE_PHONE_TASK_SUB_TASK(game::g_frame.ped, &subTask) != 0)
+        mliv::LogLine("%s: phone=%d frontend_up=%d kb_up=%d", where, values[0], values[1], values[2]);
+        ++g_watchLines;
+    }
+
+    /// True while the game's own pause menu is up.
+    ///
+    /// Written in the script tick and only read in the pad hook, which must not
+    /// ask the game itself: a native called from there runs without the script
+    /// context the SDK sets up for scripts, and that is a crash waiting for a
+    /// quiet moment.
+    bool g_pauseMenuOpen = false;
+
+    /// Called by the game once per frame for each pad, right after it has read
+    /// the hardware - which is the whole point. Clearing these from the script
+    /// tick was measured to be too late: the values came out zero there, and
+    /// the phone still opened, because the game had already looked.
+    void HoldThePhone(CPad* pad)
+    {
+        // The pause menu navigates on the same entries this clears. Both open at
+        // once would leave it unusable, which is a worse bug than the one being
+        // fixed - and this menu does not draw over the pause menu either.
+        if (pad == nullptr || !g_menu->visible() || g_pauseMenuOpen)
         {
-            Scripting::TASK_USE_MOBILE_PHONE(game::g_frame.ped, 0);
+            return;
+        }
+
+        // Before anything is cleared, and from here rather than from the script
+        // tick: run after the clearing, a watcher can only ever report zeros -
+        // which is exactly what it did, and what made the last two readings say
+        // less than they appeared to.
+        WatchPad(pad, "pad hook, before clearing");
+
+        // Which entries, measured rather than reasoned. Clearing the phone
+        // controls stopped the keyboard and did nothing for the pad; asked to
+        // write down what it actually sees, the game answered with two:
+        //
+        //     input 65 went to 255   INPUT_FRONTEND_UP   d-pad up
+        //     input 130 went to 255  INPUT_KB_UP         arrow up
+        //
+        // So the pad opens the phone through the frontend direction, not
+        // through the phone control at all. The other three directions go with
+        // it: left and right are the radio in a vehicle, and scrolling a menu
+        // should not change the station either.
+        static const int kHeldDown[] = {
+            INPUT_PHONE_TAKE_OUT, INPUT_PHONE_PUT_AWAY,
+            INPUT_KB_PHONE_ACCEPT, INPUT_KB_PHONE_CANCEL,
+            INPUT_FRONTEND_UP, INPUT_FRONTEND_DOWN,
+            INPUT_FRONTEND_LEFT, INPUT_FRONTEND_RIGHT,
+            INPUT_KB_UP, INPUT_KB_DOWN, INPUT_KB_LEFT, INPUT_KB_RIGHT,
+        };
+
+        // Three places per control, not one. Current and last are the two bytes
+        // in front; behind them every control keeps a ring of its recent values,
+        // and a check for "just pressed" reads that rather than those two.
+        for (const int input : kHeldDown)
+        {
+            tPadValues& value = pad->m_aValues[input];
+
+            value.m_nCurrentValue = 0;
+            value.m_nLastValue = 0;
+
+            if (value.m_pHistory != nullptr)
+            {
+                std::memset(value.m_pHistory, 0, sizeof(tValueHistory));
+            }
+        }
+
+        WatchPad(pad, "pad hook, after clearing");
+    }
+
+    /// Same three values, read again from the script tick - later in the frame
+    /// than the pad hook, and the last chance anything of ours gets to look.
+    void WatchLater()
+    {
+        if (g_watchInputs && g_menu->visible())
+        {
+            WatchPad(CPad::GetPad(), "script tick");
         }
     }
 
@@ -2699,7 +2837,10 @@ namespace
         EnforceToggles();
         ApplyNoclip();
         ApplyInputLock();
-        HoldThePhone();
+        WatchLater();
+
+        // Read once here, used by the pad hook, which cannot ask the game.
+        g_pauseMenuOpen = Scripting::IS_PAUSE_MENU_ACTIVE() != 0;
 
         // Drawing happens here, not in drawingEvent.
         //
@@ -2708,7 +2849,7 @@ namespace
         // Called from drawingEvent they run in the middle of a render phase -
         // and if the phone's render target happens to be bound at that moment,
         // they draw into its screen. That is exactly what it looked like.
-        if (Scripting::IS_PAUSE_MENU_ACTIVE() == 0)
+        if (!g_pauseMenuOpen)
         {
             g_menu->draw(g_renderer);
         }
@@ -2775,6 +2916,11 @@ void plugin::gameStartupEvent()
     // Only this one event: input, switches and drawing all run in the script
     // context. See OnScript.
     plugin::processScriptsEvent::Add(OnScript);
+
+    // The pad hook runs right after the game has read the hardware, once per
+    // frame and per pad. It is where a control can still be taken away before
+    // the game looks at it - the script tick is measurably too late.
+    plugin::processPadEvent::Add(HoldThePhone);
 
     const std::string opener = mliv::KeyNameFromCode(g_keys.empty() ? VK_F7 : g_keys.front().code);
     mliv::LogLine("Menu ready. %s opens it, %zu key bindings active.",

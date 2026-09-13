@@ -5,6 +5,7 @@
 // instead of by plugging in a pad and starting the game. What actually reads
 // the device lives in plugin.cpp and is the one part this cannot cover.
 
+#include <algorithm>
 #include <cstdio>
 #include <string>
 #include <vector>
@@ -36,7 +37,7 @@ namespace
         std::printf("\n== %s ==\n", title);
     }
 
-    bool Held(const unsigned short buttons, const unsigned short chord)
+    bool Held(const unsigned buttons, const unsigned chord)
     {
         return (buttons & chord) == chord;
     }
@@ -75,7 +76,7 @@ int main()
 
     {
         std::vector<std::string> unknown;
-        const unsigned short chord = PadChordFromNames("L3+R3", unknown);
+        const unsigned chord = PadChordFromNames("L3+R3", unknown);
 
         Check(chord == (PadLeftStick | PadRightStick), "L3+R3 is both sticks");
         Check(unknown.empty(), "and nothing was left over");
@@ -83,13 +84,13 @@ int main()
 
     {
         std::vector<std::string> unknown;
-        const unsigned short chord = PadChordFromNames("  A  +  B  ", unknown);
+        const unsigned chord = PadChordFromNames("  A  +  B  ", unknown);
         Check(chord == (PadA | PadB), "spaces around the plus do not matter");
     }
 
     {
         std::vector<std::string> unknown;
-        const unsigned short chord = PadChordFromNames("A", unknown);
+        const unsigned chord = PadChordFromNames("A", unknown);
         Check(chord == PadA, "a single button is a chord of one");
     }
 
@@ -111,12 +112,12 @@ int main()
             "Select = A, Start\n"
             "Up = DPadUp\n");
 
-        const std::vector<unsigned short> menu = config.chords("Menu");
+        const std::vector<unsigned> menu = config.chords("Menu");
         Check(menu.size() == 1, "the menu chord comes from the file");
         Check(!menu.empty() && menu.front() == (PadLeftStick | PadRightStick),
               "and it is both sticks");
 
-        const std::vector<unsigned short> select = config.chords("Select");
+        const std::vector<unsigned> select = config.chords("Select");
         Check(select.size() == 2, "a comma gives two alternatives");
         Check(select.size() == 2 && select[0] == PadA && select[1] == PadStart,
               "and both are the right ones");
@@ -174,7 +175,7 @@ int main()
         Check(config.problems().empty(), "the template reads without complaint");
         Check(config.flag("Pad.Enabled", false), "the controller is on by default");
 
-        const std::vector<unsigned short> menu = config.chords("Menu");
+        const std::vector<unsigned> menu = config.chords("Menu");
         Check(menu.size() == 1 && menu.front() == (PadLeftStick | PadRightStick),
               "the menu is on L3+R3");
 
@@ -183,7 +184,7 @@ int main()
         Check(config.chords("Back").size() == 1 && config.chords("Back").front() == PadB,
               "Back is on B");
         Check(config.chords("Up").size() == 1 && config.chords("Up").front() == PadUp,
-              "Up is on the D-pad");
+              "Up is on the d-pad, as it was");
 
         // The menu key stays F7 as well: the pad is meant to work alongside the
         // keyboard, not instead of it.
@@ -195,12 +196,80 @@ int main()
     {
         // What PollPad does with the mask, without the pad: a chord counts as
         // held only while every one of its buttons is down.
-        const unsigned short chord = PadLeftStick | PadRightStick;
+        const unsigned chord = PadLeftStick | PadRightStick;
 
         Check(!Held(PadNone, chord), "nothing held is not the chord");
         Check(!Held(PadLeftStick, chord), "half the chord is not the chord");
         Check(Held(chord, chord), "both together are");
         Check(Held(chord | PadA, chord), "an extra button does not break it");
+    }
+
+    Section("The sticks as directions");
+
+    {
+        Check(PadButtonFromName("LStickUp") == PadLStickUp, "the left stick has an up");
+        Check(PadButtonFromName("leftstickdown") == PadLStickDown, "and a down, however it is spelled");
+        Check(PadButtonFromName("RStickRight") == PadRStickRight, "the right one too");
+
+        // The bits must not land on top of the buttons: a mask carries both.
+        Check((PadLStickUp & 0xFFFF) == 0, "a stick direction is above the button mask");
+        Check(PadNameFromButton(PadLStickLeft) == "lstickleft", "and has a name to write back");
+    }
+
+    Section("A stick is not a button");
+
+    {
+        const short far = 30000;
+        const short middling = 15000;
+        const short resting = 2000;
+
+        const unsigned up = StickDirections(0, far, 0, PadLStickUp, PadLStickDown,
+                                            PadLStickLeft, PadLStickRight);
+
+        Check(up == PadLStickUp, "pushed up is up and nothing else");
+
+        Check(StickDirections(0, static_cast<short>(-far), 0, PadLStickUp, PadLStickDown,
+                              PadLStickLeft, PadLStickRight) == PadLStickDown,
+              "pulled down is down");
+
+        Check(StickDirections(0, resting, 0, PadLStickUp, PadLStickDown,
+                              PadLStickLeft, PadLStickRight) == 0,
+              "a stick at rest is nothing");
+
+        // The hysteresis: halfway does not start a press, but it keeps one.
+        Check(StickDirections(0, middling, 0, PadLStickUp, PadLStickDown,
+                              PadLStickLeft, PadLStickRight) == 0,
+              "halfway does not begin a press");
+
+        Check(StickDirections(0, middling, PadLStickUp, PadLStickUp, PadLStickDown,
+                              PadLStickLeft, PadLStickRight) == PadLStickUp,
+              "but halfway keeps one that had begun");
+
+        Check(StickDirections(0, resting, PadLStickUp, PadLStickUp, PadLStickDown,
+                              PadLStickLeft, PadLStickRight) == 0,
+              "and letting go all the way ends it");
+
+        // A hand is never exactly on an axis.
+        const unsigned corner = StickDirections(far, far, 0, PadLStickUp, PadLStickDown,
+                                                PadLStickLeft, PadLStickRight);
+
+        Check((corner & PadLStickUp) != 0 && (corner & PadLStickRight) != 0,
+              "a diagonal reports both of its directions");
+    }
+
+    Section("What the menu is bound to");
+
+    {
+        Config config;
+        config.parse(Config::DefaultText());
+
+        const std::vector<unsigned> up = config.chords("Up");
+
+        // The d-pad, deliberately kept: scrolling can bring the phone up and
+        // that was judged the lesser annoyance. The stick is there for anyone
+        // who decides otherwise, which is what these names are for.
+        Check(!up.empty() && up.front() == PadUp, "the template navigates on the d-pad");
+        Check(PadButtonFromName("LStickUp") == PadLStickUp, "and the stick is bindable instead");
     }
 
     std::printf("\n==============================================\n");

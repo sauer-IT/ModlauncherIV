@@ -145,6 +145,16 @@ namespace mliv
             ++number;
             line = Trim(line);
 
+            // A byte order mark sits in front of the first character and is
+            // invisible in every editor that puts it there. Without this, a file
+            // saved as UTF-8 by Notepad - or by a PowerShell one-liner, which is
+            // how it was found - makes the first line unreadable and the trainer
+            // complain about its own template.
+            if (number == 1 && line.rfind("\xEF\xBB\xBF", 0) == 0)
+            {
+                line = Trim(line.substr(3));
+            }
+
             if (line.empty() || line[0] == '#' || line[0] == ';')
             {
                 continue;
@@ -251,7 +261,7 @@ namespace mliv
 
     void Config::bindPad(const std::string& action, const std::string& value)
     {
-        std::vector<unsigned short> chords;
+        std::vector<unsigned> chords;
         std::istringstream parts(value);
         std::string part;
 
@@ -264,7 +274,7 @@ namespace mliv
             }
 
             std::vector<std::string> unknown;
-            const unsigned short chord = PadChordFromNames(text, unknown);
+            const unsigned chord = PadChordFromNames(text, unknown);
 
             for (const std::string& name : unknown)
             {
@@ -292,7 +302,7 @@ namespace mliv
         padBindings_.push_back({action, chords});
     }
 
-    std::vector<unsigned short> Config::chords(const std::string& action) const
+    std::vector<unsigned> Config::chords(const std::string& action) const
     {
         const std::string wanted = Lower(action);
 
@@ -437,10 +447,23 @@ namespace mliv
             "#\n"
             "# Button names: A, B, X, Y (or Cross, Circle, Square, Triangle),\n"
             "# DPadUp, DPadDown, DPadLeft, DPadRight, LB, RB, L3, R3, Start,\n"
-            "# Back. Several buttons at once with +, alternatives with commas.\n"
+            "# Back, and the sticks as directions: LStickUp, LStickDown,\n"
+            "# LStickLeft, LStickRight, and the same with RStick.\n"
+            "# Several buttons at once with +, alternatives with commas.\n"
             "#\n"
             "# Menu opens on L3+R3 - both sticks pressed in. A single button\n"
             "# would fire during play, because the game already uses them all.\n"
+            "#\n"
+            "# Navigation is on the d-pad. Be aware that d-pad up is also the\n"
+            "# phone in GTA IV: the game decides that inside the same call that\n"
+            "# reads the button, so there is no moment in between in which a\n"
+            "# plugin could take it away - which was tried, from the game's own\n"
+            "# pad hook, and measured not to work. Scrolling here can therefore\n"
+            "# bring the phone up. On the keyboard it cannot: that path goes\n"
+            "# through a control the trainer clears in time.\n"
+            "#\n"
+            "# Anyone who minds that more than they mind leaving the d-pad can\n"
+            "# navigate on the left stick instead - LStickUp and the rest.\n"
             "[Pad]\n"
             "Enabled = yes\n"
             "Menu    = L3+R3\n"
