@@ -318,6 +318,25 @@ internal static class Program
             var plan = new PlanStep(through);
             plan.EnterAsync().GetAwaiter().GetResult();
             Report("switch: the plan page names the take-back", plan.Rows.FirstOrDefault()?.State == "taken back");
+
+            // And afterwards: the game is on 1.0.8.0 through the other downgrade.
+            // Found in the game, not thought up - the way back to 1.0.7.0 was now
+            // reachable, got preselected, and every 1.0.8.0 mod read as not fitting.
+            var eightNow = On(session, "1.0.8.0");
+
+            store.Save(InstallLedger.Empty(eightNow.Install!.Path) with
+            {
+                Entries = [new LedgerEntry("downgrade-ce-1080", "Downgrade to 1.0.8.0", "1.0.0", DateTimeOffset.Now, "x", [])],
+            });
+
+            var after = new ChoiceStep(eightNow);
+            after.EnterAsync().GetAwaiter().GetResult();
+
+            Report("switch: after it, keeping 1.0.8.0 is preselected", after.Target is { IsCurrent: true, Raw: "1.0.8.0" });
+            Report("switch: the way back to 1.0.7.0 is offered, not chosen",
+                after.Versions.Any(v => v is { Raw: "1.0.7.0", Reachable: true, IsCurrent: false }));
+            Report("switch: and FusionFix can be picked",
+                after.Recipes.Any(r => r.Recipe.Id == "fusionfix" && r.Available));
         }
         finally
         {

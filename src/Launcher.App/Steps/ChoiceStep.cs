@@ -354,10 +354,18 @@ public sealed class ChoiceStep(Session session) : WizardStep(session)
                 reachable: canGetThere));
         }
 
-        // Preselected is the usual wish: the version with the most mods for it.
-        // Anyone wanting something else clicks elsewhere.
-        Target = Versions.FirstOrDefault(v => v is { Raw: "1.0.7.0", Reachable: true })
-                 ?? Versions.FirstOrDefault(v => v.Reachable);
+        // A game already on a version made for modding keeps it. Changing the
+        // version is never the default for somebody who is already there: on
+        // 1.0.8.0 this used to preselect "switch to 1.0.7.0" - harmless while
+        // that was out of reach, and the moment the take-back made it
+        // reachable, every 1.0.8.0 mod on the list below read as not fitting.
+        //
+        // Anyone else - the Complete Edition, an unknown build - gets the usual
+        // wish: the version with the most mods for it.
+        Target = current.IsModdingTarget
+            ? Versions.FirstOrDefault(v => v.IsCurrent)
+            : Versions.FirstOrDefault(v => v is { Raw: "1.0.7.0", Reachable: true })
+              ?? Versions.FirstOrDefault(v => v.Reachable);
     }
 
     private void BuildRecipes()
