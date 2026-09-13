@@ -319,10 +319,10 @@ Rockstar Games Launcher, downgraded to 1.0.7.0. The game starts.
 | `fusionfix` | ThirteenAG, GitHub release | 197 MB | 1.0.8.0 only - crashes 1.0.7.0 |
 | `xbox-rain-droplets` | ThirteenAG, GitHub release | 365 KB | untested |
 | `various-fixes` | valentyn-l, GitHub release | 1.7 GB | 1.0.8.0 only, untested |
-| `hires-vehicle-pack` | Ash735, supplied by hand | 140 MB | 1.0.8.0 only, untested |
-| `hires-misc-pack` | Ash735, supplied by hand | 365 MB | 1.0.8.0 only, untested |
-| `libertys-legacy` | Const96b, supplied by hand | 0.7 MB | untested |
-| `zmenu-iv` | Zolika1351, supplied by hand (MEGA) | 117 MB | untested - takes F7, sauer moves to F8 |
+| `hires-vehicle-pack` | Ash735, Dropbox mirror (by hand as fallback) | 140 MB | 1.0.8.0 only, untested |
+| `hires-misc-pack` | Ash735, Dropbox mirror (by hand as fallback) | 365 MB | 1.0.8.0 only, untested |
+| `libertys-legacy` | Const96b, Dropbox mirror (by hand as fallback) | 0.7 MB | untested |
+| `zmenu-iv` | Zolika1351, Dropbox mirror (by hand from MEGA as fallback) | 117 MB | untested - takes F7, sauer moves to F8 |
 
 **FusionFix** is the largest mod in here and the one that shows what the
 dependency chain is for. Its own readme is explicit: *only The Complete Edition

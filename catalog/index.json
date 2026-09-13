@@ -1,6 +1,6 @@
 {
   "FormatVersion": 1,
-  "GeneratedAt": "2026-09-13T12:56:09.8577297+02:00",
+  "GeneratedAt": "2026-09-13T13:08:37.9232991+02:00",
   "Entries": [
     {
       "File": "downgrade-ce-1070.json",
@@ -20,15 +20,15 @@
     },
     {
       "File": "hires-misc-pack.json",
-      "Sha256": "c9ca85afb972b54e48c3a99922ab158594fbd8a0087fefae393efd4a66aa8b8a"
+      "Sha256": "4dd045d1573c855704a17a706c2eb558158a6948163edec094ecda5843ad174a"
     },
     {
       "File": "hires-vehicle-pack.json",
-      "Sha256": "0c1c8b461dccdd1ba856d35d14f387d4972f4c32a116ea6711b85e3dd6bf28d7"
+      "Sha256": "e39c2a93ccd62a13b4916e1e41e72c825dfda7ff5c0be822fc0fc1dbd46aa344"
     },
     {
       "File": "libertys-legacy.json",
-      "Sha256": "6b3d3036fad9e399e254d0343eb4f512e81d001c3a0683ba06c9ffbf82f5fe8e"
+      "Sha256": "6dd79868d5eada00ecdc37c1865a4eaff36c5d0fe7e7cdb0f9c2b88e9ea8c9d4"
     },
     {
       "File": "mliv-trainer.json",
@@ -56,7 +56,7 @@
     },
     {
       "File": "zmenu-iv.json",
-      "Sha256": "7a7484b45152b824b7cc9a24a65b8d935d1a39d4e92d2d938703dc0c94192980"
+      "Sha256": "763499311b1b5ea8f241c5513bf7bd06de1a2afe01342a931a552fcb8afa0888"
     }
   ]
 }

@@ -16,8 +16,10 @@
       "fileName": "Liberty's Legacy Trainer 2.4.1-100-2-4-1-1772644078.zip",
       "sha256": "e8f502a84a388dcdae73857d3bed24b907698d1725dab169029e237304ac9aef",
       "sizeBytes": 755281,
-      "urls": [],
-      "note": "Has to be supplied by hand: the only place this is published is https://www.nexusmods.com/gta4/mods/100, and Nexus hands out links that expire with a session, so nothing can fetch it automatically. Download it there and drop it into the working directory exactly as it comes - the name above is the one Nexus gives file 2.4.1."
+      "urls": [
+        "https://www.dropbox.com/scl/fi/5x00uazq2j42iownc92jq/Liberty-s-Legacy-Trainer-2.4.1-100-2-4-1-1772644078.zip?rlkey=nxtpai3m5uio1vg4wcknw9drz&dl=1"
+      ],
+      "note": "Fetched from this project's Dropbox mirror. If that fails it has to be supplied by hand: the only place this is published is https://www.nexusmods.com/gta4/mods/100, and Nexus hands out links that expire with a session. Download it there and drop it into the working directory exactly as it comes - the name above is the one Nexus gives file 2.4.1."
     }
   ],
 
