@@ -179,7 +179,7 @@ something this project is going to do.
 
 **The trainer does not start separately.** It sits in the game directory as
 `plugins\sauer.asi` and is loaded along by the ASI loader when
-the game starts. In game, `F7` opens the menu.
+the game starts. In game, `F8` opens the menu.
 
 Commands:
 
@@ -322,6 +322,7 @@ Rockstar Games Launcher, downgraded to 1.0.7.0. The game starts.
 | `hires-vehicle-pack` | Ash735, supplied by hand | 140 MB | 1.0.8.0 only, untested |
 | `hires-misc-pack` | Ash735, supplied by hand | 365 MB | 1.0.8.0 only, untested |
 | `libertys-legacy` | Const96b, supplied by hand | 0.7 MB | untested |
+| `zmenu-iv` | Zolika1351, supplied by hand (MEGA) | 117 MB | untested - takes F7, sauer moves to F8 |
 
 **FusionFix** is the largest mod in here and the one that shows what the
 dependency chain is for. Its own readme is explicit: *only The Complete Edition
@@ -522,12 +523,12 @@ convenience but a prerequisite:
   out of place here of all things: a missing Visual C++ runtime is exactly what
   the game first failed on after the downgrade.
 
-**The menu runs in game** - F7 opens it, the numpad or the arrow keys operate it,
+**The menu runs in game** - F8 opens it, the numpad or the arrow keys operate it,
 toggles and choices react, actions run all the way through into the log file.
 
 | Key | Effect |
 |---|---|
-| `F7` | open and close the menu |
+| `F8` | open and close the menu |
 | `Num 8` / `↑` · `Num 2` / `↓` | move the selection |
 | `Num 4` / `←` · `Num 6` / `→` | change a value |
 | `Num 5` / `Enter` | select |
@@ -717,7 +718,7 @@ The ASI loads, recognises 1.0.7.0 and reports for duty:
 ```
 [14:25:53.944] sauer IV Trainer, stage T6
 [14:25:53.945] Version: 1.0.7.0 (1.0.7.0)
-[14:25:53.946] Menu ready. F7 opens it, 13 key bindings active.
+[14:25:53.946] Menu ready. F8 opens it, 13 key bindings active.
 ```
 
 ## Catalog signature

@@ -285,7 +285,7 @@ namespace
     };
 
     const DefaultBinding kDefaults[] = {
-        { "Menu",    mliv::MenuInput::Toggle, VK_F7,      0         },
+        { "Menu",    mliv::MenuInput::Toggle, VK_F8,      0         },
         { "Up",      mliv::MenuInput::Up,     VK_NUMPAD8, VK_UP     },
         { "Down",    mliv::MenuInput::Down,   VK_NUMPAD2, VK_DOWN   },
         { "Left",    mliv::MenuInput::Left,   VK_NUMPAD4, VK_LEFT   },
@@ -2922,9 +2922,9 @@ void plugin::gameStartupEvent()
     // the game looks at it - the script tick is measurably too late.
     plugin::processPadEvent::Add(HoldThePhone);
 
-    const std::string opener = mliv::KeyNameFromCode(g_keys.empty() ? VK_F7 : g_keys.front().code);
+    const std::string opener = mliv::KeyNameFromCode(g_keys.empty() ? VK_F8 : g_keys.front().code);
     mliv::LogLine("Menu ready. %s opens it, %zu key bindings active.",
-                  opener.empty() ? "F7" : opener.c_str(), g_keys.size());
+                  opener.empty() ? "F8" : opener.c_str(), g_keys.size());
 }
 
 /// Called on unload. The SDK requires the function even though there is little

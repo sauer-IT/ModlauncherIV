@@ -1,0 +1,44 @@
+{
+  "id": "zmenu-iv",
+  "name": "ZMenu IV + Chaos Mod",
+  "version": "23.09.18.2",
+  "game": "GtaIV",
+  "category": "Trainers",
+  "description": "Zolika1351's trainer: godmode and the basics, car spawner with presets, first person, weapon recoil, Quake/Half-Life movement and a chaos mod with more than 500 effects. F7 opens it, the numpad operates it. Parachute support comes along - switch it on in the menu. sauer opens with F8 so the two do not answer on the same key.",
+
+  "appliesToVersions": [ "1.0.7.0", "1.0.8.0" ],
+
+  "requires": [ "ultimate-asi-loader" ],
+
+  "sources": [
+    {
+      "id": "zmenu",
+      "fileName": "ZMenuIV_v23.09.18.2.zip",
+      "sha256": "49b1718aa9aa82b61966c3fbb183710976fff54c672f52e0652dd65032828bf4",
+      "sizeBytes": 117259652,
+      "urls": [],
+      "note": "Has to be supplied by hand: Zolika1351 publishes it on https://zolika1351.pages.dev/mods/ivmenu, and the download there is a MEGA link, which nothing can fetch without a browser. Download it there and drop it into the working directory exactly as it comes."
+    }
+  ],
+
+  "steps": [
+    {
+      "type": "extractArchive",
+      "archive": "ZMenuIV_v23.09.18.2.zip",
+      "target": "",
+      "exclude": [
+        "asi loader if not using xliveless/",
+        "old version (has VR support)/",
+        "for developers/",
+        "parachute support (all into game folder)/",
+        "PlayGTAIV.exe"
+      ]
+    },
+    {
+      "type": "extractArchive",
+      "archive": "ZMenuIV_v23.09.18.2.zip",
+      "target": "",
+      "from": "parachute support (all into game folder)"
+    }
+  ]
+}

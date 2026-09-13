@@ -1121,6 +1121,62 @@ if ($LASTEXITCODE -ne 0) {
     }
 }
 
+# ----------------------------------------------------- Extracting, with gaps
+#
+# Archives that ship extras next to the mod. ZMenu IV carries a second ASI
+# loader, an old VR build and its own PlayGTAIV.exe - extracted as they come, the
+# loader would sit beside the one already installed and the EXE would replace
+# the game's own. Kept apart from the fixtures above so their counts stay put.
+
+Write-Host "`n== Extracting with exclusions ==" -ForegroundColor Cyan
+
+$xGame = Join-Path $work "game-extract"
+$xCache = Join-Path $work "cache-extract"
+$xCatalog = Join-Path $work "catalog-extract"
+$xSource = Join-Path $work "zip-source"
+New-Item -ItemType Directory -Path $xGame, $xCache, $xCatalog, (Join-Path $xSource "loader"), (Join-Path $xSource "extra\update") -Force | Out-Null
+
+Set-Content -Path (Join-Path $xGame "GTAIV.exe") -Value "fake game file" -NoNewline -Encoding utf8
+Set-Content -Path (Join-Path $xGame "PlayGTAIV.exe") -Value "the game's own" -NoNewline -Encoding utf8
+
+Set-Content -Path (Join-Path $xSource "Menu.asi") -Value "menu" -NoNewline -Encoding utf8
+Set-Content -Path (Join-Path $xSource "PlayGTAIV.exe") -Value "a replacement" -NoNewline -Encoding utf8
+Set-Content -Path (Join-Path $xSource "loader\dinput8.dll") -Value "second loader" -NoNewline -Encoding utf8
+Set-Content -Path (Join-Path $xSource "extra\update\update.img") -Value "parachute" -NoNewline -Encoding utf8
+
+Add-Type -AssemblyName System.IO.Compression.FileSystem
+$xZip = Join-Path $xCache "menu-with-extras.zip"
+[IO.Compression.ZipFile]::CreateFromDirectory($xSource, $xZip)
+$xHash = Get-Sha $xZip
+$xSize = (Get-Item $xZip).Length
+
+@"
+{
+  "id": "test-extract-gaps",
+  "name": "Test recipe, archive with extras",
+  "version": "1.0.0",
+  "game": "GtaIV",
+  "sources": [
+    { "id": "zip", "fileName": "menu-with-extras.zip", "sha256": "$xHash", "sizeBytes": $xSize, "urls": [] }
+  ],
+  "steps": [
+    { "type": "extractArchive", "archive": "menu-with-extras.zip", "target": "", "exclude": [ "loader/", "extra/", "PlayGTAIV.exe" ] },
+    { "type": "extractArchive", "archive": "menu-with-extras.zip", "target": "", "from": "extra" }
+  ]
+}
+"@ | Set-Content -Path (Join-Path $xCatalog "test-extract-gaps.json") -Encoding utf8
+
+$r = Invoke-Mliv @("apply", "test-extract-gaps", "--yes", "--path", $xGame, "--catalog", $xCatalog, "--cache", $xCache, "--allow-unsigned")
+Assert ($r.ExitCode -eq 0) "exclude: exit code 0"
+Assert (Test-Path (Join-Path $xGame "Menu.asi")) "exclude: the mod itself is extracted"
+Assert (-not (Test-Path (Join-Path $xGame "loader"))) "exclude: an excluded folder stays in the archive"
+Assert (-not (Test-Path (Join-Path $xGame "extra"))) "exclude: so does the one taken apart by the second step"
+Assert ((Get-Content (Join-Path $xGame "PlayGTAIV.exe") -Raw) -eq "the game's own") "exclude: an excluded file does not replace the game's"
+Assert (Test-Path (Join-Path $xGame "update\update.img")) "exclude: and 'from' still puts a folder's contents in place"
+
+$r = Invoke-Mliv @("verify", "--path", $xGame, "--catalog", $xCatalog, "--allow-unsigned")
+Assert (-not ($r.Output -match "missing after extraction|missing")) "exclude: verification does not miss what was left out"
+
 # ------------------------------------------------------------------- Result
 
 Write-Host "`n$('=' * 50)"

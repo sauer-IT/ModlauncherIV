@@ -8,7 +8,7 @@
   starts GTAIV.exe directly and brings the window to the front.
 
   The trainer does not start separately - it sits as an .asi in the plugins
-  folder and is loaded by the ASI loader when the game starts. In game, F7 opens
+  folder and is loaded by the ASI loader when the game starts. In game, F8 opens
   the menu.
 
 .PARAMETER Log
@@ -51,7 +51,7 @@ $fg = Add-Type -MemberDefinition $sig -Name Foreground -Namespace MlivPlay -Pass
 $proc = Get-Process -Id $game.Id -ErrorAction SilentlyContinue
 if ($proc -and $proc.MainWindowHandle -ne 0) { $fg::SetForegroundWindow($proc.MainWindowHandle) | Out-Null }
 
-Write-Host "Running. F7 opens the trainer menu." -ForegroundColor Green
+Write-Host "Running. F8 opens the trainer menu." -ForegroundColor Green
 
 if (-not $Log) { exit 0 }
 

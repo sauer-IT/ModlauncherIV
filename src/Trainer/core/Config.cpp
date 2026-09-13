@@ -426,7 +426,7 @@ namespace mliv
             "# recognised shows up as a message in the log file.\n"
             "\n"
             "[Keys]\n"
-            "Menu    = F7\n"
+            "Menu    = F8\n"
             "Up      = NUM8, UP\n"
             "Down    = NUM2, DOWN\n"
             "Left    = NUM4, LEFT\n"

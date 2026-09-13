@@ -163,7 +163,18 @@ public sealed record DeleteFileStep(string Target) : RecipeStep
 /// folder: without it "Retail/xyz.dll" would land as
 /// "&lt;game&gt;/Retail/xyz.dll" instead of "&lt;game&gt;/xyz.dll".
 /// </param>
-public sealed record ExtractArchiveStep(string Archive, string Target = "", string From = "") : RecipeStep
+/// <param name="Exclude">
+/// Entries to leave in the archive, relative to <paramref name="From"/>. A name
+/// ending in "/" leaves out that whole folder. Needed for archives that ship
+/// alternatives and extras next to the mod itself: ZMenu IV carries a second
+/// ASI loader, an old VR build and its own PlayGTAIV.exe, none of which belong
+/// in a game folder this launcher has already set up.
+/// </param>
+public sealed record ExtractArchiveStep(
+    string Archive,
+    string Target = "",
+    string From = "",
+    IReadOnlyList<string>? Exclude = null) : RecipeStep
 {
     private string TargetOrRoot => string.IsNullOrWhiteSpace(Target) ? "." : Target;
 
@@ -266,17 +277,42 @@ public sealed record ExtractArchiveStep(string Archive, string Target = "", stri
 
             var full = entry.FullName.Replace('\\', '/');
 
-            if (prefix.Length == 0)
+            if (prefix.Length > 0 && !full.StartsWith(prefix, StringComparison.OrdinalIgnoreCase))
             {
-                yield return (entry, full);
                 continue;
             }
 
-            if (full.StartsWith(prefix, StringComparison.OrdinalIgnoreCase))
+            var relative = full[prefix.Length..];
+
+            if (!IsExcluded(relative))
             {
-                yield return (entry, full[prefix.Length..]);
+                yield return (entry, relative);
             }
         }
+    }
+
+    private bool IsExcluded(string relative)
+    {
+        foreach (var raw in Exclude ?? [])
+        {
+            var rule = raw.Replace('\\', '/').TrimStart('/');
+
+            if (rule.Length == 0)
+            {
+                continue;
+            }
+
+            var matches = rule.EndsWith('/')
+                ? relative.StartsWith(rule, StringComparison.OrdinalIgnoreCase)
+                : string.Equals(relative, rule, StringComparison.OrdinalIgnoreCase);
+
+            if (matches)
+            {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     public override IReadOnlyList<string> Verify(RecipeContext context)

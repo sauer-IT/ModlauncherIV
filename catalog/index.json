@@ -1,6 +1,6 @@
 {
   "FormatVersion": 1,
-  "GeneratedAt": "2026-09-13T12:37:30.5429958+02:00",
+  "GeneratedAt": "2026-09-13T12:48:52.3506749+02:00",
   "Entries": [
     {
       "File": "downgrade-ce-1070.json",
@@ -53,6 +53,10 @@
     {
       "File": "xbox-rain-droplets.json",
       "Sha256": "bb59d2608a35e2317fed03b57fa50d15fca6778777099f200ab4528e0442f468"
+    },
+    {
+      "File": "zmenu-iv.json",
+      "Sha256": "7a7484b45152b824b7cc9a24a65b8d935d1a39d4e92d2d938703dc0c94192980"
     }
   ]
 }

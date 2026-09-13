@@ -109,7 +109,7 @@ checksum before anything is written.
 Every change is backed up first, one mod at a time. The home page lists what is
 installed with a Remove next to each. Nothing is a one-way door.
 
-In the game, F7 opens the trainer menu, or both stick buttons on a controller.
+In the game, F8 opens the trainer menu, or both stick buttons on a controller.
 
 
 If you want it gone

@@ -186,7 +186,7 @@ int main()
         Check(config.chords("Up").size() == 1 && config.chords("Up").front() == PadUp,
               "Up is on the d-pad, as it was");
 
-        // The menu key stays F7 as well: the pad is meant to work alongside the
+        // The menu key stays F8 as well: the pad is meant to work alongside the
         // keyboard, not instead of it.
         Check(!config.keys("Menu").empty(), "and the keyboard still has its menu key");
     }

@@ -189,7 +189,7 @@ int main()
         config.parse(mliv::Config::DefaultText());
 
         Check(config.problems().empty(), "the template reads without complaint");
-        Check(Has(config.keys("Menu"), 0x76), "and binds F7 to the menu");
+        Check(Has(config.keys("Menu"), 0x77), "and binds F8 to the menu - F7 is left to ZMenu IV");
         Check(config.keys("Up").size() == 2, "Up has a numpad key and an arrow key");
         Check(config.keys("Down").size() == 2, "Down too");
         Check(config.keys("Left").size() == 2, "Left too");
