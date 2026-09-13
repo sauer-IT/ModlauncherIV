@@ -83,8 +83,17 @@ Write-Host "  Size     $size bytes"
 #
 # With the checksum in the name every build produces a new release, and an
 # update is offered exactly when something actually changed.
+#
+# The checksum alone cannot say which of two builds is the later one, though,
+# and "different" was being read as "newer": the launcher on disk carried an
+# older trainer than the one in the game, called it an update, and one click
+# put it back. So the patch number is the build time now - minutes since the
+# start of 2026 - which orders every build, committed or not, and the checksum
+# stays behind the "+" where versioning ignores it for order. Old releases
+# ending in .0 read as older than any of these, which is true.
 
-$feature = "0.4.0"
+$minutes = [int][math]::Floor(((Get-Date).ToUniversalTime() - [datetime]::new(2026, 1, 1, 0, 0, 0, [DateTimeKind]::Utc)).TotalMinutes)
+$feature = "0.4.$minutes"
 $version = "$feature+$($hash.Substring(0, 8))"
 
 Write-Host "  Release  $version"

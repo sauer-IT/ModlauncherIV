@@ -640,7 +640,31 @@ internal static class Program
 
             Report(
                 "mods: nothing is claimed when the releases match",
-                current.Mods.FirstOrDefault(m => m.RecipeId == recipe.Id) is { Outdated: false });
+                current.Mods.FirstOrDefault(m => m.RecipeId == recipe.Id) is { Outdated: false, CanUpdate: false });
+
+            Report("mods: a newer release can be updated to", row is { CanUpdate: true, AvailableLabel: "newer in the catalog:" });
+
+            // The other way round. A later release installed than the catalog
+            // has - the launcher on disk is simply older than the build in the
+            // game. It used to say "newer" and offer Update, and the click put
+            // the older trainer back.
+            store.Save(InstallLedger.Empty(session.Install.Path) with
+            {
+                Entries =
+                [
+                    new LedgerEntry(recipe.Id, recipe.Name, "999.0.0+later", DateTimeOffset.Now, "x", []),
+                ],
+            });
+
+            var ahead = new HomeViewModel(session, () => { });
+            ahead.EnterAsync().GetAwaiter().GetResult();
+            var aheadRow = ahead.Mods.FirstOrDefault(m => m.RecipeId == recipe.Id);
+
+            Report("mods: an older release in the catalog is still shown", aheadRow is { Outdated: true });
+            Report("mods: as older, not newer", aheadRow?.AvailableLabel == "older in the catalog:");
+            Report("mods: and never offered as an update", aheadRow is { CanUpdate: false });
+
+            Check("home with a newer mod than the catalog", ahead);
         }
         finally
         {

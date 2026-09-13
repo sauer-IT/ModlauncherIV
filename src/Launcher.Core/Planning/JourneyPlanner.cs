@@ -186,13 +186,17 @@ public static class JourneyPlanner
             // preserves the files of the old release.
             var installed = ledger.Find(recipe.Id);
 
-            var state = installed switch
-            {
-                null => JourneyStepState.Pending,
-                _ when string.Equals(installed.RecipeVersion, recipe.Version, StringComparison.OrdinalIgnoreCase)
-                    => JourneyStepState.AlreadyInstalled,
-                _ => JourneyStepState.NeedsUpdate,
-            };
+            // An update is a later release, not merely a different one. Taking
+            // "different" for "newer" installed an older trainer over a newer
+            // one. What nothing can put in order still runs, as it always did:
+            // the catalog changed it, and there is no way to know better.
+            var state = installed is null
+                ? JourneyStepState.Pending
+                : ReleaseVersion.Compare(installed.RecipeVersion, recipe.Version) switch
+                {
+                    ReleaseOrder.Newer or ReleaseOrder.Unordered => JourneyStepState.NeedsUpdate,
+                    _ => JourneyStepState.AlreadyInstalled,
+                };
 
             steps.Add(new JourneyStep(recipe, reason, state, effectiveVersion, installed?.RecipeVersion));
         }

@@ -45,6 +45,11 @@ public sealed record ExternalTool(
 /// without the other one beside it.
 /// </param>
 /// <param name="Available">What the catalog has, when that is something else.</param>
+/// <param name="AvailableLabel">Whether that is newer, older, or merely different.</param>
+/// <param name="CanUpdate">
+/// Only when the catalog's release is later, or nothing can tell. An older one
+/// in the catalog is shown, never offered.
+/// </param>
 /// <param name="Mismatched">
 /// True when this was made for a different game version than the one installed
 /// now.
@@ -67,7 +72,9 @@ public sealed record InstalledMod(
     bool Mismatched,
     string MadeFor,
     RelayCommand RemoveCommand,
-    RelayCommand UpdateCommand);
+    RelayCommand UpdateCommand,
+    string AvailableLabel = "newer in the catalog:",
+    bool CanUpdate = true);
 
 /// <summary>
 /// The home page.
@@ -531,8 +538,23 @@ public sealed class HomeViewModel : Observable
                 var current = _session.Catalog?.Recipes
                     .FirstOrDefault(r => string.Equals(r.Id, id, StringComparison.OrdinalIgnoreCase));
 
-                var outdated = current is not null
-                               && !string.Equals(current.Version, entry.RecipeVersion, StringComparison.OrdinalIgnoreCase);
+                // Which way round the catalog differs, not merely that it does.
+                // "Different" used to be shown as "newer", and the Update button
+                // then installed an older trainer over a newer one - measured on
+                // this machine: 04cbb02b in the game, 0e3aca81 in the launcher,
+                // one click, and the keyboard fix was gone.
+                var order = current is null
+                    ? ReleaseOrder.Same
+                    : ReleaseVersion.Compare(entry.RecipeVersion, current.Version);
+
+                var outdated = order is ReleaseOrder.Newer or ReleaseOrder.Older or ReleaseOrder.Unordered;
+                var canUpdate = order is ReleaseOrder.Newer or ReleaseOrder.Unordered;
+                var availableLabel = order switch
+                {
+                    ReleaseOrder.Newer => "newer in the catalog:",
+                    ReleaseOrder.Older => "older in the catalog:",
+                    _ => "different in the catalog:",
+                };
 
                 // Made for another game version than the one that is installed.
                 // Its files are all present, so nothing else on this page would
@@ -553,7 +575,9 @@ public sealed class HomeViewModel : Observable
                     mismatched,
                     mismatched ? string.Join(", ", current!.AppliesTo) : string.Empty,
                     new RelayCommand(() => Remove(id), () => !_busy),
-                    new RelayCommand(() => Update(id), () => !_busy)));
+                    new RelayCommand(() => Update(id), () => !_busy),
+                    availableLabel,
+                    outdated && canUpdate));
             }
 
             FillExternal(install);

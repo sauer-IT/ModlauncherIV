@@ -160,7 +160,7 @@
                                                     Visibility="{Binding Outdated, Converter={StaticResource Show}}">
                                                 <TextBlock Style="{StaticResource ChipText}"
                                                            Foreground="{StaticResource Accent}">
-                                                    <Run Text="newer in the catalog:" />
+                                                    <Run Text="{Binding AvailableLabel, Mode=OneWay}" />
                                                     <Run Text="{Binding Available, Mode=OneWay}" />
                                                 </TextBlock>
                                             </Border>
@@ -189,7 +189,7 @@
                                                 Command="{Binding UpdateCommand}"
                                                 Style="{StaticResource Primary}"
                                                 MinWidth="0" Padding="16,6" Margin="14,0,0,0"
-                                                Visibility="{Binding Outdated, Converter={StaticResource Show}}" />
+                                                Visibility="{Binding CanUpdate, Converter={StaticResource Show}}" />
 
                                         <Button Content="Remove"
                                                 Command="{Binding RemoveCommand}"

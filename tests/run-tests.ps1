@@ -482,8 +482,18 @@ $r = Invoke-Mliv (@("journey", "test-j-base", "--assume-version", "1.0.7.0") + $
 Assert ($r.Output -match "update 1.0.0 -> 2.0.0") "update: a newer release is noticed"
 Assert ($r.Output -match "Open: 1") "update: and becomes an open step"
 
+# The other direction. An older release in the catalog is not an update -
+# taking "different" for "newer" put an older trainer over a newer one in the
+# game, through the home page's Update button, before this was checked.
+(Get-Content (Join-Path $catalog "test-j-base.json") -Raw).Replace('"version": "2.0.0"', '"version": "0.9.0"') |
+    Set-Content (Join-Path $catalog "test-j-base.json") -Encoding utf8 -NoNewline
+
+$r = Invoke-Mliv (@("journey", "test-j-base", "--assume-version", "1.0.7.0") + $jArgs)
+Assert (-not ($r.Output -match "update 1.0.0 ->")) "update: an older release in the catalog is not offered as one"
+Assert ($r.Output -match "Open: 0") "update: and is not an open step"
+
 # Reset so the following sections find the same catalog.
-(Get-Content (Join-Path $catalog "test-j-base.json") -Raw).Replace('"version": "2.0.0"', '"version": "1.0.0"') |
+(Get-Content (Join-Path $catalog "test-j-base.json") -Raw).Replace('"version": "0.9.0"', '"version": "1.0.0"') |
     Set-Content (Join-Path $catalog "test-j-base.json") -Encoding utf8 -NoNewline
 
 # test-j-base is installed and is for 1.0.7.0. A journey that ends on 1.0.8.0
