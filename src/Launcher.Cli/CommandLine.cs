@@ -37,7 +37,7 @@ internal static class CommandLine
 {
     private static readonly string[] Commands =
         ["detect", "catalog", "plan", "apply", "remove", "status", "fetch", "route", "guard", "verify",
-         "journey", "catalog-key", "catalog-sign"];
+         "journey", "catalog-key", "catalog-sign", "catalog-key-backup", "catalog-key-restore"];
 
     public const string HelpText = """
         mliv -- Modlauncher IV
@@ -61,6 +61,8 @@ internal static class CommandLine
         Catalog maintenance tools:
           catalog-key            Create a new signing key pair.
           catalog-sign           Index and sign the catalog.  --key <file>
+          catalog-key-backup     Encrypted copy of the signing key.  --key <file> --out <file>
+          catalog-key-restore <file>  Put the signing key back from that copy.  --key <file>
 
         Options:
           --path <folder>        Game directory, instead of searching for it.

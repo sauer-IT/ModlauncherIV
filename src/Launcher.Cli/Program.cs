@@ -45,6 +45,8 @@ internal static class Program
                     options, i, RecipeCommands.LoadCatalog(options))),
                 "catalog-key" => CatalogTools.CreateKey(options),
                 "catalog-sign" => CatalogTools.Sign(options),
+                "catalog-key-backup" => CatalogTools.BackupKey(options),
+                "catalog-key-restore" => CatalogTools.RestoreKey(options),
                 _ => Unknown(options.Command),
             };
         }

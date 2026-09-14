@@ -19,19 +19,16 @@
 .PARAMETER Out
   Where the folder goes. Defaults to artifacts\handout.
 
-.PARAMETER Dropbox
-  Also puts it in Dropbox, under one folder that keeps its name across builds -
-  so a link shared once keeps working, and the people who have it get the next
-  version without being sent anything.
+  The files are meant for a GitHub release: attach ModlauncherIV.exe and
+  SHA256.txt, and put the note in the release text. One download link, and
+  nothing of anybody's private storage behind it.
 
 .EXAMPLE
   .\scripts\handout.ps1
-  .\scripts\handout.ps1 -Dropbox
 #>
 [CmdletBinding()]
 param(
-    [string] $Out = (Join-Path (Split-Path -Parent $PSScriptRoot) "artifacts\handout"),
-    [switch] $Dropbox
+    [string] $Out = (Join-Path (Split-Path -Parent $PSScriptRoot) "artifacts\handout")
 )
 
 $ErrorActionPreference = "Stop"
@@ -142,8 +139,9 @@ Known and not yet fixed:
     the game. Steam and Epic installations are found by tested code, but no
     real one has ever been in front of it. If yours is not found, the wizard
     takes a folder you pick yourself - and that path works.
-  - Three of the mods cannot be downloaded automatically - Nexus does not allow
-    it. The program says which file to fetch and where to put it.
+  - Four of the mods cannot be downloaded automatically - three live on Nexus,
+    which does not allow it, and ZMenu IV on MEGA. The program says which file
+    to fetch and where to put it.
   - FusionFix and the three that build on it are limited to game version
     1.0.8.0. On 1.0.7.0 they crash, which is measured, not suspected.
 "@
@@ -155,39 +153,5 @@ Write-Host "Ready to hand out: $Out" -ForegroundColor Green
 Get-ChildItem $Out | ForEach-Object { "  {0,-24} {1,10:N0} bytes" -f $_.Name, $_.Length }
 Write-Host ""
 Write-Host "  sha256  $hash" -ForegroundColor DarkGray
-
-# ------------------------------------------------------------------- Dropbox
-
-if (-not $Dropbox) { return }
-
-# The path out of Dropbox's own info.json rather than guessed at. Somebody who
-# moved their Dropbox folder, or runs a business account alongside a personal
-# one, has a path no guess would find - and writing the files into a folder
-# that only looks like Dropbox syncs nothing while appearing to have worked.
-$info = Join-Path $env:LOCALAPPDATA "Dropbox\info.json"
-if (-not (Test-Path $info)) {
-    throw "Dropbox does not appear to be installed - no $info"
-}
-
-$config = Get-Content $info -Raw | ConvertFrom-Json
-$base = $config.personal.path
-if (-not $base) { $base = $config.business.path }
-
-if (-not $base -or -not (Test-Path $base)) {
-    throw "Dropbox's info.json names a folder that is not there: $base"
-}
-
-# One folder, same name every time. A link shared once then keeps working, and
-# whoever has it picks up the next build without being sent anything - which is
-# the whole difference between handing out a file and handing out a place.
-$target = Join-Path $base "Modlauncher IV"
-New-Item -ItemType Directory -Path $target -Force | Out-Null
-
-Get-ChildItem $Out -File | ForEach-Object {
-    Copy-Item $_.FullName (Join-Path $target $_.Name) -Force
-}
-
 Write-Host ""
-Write-Host "Copied into Dropbox: $target" -ForegroundColor Green
-Write-Host "Dropbox is uploading now - wait for the tick before sharing the link." -ForegroundColor DarkGray
-Write-Host "Right-click the folder in Explorer -> Share, and send that link." -ForegroundColor DarkGray
+Write-Host "Attach ModlauncherIV.exe and SHA256.txt to a GitHub release; the note goes in its text." -ForegroundColor DarkGray

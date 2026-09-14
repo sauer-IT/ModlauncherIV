@@ -69,7 +69,20 @@ snapshot, mod by mod, with Remove on the home page. It removes itself through
 
 - [ ] The signing key is backed up somewhere other than this machine. Losing it
       means never signing a catalog again that the copies already out there
-      accept - the public half is compiled into every one of them.
+      accept - the public half is compiled into every one of them. Back it up
+      encrypted, never as the plain file:
+
+      ```
+      mliv catalog-key-backup --key %LOCALAPPDATA%\ModlauncherIV\keys\catalog-signing.pem --out <usb-stick>\catalog-signing.encrypted.pem
+      mliv catalog-key-restore <usb-stick>\catalog-signing.encrypted.pem --key %LOCALAPPDATA%\ModlauncherIV\keys\catalog-signing.pem
+      ```
+
+      The backup asks for a passphrase twice and checks that it decrypts to the
+      key the launcher trusts before it says done. Keep the encrypted file in
+      two places (a USB stick in a drawer, and a password manager's file
+      attachment or any cloud storage), and the passphrase only in the password
+      manager. Neither half alone signs anything. The key never goes into the
+      repository or into CI: signing stays on the machine that has it.
 - [ ] Tested on a machine that is not the one it was built on. Steam and Epic
       detection now runs against store layouts built out of paper in the tests -
       a libraryfolders.vdf, an appmanifest, an Epic manifest, and the Complete
@@ -86,11 +99,12 @@ snapshot, mod by mod, with Remove on the home page. It removes itself through
 
 ## What is knowingly not ready
 
-Three recipes have no URL and expect the file to be supplied by hand: both
-texture packs and Liberty's Legacy, all three published only on Nexus, which
-refuses plain requests. They are cosmetic - the game runs without them - and the
-launcher says exactly which file to fetch and where to put it. That is the
-honest state, not an oversight.
+Four recipes have no URL and expect the file to be supplied by hand: both
+texture packs and Liberty's Legacy, published only on Nexus, which refuses plain
+requests, and ZMenu IV, published only as a MEGA link. They are optional - the
+game runs without them - and the launcher says exactly which file to fetch and
+where to put it. That is the honest state, not an oversight: mirroring them
+would mean hosting other people's work without their say.
 
 The FusionFix chain is limited to 1.0.8.0 and is untested there. On 1.0.7.0 it
 corrupts the heap, which is measured rather than assumed.

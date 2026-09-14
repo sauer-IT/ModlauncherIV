@@ -16,10 +16,8 @@
       "fileName": "ZMenuIV_v23.09.18.2.zip",
       "sha256": "49b1718aa9aa82b61966c3fbb183710976fff54c672f52e0652dd65032828bf4",
       "sizeBytes": 117259652,
-      "urls": [
-        "https://www.dropbox.com/scl/fi/kdowe4y4j30prolw0stax/ZMenuIV_v23.09.18.2.zip?rlkey=1wgr66wnlzhjhfyl3qffuk4d7&dl=1"
-      ],
-      "note": "Fetched from this project's Dropbox mirror. If that fails it has to be supplied by hand: Zolika1351 publishes it on https://zolika1351.pages.dev/mods/ivmenu, and the download there is a MEGA link, which nothing can fetch without a browser. Download it there and drop it into the working directory exactly as it comes."
+      "urls": [],
+      "note": "Has to be supplied by hand: Zolika1351 publishes it on https://zolika1351.pages.dev/mods/ivmenu, and the download there is a MEGA link, which nothing can fetch without a browser. Download it there and drop it into the working directory exactly as it comes."
     }
   ],
 

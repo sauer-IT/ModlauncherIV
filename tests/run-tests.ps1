@@ -1196,6 +1196,69 @@ Assert (Test-Path (Join-Path $xGame "update\update.img")) "exclude: and 'from' s
 $r = Invoke-Mliv @("verify", "--path", $xGame, "--catalog", $xCatalog, "--allow-unsigned")
 Assert (-not ($r.Output -match "missing after extraction|missing")) "exclude: verification does not miss what was left out"
 
+# ------------------------------------------------------- Catalog key backup
+#
+# The signing key cannot be rebuilt - its public half is in every launcher
+# handed out - so it is backed up, and only ever encrypted. Tested on a
+# throwaway key; the passphrase comes through a pipe, which the commands read
+# as a line instead of from the keyboard.
+
+Write-Host "`n== Catalog key backup ==" -ForegroundColor Cyan
+
+function Invoke-MlivWithInput {
+    param([string[]] $InputLines, [string[]] $CliArgs)
+
+    $previous = $ErrorActionPreference
+    $ErrorActionPreference = "Continue"
+    try {
+        $output = $InputLines | & $exe @CliArgs 2>&1 | Out-String
+        return [pscustomobject]@{ ExitCode = $LASTEXITCODE; Output = $output }
+    }
+    finally {
+        $ErrorActionPreference = $previous
+    }
+}
+
+$kDir = Join-Path $work "keys"
+New-Item -ItemType Directory -Path $kDir -Force | Out-Null
+$kPlain = Join-Path $kDir "throwaway.pem"
+$kBackup = Join-Path $kDir "throwaway.encrypted.pem"
+$kRestored = Join-Path $kDir "restored.pem"
+$kPass = "correct horse battery staple"
+
+$r = Invoke-Mliv @("catalog-key", "--key", $kPlain)
+Assert ($r.ExitCode -eq 0) "key backup: a throwaway key is made"
+
+$r = Invoke-MlivWithInput @($kPass, $kPass) @("catalog-key-backup", "--key", $kPlain, "--out", $kBackup)
+Assert ($r.ExitCode -eq 0) "key backup: exit code 0"
+$kBackupPublic = if ($r.Output -match "Public key\s+(\S+)") { $matches[1] } else { "" }
+
+$kEncrypted = if (Test-Path $kBackup) { Get-Content $kBackup -Raw } else { "" }
+$kBody = ((Get-Content $kPlain) | Where-Object { $_ -notmatch '^-----' }) -join ""
+Assert ($kEncrypted -match "BEGIN ENCRYPTED PRIVATE KEY") "key backup: the file is encrypted"
+Assert (-not ($kEncrypted -replace "\s", "").Contains($kBody)) "key backup: and does not carry the key in plain"
+Assert ($r.Output -notmatch [regex]::Escape($kPass)) "key backup: the passphrase is not printed"
+
+$r = Invoke-MlivWithInput @($kPass, "something else entirely") @("catalog-key-backup", "--key", $kPlain, "--out", (Join-Path $kDir "differ.pem"))
+Assert ($r.ExitCode -ne 0 -and -not (Test-Path (Join-Path $kDir "differ.pem"))) "key backup: two different passphrases write nothing"
+
+$r = Invoke-MlivWithInput @("short", "short") @("catalog-key-backup", "--key", $kPlain, "--out", (Join-Path $kDir "short.pem"))
+Assert ($r.ExitCode -ne 0 -and -not (Test-Path (Join-Path $kDir "short.pem"))) "key backup: a short passphrase writes nothing"
+
+$r = Invoke-MlivWithInput @($kPass, $kPass) @("catalog-key-backup", "--key", $kPlain, "--out", $kBackup)
+Assert ($r.ExitCode -ne 0) "key backup: an existing backup is not overwritten"
+
+$r = Invoke-MlivWithInput @("the wrong passphrase") @("catalog-key-restore", $kBackup, "--key", $kRestored)
+Assert ($r.ExitCode -ne 0 -and -not (Test-Path $kRestored)) "key restore: the wrong passphrase writes nothing"
+
+$r = Invoke-MlivWithInput @($kPass) @("catalog-key-restore", $kBackup, "--key", $kRestored)
+Assert ($r.ExitCode -eq 0 -and (Test-Path $kRestored)) "key restore: the right passphrase restores it"
+$kRestoredPublic = if ($r.Output -match "Public key\s+(\S+)") { $matches[1] } else { "-" }
+Assert ($kBackupPublic.Length -gt 0 -and $kBackupPublic -eq $kRestoredPublic) "key restore: and it is the same key"
+
+$r = Invoke-MlivWithInput @($kPass) @("catalog-key-restore", $kBackup, "--key", $kRestored)
+Assert ($r.ExitCode -ne 0) "key restore: an existing key is not overwritten"
+
 # ------------------------------------------------------------------- Result
 
 Write-Host "`n$('=' * 50)"
