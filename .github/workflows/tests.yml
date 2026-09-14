@@ -1,0 +1,32 @@
+# The same two test runs as before every release, on a clean Windows machine.
+#
+# Nothing here signs or packages anything: the catalog key never leaves the
+# maintainer's machine, so a release is still built and signed there. What this
+# catches is the "works on my machine" kind of failure - a file that exists only
+# locally, a path that happens to be right on one PC.
+
+name: Tests
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+
+jobs:
+  tests:
+    runs-on: windows-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 10.0.x
+
+      - name: Launcher, CLI and views
+        shell: powershell
+        run: .\tests\run-tests.ps1
+
+      - name: Trainer
+        shell: powershell
+        run: .\scripts\build-trainer.ps1 -Test

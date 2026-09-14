@@ -15,6 +15,37 @@ under management, all verified unchanged by a counter-check.
 The only thing that changes the game is the "Install" step in the wizard, or
 `apply` in the CLI - both only after a prompt and with a snapshot taken first.
 
+## Download
+
+One file: **ModlauncherIV.exe**, attached to the [latest release](../../releases/latest)
+together with its SHA-256. Nothing to install first - a double click is enough.
+
+Two things Windows says before the first start, both expected:
+
+- **"Windows protected your PC"** - the *Run anyway* button is behind *More info*.
+  The program is not signed with a certificate Windows knows yet; that is
+  reputation, not a finding.
+- **Administrator rights** - GTA IV lives under `C:\Program Files`, and so do the
+  backups that make every change undoable.
+
+Everything it installs can be taken back from the home page, mod by mod, and it
+offers to put the game back when it is uninstalled.
+
+## Disclaimer
+
+Modlauncher IV is an unofficial fan project. It is not affiliated with, endorsed
+by or sponsored by Rockstar Games or Take-Two Interactive. Grand Theft Auto and
+GTA are trademarks of their respective owners.
+
+You need your own, legitimately bought copy of GTA IV. This repository hosts no
+game files and no mods: every download in the catalog comes from where its
+authors publish it, and the mods remain the work of those authors. Files that
+cannot be fetched that way are supplied by hand, with the launcher naming the
+page to get them from.
+
+The trainer is meant for single player. Use it, and the rest, at your own risk -
+every change is backed up first, but keep a copy of your save games anyway.
+
 ## Layout
 
 | Project | Purpose |
@@ -23,7 +54,7 @@ The only thing that changes the game is the "Install" step in the wizard, or
 | `src/Launcher.Cli` | Headless front end (`mliv`). Dry runs, diagnostics, CI. |
 | `src/Launcher.App` | The program you start (WPF): home page and wizard. |
 | `src/Trainer` | C++ ASI plugin, x86, IV-SDK. Player, weapons, vehicles, world, movement, peds, time and physics. |
-| `catalog/` | The declarative recipes, twelve of them, six proven - and in `tools/` the programs the launcher can fetch but not undo. |
+| `catalog/` | The declarative recipes, thirteen of them, six proven - and in `tools/` the programs the launcher can fetch but not undo. |
 | `tests/` | Fixtures, the test script, and `UiSmoke` - which builds every page of the window without showing one. |
 
 **Journey planning** (`Core/Planning`) is the difference between the CLI and the

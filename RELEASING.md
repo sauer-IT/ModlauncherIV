@@ -5,8 +5,8 @@ One file goes out. Everything else here is about what to say alongside it.
 ## Building it
 
 ```
-.\tests\run-tests.ps1                  300 tests, and they have to pass
-.\scripts\build-trainer.ps1 -Test      120 more, without the game
+.\tests\run-tests.ps1                  347 tests, and they have to pass
+.\scripts\build-trainer.ps1 -Test      136 more, without the game
 .\scripts\check-sources.ps1            is everything still downloadable?
 .\scripts\package.ps1                  the release
 ```
@@ -48,6 +48,41 @@ put, the checksum can sit beside the file, and it is where the rest of this
 ecosystem already lives - the catalog itself downloads FusionFix, the ASI loader
 and the downgrade packages from GitHub releases. One less kind of host to trust.
 
+No private storage behind it - no Dropbox folder, no mirror of anybody's mods.
+One download link, and that is the release page.
+
+## Publishing on GitHub
+
+Once, when the repository is created:
+
+```
+git remote add origin https://github.com/<account>/<repository>.git
+git push -u origin main
+```
+
+Push `main` only - never `--all` or `--mirror`. The local repository keeps
+`refs/original` and `refs/backup/*` from rewriting the commit identities; those
+still carry the old author data and are not meant to leave this machine.
+
+Every release:
+
+1. The four commands under *Building it*, all green.
+2. `.\scripts\handout.ps1` - puts `ModlauncherIV.exe`, `SHA256.txt` and
+   `READ ME FIRST.txt` into `artifacts\handout`.
+3. Commit the regenerated catalog files (`mliv-trainer.json`, `vc80-runtime.json`,
+   `index.json`, `index.json.sig`) and push.
+4. On GitHub: *Releases* - *Draft a new release*, tag `v<Version>` from
+   `src/Launcher.App/Launcher.App.csproj` (bump it first for anything after
+   1.0.0), attach `ModlauncherIV.exe` and `SHA256.txt`, and paste the text of
+   `READ ME FIRST.txt` as the description.
+
+Commits here carry the account name and its noreply address only - check
+`git config user.name` and `git config user.email` before the first commit on a
+new machine.
+
+The catalog is signed on this machine, never in CI: the private key does not
+leave it. GitHub Actions only runs the tests.
+
 ## What has to be said in the release notes
 
 **SmartScreen will stop it.** The EXE is signed, but with a self-signed
@@ -67,7 +102,7 @@ snapshot, mod by mod, with Remove on the home page. It removes itself through
 
 ## Before a first public release
 
-- [ ] The signing key is backed up somewhere other than this machine. Losing it
+- [x] The signing key is backed up somewhere other than this machine. Losing it
       means never signing a catalog again that the copies already out there
       accept - the public half is compiled into every one of them. Back it up
       encrypted, never as the plain file:
@@ -89,11 +124,9 @@ snapshot, mod by mod, with Remove on the home page. It removes itself through
       Edition's habit of keeping the game one folder further down. That is
       enough to know the parsing works; it is not the same as a real store
       installation, which nobody here owns.
-- [ ] Decide what happens when a third-party download disappears. The Dropbox
-      the usual downgrader used is already gone; everything here points at
-      GitHub releases, and those can be deleted too. There are still no mirrors,
-      because a mirror means hosting somebody else's gigabytes. What exists
-      instead: `check-sources.ps1` notices it here first, and every recipe now
+- [x] Decide what happens when a third-party download disappears. Decided: no
+      mirrors - a mirror means hosting somebody else's work without their say.
+      `check-sources.ps1` notices a dead source here first, and every recipe
       names the project page in its note, so a dead link leaves the user with a
       place to go rather than a checksum and no address.
 
