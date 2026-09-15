@@ -515,20 +515,31 @@ Assert ($r.Output -match "Open: 0") "update: and is not an open step"
 (Get-Content (Join-Path $catalog "test-j-base.json") -Raw).Replace('"version": "0.9.0"', '"version": "1.0.0"') |
     Set-Content (Join-Path $catalog "test-j-base.json") -Encoding utf8 -NoNewline
 
-# test-j-base is installed and is for 1.0.7.0. A journey that ends on 1.0.8.0
-# leaves it exactly where it is - installed, listed, and not loading - and
-# nothing used to say so. It is not a blocker: changing version anyway is a
-# legitimate wish, and taking somebody's mods out uninvited is not the
-# planner's decision.
-$r = Invoke-Mliv (@("journey", "--assume-version", "1.2.0.59", "--target", "1.0.8.0") + $jArgs)
-Assert ($r.Output -match "LEFT BEHIND") "stranded: a version change names what it leaves behind"
-Assert ($r.Output -match "Test recipe, foundation") "stranded: by name"
-Assert ($r.Output -match "made for 1\.0\.7\.0") "stranded: and says what it was made for"
-Assert ($r.ExitCode -ne 3) "stranded: but does not block the journey"
+# test-j-base is installed and is for 1.0.7.0, and test-j-top builds on it. A
+# journey that ends on 1.0.8.0 would leave both installed and not loading. It
+# used to only say so - and FusionFix left behind that way kept the game from
+# starting at all until it was removed by hand. So they are taken back before
+# the version change, the one built on top first.
+$r = Invoke-Mliv (@("apply", "test-j-top", "--yes", "--assume-version", "1.0.7.0", "--cache", $cache) + $jArgs)
+Assert ($r.ExitCode -eq 0) "stranded: a recipe built on the foundation is installed as well"
 
-# The same journey back to the version it fits says nothing of the sort.
+$r = Invoke-Mliv (@("journey", "--assume-version", "1.2.0.59", "--target", "1.0.8.0") + $jArgs)
+Assert ($r.ExitCode -ne 3) "stranded: a version change that leaves mods unfit is not blocked"
+Assert ($r.Output -match "Test recipe, foundation\s+\[take back\]") "stranded: the mod that would no longer fit is taken back"
+Assert ($r.Output -match "Test recipe, builds on the foundation\s+\[take back\]") "stranded: and the one built on it"
+
+$posTop = $r.Output.IndexOf("Test recipe, builds on the foundation")
+$posBase = $r.Output.IndexOf("Test recipe, foundation  [take back]")
+$posVersion = $r.Output.IndexOf("test-down-ce-108")
+Assert ($posTop -ge 0 -and $posBase -gt $posTop) "stranded: what builds on another comes out before it"
+Assert ($posBase -ge 0 -and $posVersion -gt $posBase) "stranded: and both before the version change"
+
+# The same journey back to the version they fit takes nothing out.
 $r = Invoke-Mliv (@("journey", "--assume-version", "1.2.0.59", "--target", "1.0.7.0") + $jArgs)
-Assert (-not ($r.Output -match "LEFT BEHIND")) "stranded: nothing is left behind when the version still fits"
+Assert (-not ($r.Output -match "\[take back\]")) "stranded: nothing is taken back when the version still fits"
+
+$r = Invoke-Mliv (@("remove", "test-j-top", "--yes") + $jArgs)
+Assert ($r.ExitCode -eq 0) "stranded: the recipe built on top is removed again"
 
 $r = Invoke-Mliv (@("remove", "test-j-base", "--yes") + $jArgs)
 Assert ($r.ExitCode -eq 0) "update: test recipe removed again"

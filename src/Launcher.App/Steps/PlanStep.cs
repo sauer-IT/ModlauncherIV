@@ -10,10 +10,19 @@ public sealed class PlanRow(int number, JourneyStep step)
 
     public string Name => step.Recipe.Name;
 
-    public string Detail => step.Reason == JourneyReason.TakeBack
-        ? "Taken back first: the files it replaced come back from the snapshot taken when it was installed. "
-          + "That is the original game the next version change starts from - nothing is downloaded for this."
-        : step.Recipe.Description ?? step.Recipe.Id;
+    public string Detail => step switch
+    {
+        { Reason: JourneyReason.TakeBack, Recipe.IsVersionTransition: true } =>
+            "Taken back first: the files it replaced come back from the snapshot taken when it was installed. "
+            + "That is the original game the next version change starts from - nothing is downloaded for this.",
+
+        { Reason: JourneyReason.TakeBack } =>
+            $"Made for {string.Join(", ", step.Recipe.AppliesTo)}, not for the version this ends on - left in, it "
+            + "would not load, and some keep the game from starting. Taken back from its snapshot; its files stay "
+            + "in the cache, so installing it again later downloads nothing.",
+
+        _ => step.Recipe.Description ?? step.Recipe.Id,
+    };
 
     public bool IsDone => step.State == JourneyStepState.AlreadyInstalled;
 
@@ -42,20 +51,6 @@ public sealed class PlanStep(Session session) : WizardStep(session)
 
     public ObservableCollection<JourneyProblem> Problems { get; } = [];
 
-    /// <summary>
-    /// What this run would leave installed and not working. Only a version
-    /// change produces any: everything in the ledger fitted the game when it
-    /// was installed, and moving the game underneath it is what breaks that.
-    /// </summary>
-    public ObservableCollection<StrandedRecipe> LeftBehind { get; } = [];
-
-    public bool HasLeftBehind => LeftBehind.Count > 0;
-
-    /// <summary>The sentence above that list. Names the version being moved to.</summary>
-    public string LeftBehindLead =>
-        $"These are installed and were made for another version than {Session.TargetVersion}. "
-        + "They stay on disk and stop working - take them back on the home page if that is not what you want.";
-
     public string Summary { get; private set; } = string.Empty;
 
     public bool HasProblems => Problems.Count > 0;
@@ -69,7 +64,6 @@ public sealed class PlanStep(Session session) : WizardStep(session)
     {
         Rows.Clear();
         Problems.Clear();
-        LeftBehind.Clear();
 
         var journey = JourneyPlanner.Plan(
             new JourneyRequest(Session.TargetVersion, Session.Wanted),
@@ -89,11 +83,6 @@ public sealed class PlanStep(Session session) : WizardStep(session)
             Problems.Add(problem);
         }
 
-        foreach (var left in journey.LeftBehind)
-        {
-            LeftBehind.Add(left);
-        }
-
         var open = journey.Remaining.Count;
         Summary = open switch
         {
@@ -105,8 +94,6 @@ public sealed class PlanStep(Session session) : WizardStep(session)
 
         Raise(nameof(Summary));
         Raise(nameof(HasProblems));
-        Raise(nameof(HasLeftBehind));
-        Raise(nameof(LeftBehindLead));
         Raise(nameof(NothingToDo));
         NotifyChanged();
 

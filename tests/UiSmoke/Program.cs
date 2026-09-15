@@ -337,6 +337,40 @@ internal static class Program
                 after.Versions.Any(v => v is { Raw: "1.0.7.0", Reachable: true, IsCurrent: false }));
             Report("switch: and FusionFix can be picked",
                 after.Recipes.Any(r => r.Recipe.Id == "fusionfix" && r.Available));
+
+            // And back again, with FusionFix installed on top of the 1.0.8.0
+            // downgrade. Found in the game: it stayed in, and 1.0.7.0 would not
+            // start until it was removed by hand.
+            store.Save(InstallLedger.Empty(eightNow.Install.Path) with
+            {
+                Entries =
+                [
+                    new LedgerEntry("downgrade-ce-1080", "Downgrade to 1.0.8.0", "1.0.0", DateTimeOffset.Now.AddMinutes(-10), "x", []),
+                    new LedgerEntry("fusionfix", "FusionFix", "1.0", DateTimeOffset.Now, "y", []),
+                ],
+            });
+
+            var back = JourneyPlanner.Plan(
+                new JourneyRequest("1.0.7.0", []),
+                eightNow.Catalog!.Recipes,
+                "1.0.8.0",
+                eightNow.Ledger);
+
+            Report("switch back: the plan has no findings", back.IsPossible);
+            Report("switch back: FusionFix comes out first, it would not run on 1.0.7.0",
+                back.Steps.FirstOrDefault() is { Reason: JourneyReason.TakeBack, Recipe.Id: "fusionfix" });
+            Report("switch back: then the downgrade it sat on",
+                back.Steps.Skip(1).FirstOrDefault() is { Reason: JourneyReason.TakeBack, Recipe.Id: "downgrade-ce-1080" });
+            Report("switch back: then the other downgrade runs",
+                back.Steps.Skip(2).FirstOrDefault() is { Reason: JourneyReason.VersionTransition, Recipe.Id: "downgrade-ce-1070" });
+            Report("switch back: nothing is downloaded for either take-back",
+                back.ToInstall.All(s => s.Reason != JourneyReason.TakeBack));
+
+            eightNow.TargetVersion = "1.0.7.0";
+            var backPage = new PlanStep(eightNow);
+            backPage.EnterAsync().GetAwaiter().GetResult();
+            Report("switch back: the plan page says why FusionFix comes out",
+                backPage.Rows.FirstOrDefault()?.Detail.Contains("Made for") == true);
         }
         finally
         {

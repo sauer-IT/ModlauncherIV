@@ -19,10 +19,12 @@ public enum JourneyReason
     /// <summary>
     /// Installed, and taken back from its snapshot before anything else runs.
     ///
-    /// Only a downgrade ever is: the two downgrades both start from the Complete
-    /// Edition, so the way from one to the other leads back through the
-    /// original files. Nothing is installed by this step and nothing is fetched
-    /// for it.
+    /// Two kinds are. A downgrade, because the two downgrades both start from
+    /// the Complete Edition and the way from one to the other leads back through
+    /// the original files. And a mod made for another version than the one the
+    /// journey ends on, because left in place it loads nothing - or, like
+    /// FusionFix on 1.0.7.0, keeps the game from starting. Nothing is installed
+    /// by this step and nothing is fetched for it.
     /// </summary>
     TakeBack,
 }
@@ -58,41 +60,15 @@ public sealed record JourneyStep(
 public sealed record JourneyProblem(string Message, string? Detail = null);
 
 /// <summary>
-/// An installed recipe the planned version change would leave behind.
-/// </summary>
-/// <param name="RecipeId">Its id, so it can be taken back by name.</param>
-/// <param name="Name">What it is called, for the sentence a user reads.</param>
-/// <param name="FitsVersions">The versions it was made for.</param>
-public sealed record StrandedRecipe(string RecipeId, string Name, IReadOnlyList<string> FitsVersions)
-{
-    /// <summary>The versions as one line, for a sentence rather than a list.</summary>
-    public string Fits => string.Join(", ", FitsVersions);
-}
-
-/// <summary>
 /// A planned path from the installation as found to the wanted state.
 /// </summary>
-/// <param name="Stranded">
-/// Recipes that are installed, are not part of this journey, and do not fit the
-/// version it ends on.
-///
-/// Not a problem: the journey is still possible and may well be what somebody
-/// wants. But a version change leaves them behind - installed, listed, and
-/// silently not loading - and nothing used to say so. Switching from 1.0.7.0 to
-/// 1.0.8.0 is exactly the case: the downgrade is planned, the mods that came
-/// with it stay where they are, and the game starts without them.
-/// </param>
 public sealed record Journey(
     string FromVersion,
     string TargetVersion,
     IReadOnlyList<JourneyStep> Steps,
-    IReadOnlyList<JourneyProblem> Problems,
-    IReadOnlyList<StrandedRecipe>? Stranded = null)
+    IReadOnlyList<JourneyProblem> Problems)
 {
     public bool IsPossible => Problems.Count == 0;
-
-    /// <summary>What this run would leave installed and not working.</summary>
-    public IReadOnlyList<StrandedRecipe> LeftBehind => Stranded ?? [];
 
     /// <summary>The steps that actually still have to run.</summary>
     public IReadOnlyList<JourneyStep> Remaining =>
@@ -215,28 +191,42 @@ public static class JourneyPlanner
             steps.Add(new JourneyStep(recipe, reason, state, effectiveVersion, installed?.RecipeVersion));
         }
 
+        // What will not work on the version this ends on comes out first -
+        // before the version change, which may itself be a take-back.
+        steps.InsertRange(0, PlanTakeBacks(steps, byId, ledger, from, target));
+
         CheckConflicts(steps, ledger, problems);
 
-        return new Journey(from, target, steps, problems, FindStranded(steps, byId, ledger, target));
+        return new Journey(from, target, steps, problems);
     }
 
     /// <summary>
-    /// What this run would leave installed and not working.
+    /// Takes out what would no longer work on the version this ends on.
     ///
-    /// A version change is the only thing that can do this: recipes are checked
-    /// against the version when they are installed, so anything already in the
-    /// ledger fitted the game as it was. Move the game underneath them and some
-    /// of them no longer do - and nothing about the installation says so,
-    /// because their files are all still exactly where they were put.
+    /// Recipes are checked against the version when they are installed, so
+    /// everything in the ledger fitted the game as it was. Move the game
+    /// underneath them and some no longer do - and their files are all still
+    /// exactly where they were put. This used to be reported and left alone,
+    /// on the grounds that taking mods out was not the planner's decision.
+    /// Found in the game what that costs: 1.0.8.0 to 1.0.7.0, FusionFix and
+    /// three packs built on it stayed in, and the game would not start until
+    /// they were removed by hand, one by one, on the home page.
     ///
-    /// Only reported, never acted on. Taking somebody's mods out because the
-    /// planner thinks they are in the way is not a decision a planner gets to
-    /// make.
+    /// So they are taken back from their snapshots, newest first: a pack that
+    /// needs FusionFix goes before FusionFix, which is also the only order the
+    /// uninstaller accepts. Whatever still needs one of them goes with it - it
+    /// could not work without it. Their files stay in the cache, so switching
+    /// back and installing them again fetches nothing.
+    ///
+    /// Without a version change this finds whatever is already installed and
+    /// does not fit - the state the home page warns about - and the same plan
+    /// cleans it up.
     /// </summary>
-    private static IReadOnlyList<StrandedRecipe> FindStranded(
+    private static List<JourneyStep> PlanTakeBacks(
         List<JourneyStep> steps,
         Dictionary<string, Recipe> byId,
         InstallLedger ledger,
+        string from,
         string target)
     {
         if (string.IsNullOrWhiteSpace(target))
@@ -245,7 +235,7 @@ public static class JourneyPlanner
         }
 
         var planned = steps.Select(s => s.Recipe.Id).ToHashSet(StringComparer.OrdinalIgnoreCase);
-        var stranded = new List<StrandedRecipe>();
+        var leaving = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
         foreach (var entry in ledger.Entries)
         {
@@ -255,16 +245,44 @@ public static class JourneyPlanner
             }
 
             // A recipe that names no versions fits all of them, and a downgrade
-            // that is on its way out is not left behind - it is replaced.
+            // is the version path's business, not this one's.
             if (recipe.AppliesTo.Count == 0 || recipe.IsVersionTransition || recipe.Matches(target))
             {
                 continue;
             }
 
-            stranded.Add(new StrandedRecipe(recipe.Id, recipe.Name, recipe.AppliesTo));
+            leaving.Add(recipe.Id);
         }
 
-        return stranded;
+        // Whatever needs something that is leaving cannot stay either.
+        bool grew;
+
+        do
+        {
+            grew = false;
+
+            foreach (var entry in ledger.Entries)
+            {
+                if (leaving.Contains(entry.RecipeId)
+                    || planned.Contains(entry.RecipeId)
+                    || !byId.TryGetValue(entry.RecipeId, out var recipe)
+                    || recipe.IsVersionTransition
+                    || !recipe.Dependencies.Any(leaving.Contains))
+                {
+                    continue;
+                }
+
+                leaving.Add(recipe.Id);
+                grew = true;
+            }
+        }
+        while (grew);
+
+        return ledger.Entries
+            .Where(e => leaving.Contains(e.RecipeId))
+            .OrderByDescending(e => e.InstalledAt)
+            .Select(e => new JourneyStep(byId[e.RecipeId], JourneyReason.TakeBack, JourneyStepState.Pending, from, e.RecipeVersion))
+            .ToList();
     }
 
     // ------------------------------------------------------------------ Helpers

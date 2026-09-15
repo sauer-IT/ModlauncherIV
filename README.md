@@ -235,18 +235,23 @@ Exit codes: `0` success - `1` nothing found - `2` wrong invocation -
 `3` blockers found, nothing executed - `4` output not writable -
 `5` execution failed.
 
-## What a version change leaves behind
+## What a version change takes out
 
 Recipes are checked against the game version when they are installed, so
 everything in the ledger fitted the game as it was. Move the game underneath
-them - a downgrade, or a switch from 1.0.7.0 to 1.0.8.0 - and some of them no
+them - a downgrade, or a switch from 1.0.8.0 to 1.0.7.0 - and some of them no
 longer do, while every file they installed stays exactly where it was put. The
-installation looks untouched and the mods are silent.
+installation looks untouched and the mods are silent, or worse: FusionFix left
+on 1.0.7.0 keeps the game from starting.
 
-The plan page names them now, under *left behind by this*, with the versions
-each was made for. Not a blocker: changing version anyway is a legitimate wish,
-and taking somebody's mods out because a planner thinks they are in the way is
-not a decision a planner gets to make. `mliv journey` prints the same list.
+This used to be listed on the plan page and left alone. Found in the game what
+that costs - four mods to remove by hand before 1.0.7.0 would start - so the
+plan now takes them back itself, from their snapshots, before the version
+change: newest first, so a pack built on FusionFix comes out before FusionFix,
+and anything that needs one of them goes with it. Their files stay in the
+cache; switching back and installing them again downloads nothing. The same
+happens without a version change when something installed already does not
+fit. `mliv journey` shows them as `[take back]`.
 
 ## When a mod has moved on
 
