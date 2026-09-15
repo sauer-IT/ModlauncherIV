@@ -192,4 +192,36 @@ namespace mliv
 
         return mask;
     }
+
+    PadShield ShieldFor(const std::vector<unsigned>& chords)
+    {
+        const unsigned leftDirections = PadLStickUp | PadLStickDown | PadLStickLeft | PadLStickRight;
+        const unsigned rightDirections = PadRStickUp | PadRStickDown | PadRStickLeft | PadRStickRight;
+
+        PadShield shield;
+
+        for (const unsigned chord : chords)
+        {
+            // The low sixteen bits are XInput's own buttons; the stick
+            // directions above them are ours and exist in no pad state.
+            shield.buttons |= chord & 0xFFFFu;
+            shield.leftStick = shield.leftStick || (chord & leftDirections) != 0;
+            shield.rightStick = shield.rightStick || (chord & rightDirections) != 0;
+        }
+
+        return shield;
+    }
+
+    unsigned HideFromGame(const unsigned buttons, const unsigned shield, const bool open, unsigned& swallowed)
+    {
+        if (open)
+        {
+            swallowed = buttons & shield;
+            return buttons & ~shield;
+        }
+
+        // Whatever has been let go since is the game's again.
+        swallowed &= buttons;
+        return buttons & ~swallowed;
+    }
 }

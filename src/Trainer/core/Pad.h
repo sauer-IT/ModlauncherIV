@@ -85,4 +85,30 @@ namespace mliv
     /// Unknown names land in @p unknown and are left out, exactly as with the
     /// keyboard: one wrong name must not take the rest of the line with it.
     unsigned PadChordFromNames(const std::string& text, std::vector<std::string>& unknown);
+
+    /// What the menu takes away from the game while it is open.
+    ///
+    /// The game reads the controller and decides about the phone inside the
+    /// same call, so the only place to keep d-pad up away from the phone is
+    /// before the game sees the state at all. The buttons in here are the ones
+    /// the menu is bound to; a stick only when a binding uses it as a direction.
+    struct PadShield
+    {
+        unsigned buttons = 0;
+        bool leftStick = false;
+        bool rightStick = false;
+    };
+
+    /// The shield for these chords: every real button any of them uses, and
+    /// each stick one of them uses as a direction.
+    PadShield ShieldFor(const std::vector<unsigned>& chords);
+
+    /// The buttons the game gets to see from one reading of the pad.
+    ///
+    /// While @p open, everything in @p shield is hidden. When the menu closes
+    /// with some of those still held - Back, most of the time - they stay
+    /// hidden until they are let go: otherwise the thumb that closed the menu
+    /// would press the same button in the game on the very next frame.
+    /// @p swallowed carries that from one reading to the next, one per pad.
+    unsigned HideFromGame(unsigned buttons, unsigned shield, bool open, unsigned& swallowed);
 }

@@ -18,6 +18,7 @@
 #include "game/GameVersion.h"
 #include "menu/Menu.h"
 
+#include <atomic>
 #include <cmath>
 #include <cstring>
 #include <cstdlib>
@@ -538,6 +539,206 @@ namespace
                     mliv::LogLine("Left over from an earlier version, removed: %ls", path.c_str());
                 }
             }
+        }
+    }
+
+    // ------------------------------------------------------ The pad shield
+    //
+    // The phone on a controller could not be stopped from anywhere the SDK
+    // reaches. The game reads the pad and decides about the phone inside the
+    // same call, and every hook of ours ran after that call had returned -
+    // measured, not assumed. ZMenu IV does not have the problem, and "Disable
+    // Controls in Menu" in its settings says why: it takes the controls away
+    // before the game reads them.
+    //
+    // This does the same, one step narrower. The game does not link XInput; it
+    // loads xinput1_3.dll and looks XInputGetState up by name. That lookup goes
+    // through the game's import table, and one pointer there is enough to hand
+    // it a function of ours instead - nothing in the game's code rewritten. What
+    // it hides are only the buttons this menu is bound to: sticks, triggers and
+    // the rest of the pad keep reaching the game, so walking and driving with
+    // the menu open still work. The trainer's own reading loads its own XInput
+    // and never comes through here.
+
+    /// The menu is open and the pause menu is not. Written by the script tick,
+    /// read on whichever thread the game reads its pad on - hence atomic.
+    std::atomic<bool> g_shieldUp{false};
+
+    /// What the menu is bound to. Set once, from the bindings.
+    std::atomic<unsigned> g_shieldButtons{0};
+    std::atomic<bool> g_shieldLeftStick{false};
+    std::atomic<bool> g_shieldRightStick{false};
+
+    /// The game's own XInputGetState. Null until the game has asked for it.
+    std::atomic<XInputGetStateFn> g_gameXInput{nullptr};
+
+    using GetProcAddressFn = FARPROC (WINAPI*)(HMODULE, LPCSTR);
+    GetProcAddressFn g_realGetProcAddress = nullptr;
+
+    /// What the game calls instead of XInputGetState.
+    unsigned long __stdcall GameXInputGetState(unsigned long slot, void* state)
+    {
+        const XInputGetStateFn real = g_gameXInput.load();
+
+        if (real == nullptr)
+        {
+            return 1167; // ERROR_DEVICE_NOT_CONNECTED
+        }
+
+        const unsigned long result = real(slot, state);
+
+        if (result != 0 || state == nullptr || slot >= 4)
+        {
+            return result;
+        }
+
+        auto* head = static_cast<XInputStateHead*>(state);
+        const bool open = g_shieldUp.load(std::memory_order_relaxed);
+
+        static unsigned swallowed[4]{};
+
+        head->buttons = static_cast<unsigned short>(mliv::HideFromGame(
+            head->buttons, g_shieldButtons.load(std::memory_order_relaxed), open, swallowed[slot]));
+
+        if (open && g_shieldLeftStick.load(std::memory_order_relaxed))
+        {
+            head->leftX = 0;
+            head->leftY = 0;
+        }
+
+        if (open && g_shieldRightStick.load(std::memory_order_relaxed))
+        {
+            head->rightX = 0;
+            head->rightY = 0;
+        }
+
+        return result;
+    }
+
+    /// What the game calls instead of GetProcAddress. Everything but the one
+    /// lookup goes straight through.
+    FARPROC WINAPI GameGetProcAddress(HMODULE module, LPCSTR name)
+    {
+        const FARPROC found = g_realGetProcAddress(module, name);
+
+        // A "name" below 0x10000 is an ordinal, not a string to compare.
+        const bool byName = (reinterpret_cast<ULONG_PTR>(name) >> 16) != 0;
+
+        if (found != nullptr && byName && std::strcmp(name, "XInputGetState") == 0)
+        {
+            g_gameXInput.store(reinterpret_cast<XInputGetStateFn>(found));
+            mliv::LogLine("Controller: the game's pad reading now passes the menu first.");
+            return reinterpret_cast<FARPROC>(&GameXInputGetState);
+        }
+
+        return found;
+    }
+
+    /// The slot in @p module's import table that holds @p function from @p dll.
+    /// Null when there is none - imports by ordinal only, or not imported at all.
+    ULONG_PTR* FindImport(const HMODULE module, const char* dll, const char* function)
+    {
+        const auto* base = reinterpret_cast<const BYTE*>(module);
+        const auto* dos = reinterpret_cast<const IMAGE_DOS_HEADER*>(base);
+        const auto* nt = reinterpret_cast<const IMAGE_NT_HEADERS*>(base + dos->e_lfanew);
+        const IMAGE_DATA_DIRECTORY& imports = nt->OptionalHeader.DataDirectory[IMAGE_DIRECTORY_ENTRY_IMPORT];
+
+        if (imports.VirtualAddress == 0)
+        {
+            return nullptr;
+        }
+
+        for (auto* entry = reinterpret_cast<const IMAGE_IMPORT_DESCRIPTOR*>(base + imports.VirtualAddress);
+             entry->Name != 0; ++entry)
+        {
+            if (_stricmp(reinterpret_cast<const char*>(base + entry->Name), dll) != 0 || entry->OriginalFirstThunk == 0)
+            {
+                continue;
+            }
+
+            auto* names = reinterpret_cast<const IMAGE_THUNK_DATA*>(base + entry->OriginalFirstThunk);
+            auto* slots = reinterpret_cast<IMAGE_THUNK_DATA*>(const_cast<BYTE*>(base) + entry->FirstThunk);
+
+            for (; names->u1.AddressOfData != 0; ++names, ++slots)
+            {
+                if (IMAGE_SNAP_BY_ORDINAL(names->u1.Ordinal))
+                {
+                    continue;
+                }
+
+                const auto* byName = reinterpret_cast<const IMAGE_IMPORT_BY_NAME*>(base + names->u1.AddressOfData);
+
+                if (std::strcmp(reinterpret_cast<const char*>(byName->Name), function) == 0)
+                {
+                    return reinterpret_cast<ULONG_PTR*>(&slots->u1.Function);
+                }
+            }
+        }
+
+        return nullptr;
+    }
+
+    /// Hands the game GameGetProcAddress in place of its own.
+    ///
+    /// Has to happen before the game looks XInput up, which it does while
+    /// starting. The original is taken before the slot is written, so no call
+    /// can ever land in a function whose way onward is not known yet.
+    void InstallPadShield()
+    {
+        ULONG_PTR* slot = FindImport(GetModuleHandleW(nullptr), "KERNEL32.dll", "GetProcAddress");
+
+        if (slot == nullptr)
+        {
+            mliv::LogLine("Controller: GetProcAddress is not in the game's imports - "
+                          "d-pad presses will still reach the game while the menu is open.");
+            return;
+        }
+
+        g_realGetProcAddress = reinterpret_cast<GetProcAddressFn>(*slot);
+
+        DWORD previous = 0;
+
+        if (!VirtualProtect(slot, sizeof(*slot), PAGE_READWRITE, &previous))
+        {
+            mliv::LogLine("Controller: the game's import table could not be written.");
+            return;
+        }
+
+        *slot = reinterpret_cast<ULONG_PTR>(&GameGetProcAddress);
+        VirtualProtect(slot, sizeof(*slot), previous, &previous);
+
+        mliv::LogLine("Controller: waiting for the game to look up XInput.");
+    }
+
+    /// Takes the shield from the bindings. No pad, no shield.
+    void ArmPadShield()
+    {
+        std::vector<unsigned> chords;
+
+        for (const PadBinding& binding : g_pad)
+        {
+            chords.push_back(binding.chord);
+        }
+
+        const mliv::PadShield shield = g_padEnabled ? mliv::ShieldFor(chords) : mliv::PadShield{};
+
+        g_shieldButtons.store(shield.buttons);
+        g_shieldLeftStick.store(shield.leftStick);
+        g_shieldRightStick.store(shield.rightStick);
+    }
+
+    /// Says once, in the log, when the shield never got its chance - the game
+    /// looked XInput up before the trainer was loaded. Otherwise the phone
+    /// coming up would look like this simply not working.
+    void ReportShieldMissing()
+    {
+        static bool reported = false;
+
+        if (!reported && g_shieldUp.load() && g_gameXInput.load() == nullptr)
+        {
+            mliv::LogLine("Controller: the game has not looked up XInput through its import table - "
+                          "the menu cannot keep the d-pad from it.");
+            reported = true;
         }
     }
 
@@ -2842,6 +3043,10 @@ namespace
         // Read once here, used by the pad hook, which cannot ask the game.
         g_pauseMenuOpen = Scripting::IS_PAUSE_MENU_ACTIVE() != 0;
 
+        // And for the game's pad reading, which does not run in this tick.
+        g_shieldUp.store(g_menu->visible() && !g_pauseMenuOpen, std::memory_order_relaxed);
+        ReportShieldMissing();
+
         // Drawing happens here, not in drawingEvent.
         //
         // The game's own scripts draw their HUD from the script tick; DRAW_RECT
@@ -2883,6 +3088,10 @@ void plugin::gameStartupEvent()
         return;
     }
 
+    // First, before anything slower: the game looks XInput up while it starts,
+    // and the shield only works if it is in place by then.
+    InstallPadShield();
+
     const mliv::Config config = LoadConfig(self);
 
     // What did not work out while reading goes into the log, not onto the
@@ -2904,6 +3113,7 @@ void plugin::gameStartupEvent()
 
     LoadXInput();
     BindPad(config);
+    ArmPadShield();
 
     g_renderer.configure(
         config.number("Menu.Left", 0.025f),

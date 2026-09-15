@@ -265,11 +265,53 @@ int main()
 
         const std::vector<unsigned> up = config.chords("Up");
 
-        // The d-pad, deliberately kept: scrolling can bring the phone up and
-        // that was judged the lesser annoyance. The stick is there for anyone
-        // who decides otherwise, which is what these names are for.
+        // The d-pad, deliberately kept. It used to bring the phone up while
+        // scrolling; the shield below is what keeps it from the game now. The
+        // stick stays bindable for anyone who prefers it.
         Check(!up.empty() && up.front() == PadUp, "the template navigates on the d-pad");
         Check(PadButtonFromName("LStickUp") == PadLStickUp, "and the stick is bindable instead");
+    }
+
+    Section("What the game sees while the menu is open");
+    {
+        const std::vector<unsigned> chords = {
+            PadLeftStick | PadRightStick, PadUp, PadDown, PadLeft, PadRight, PadA, PadB,
+        };
+
+        const PadShield shield = ShieldFor(chords);
+
+        Check(shield.buttons == (PadUp | PadDown | PadLeft | PadRight | PadA | PadB | PadLeftStick | PadRightStick),
+              "the shield is exactly the menu's buttons");
+        Check(!shield.leftStick && !shield.rightStick, "the sticks stay the game's when no binding uses them");
+
+        unsigned swallowed = 0;
+        Check(HideFromGame(PadUp, shield.buttons, true, swallowed) == PadNone,
+              "d-pad up does not reach the game - the phone stays in the pocket");
+        Check(HideFromGame(PadUp | PadX | PadRightShoulder, shield.buttons, true, swallowed) == (PadX | PadRightShoulder),
+              "buttons the menu does not use still do");
+
+        swallowed = 0;
+        Check(HideFromGame(PadUp, shield.buttons, false, swallowed) == PadUp,
+              "with the menu closed, nothing is taken away");
+
+        // Closing the menu with B, and the thumb still on it.
+        swallowed = 0;
+        HideFromGame(PadB, shield.buttons, true, swallowed);
+        Check(HideFromGame(PadB, shield.buttons, false, swallowed) == PadNone,
+              "the button that closed the menu stays hidden while it is held");
+        Check(HideFromGame(PadNone, shield.buttons, false, swallowed) == PadNone && swallowed == 0,
+              "until it is let go");
+        Check(HideFromGame(PadB, shield.buttons, false, swallowed) == PadB,
+              "and the next press belongs to the game again");
+
+        swallowed = 0;
+        HideFromGame(PadNone, shield.buttons, true, swallowed);
+        Check(HideFromGame(PadA, shield.buttons, false, swallowed) == PadA,
+              "a press that starts after closing is never swallowed");
+
+        const PadShield sticks = ShieldFor({ PadLStickUp, PadRStickLeft | PadA });
+        Check(sticks.leftStick && sticks.rightStick, "a stick bound as a direction is shielded as well");
+        Check(sticks.buttons == PadA, "and no stick direction is mistaken for a button");
     }
 
     std::printf("\n==============================================\n");
