@@ -148,10 +148,59 @@ Known and not yet fixed:
 
 Set-Content -Path (Join-Path $Out "READ ME FIRST.txt") -Value $note -Encoding utf8
 
+# The text for the GitHub release page. Not attached - pasted into the release
+# description, so what somebody reads before clicking the download is the same
+# thing the note says, in the form GitHub renders.
+$version = ([xml](Get-Content (Join-Path $root "src\Launcher.App\Launcher.App.csproj") -Raw)).Project.PropertyGroup.Version |
+    Where-Object { $_ } | Select-Object -First 1
+
+$releaseNotes = @"
+## Modlauncher IV $version
+
+A guided downgrader and mod installer for GTA IV, with a trainer of its own.
+
+> **Test release.** So far it has run on one PC, with the Rockstar Games Launcher version of the game. Steam and Epic are detected by tested code, but no real installation of either has been in front of it - reports from those are especially welcome.
+
+### Getting started
+
+1. Download **ModlauncherIV.exe** below ($size MB). Nothing to install first.
+2. Windows shows **"Windows protected your PC"**. Click *More info*, then *Run anyway*. The program is not signed with a certificate Windows knows yet - that is reputation, not a finding.
+3. Allow **administrator rights**. GTA IV lives under ``C:\Program Files``, and so do the backups that make every change undoable.
+4. On the first start it offers to install itself and put a shortcut on the desktop.
+5. **Manage mods** walks you through the rest: game version, mods, the plan, then installing.
+
+SHA-256 of ``ModlauncherIV.exe``:
+
+``````
+$hash
+``````
+
+### What it does
+
+- Finds GTA IV from Steam, Epic or the Rockstar Games Launcher.
+- Downgrades the Complete Edition to 1.0.7.0 or 1.0.8.0, and switches between the two later - taking out the mods that will not run on the other version.
+- Downloads mods from where their authors publish them and checks every file against its SHA-256 before writing anything.
+- Backs up every change. Each mod can be taken back from the home page; uninstalling offers to restore the game.
+- **sauer IV Trainer**: F8 on the keyboard, L3+R3 on a controller.
+
+### Good to know
+
+- **Four mods are downloaded by hand**: both texture packs and Liberty's Legacy from Nexus, ZMenu IV from MEGA. Those sites do not allow automatic downloads; the launcher says which file to get and where to put it.
+- **FusionFix** and the mods built on it need game version 1.0.8.0.
+- **Online through GTA Connected**: the trainer does not load in multiplayer.
+- To remove the program: *Apps & features*, "Modlauncher IV", *Uninstall*.
+
+### Something went wrong?
+
+Open an issue in the **Issues** tab of this repository and attach the log - the **Log** button at the bottom of the main page opens it. For problems in the game, attach ``sauer.log`` from the game's ``plugins`` folder as well.
+"@
+
+Set-Content -Path (Join-Path $Out "RELEASE-NOTES.md") -Value $releaseNotes -Encoding utf8
+
 Write-Host ""
 Write-Host "Ready to hand out: $Out" -ForegroundColor Green
 Get-ChildItem $Out | ForEach-Object { "  {0,-24} {1,10:N0} bytes" -f $_.Name, $_.Length }
 Write-Host ""
 Write-Host "  sha256  $hash" -ForegroundColor DarkGray
 Write-Host ""
-Write-Host "Attach ModlauncherIV.exe and SHA256.txt to a GitHub release; the note goes in its text." -ForegroundColor DarkGray
+Write-Host "Attach ModlauncherIV.exe and SHA256.txt to a GitHub release; paste RELEASE-NOTES.md as its description." -ForegroundColor DarkGray

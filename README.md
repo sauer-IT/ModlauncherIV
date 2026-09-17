@@ -1,19 +1,24 @@
 # Modlauncher IV
 
-A guided downgrader and mod installer for GTA IV - and a self-built trainer that
-it ships at the end.
+A guided downgrader and mod installer for GTA IV - and a trainer of its own.
 
-**State: M5 complete, trainer at T6, clickable release** - the program takes you
-from an untouched game to a running trainer without ever touching a command
-line, and it installs itself to the desktop on request.
+- **Finds your game** - Steam, Epic or the Rockstar Games Launcher.
+- **Downgrades the Complete Edition** to 1.0.7.0 or 1.0.8.0, the versions mods are
+  made for, and switches between the two later on - taking out whatever will not
+  run on the other one.
+- **Installs mods from where their authors publish them**, every file checked
+  against its SHA-256 before anything is written.
+- **Backs up every change first.** Each mod can be taken back from the home page,
+  and uninstalling offers to put the game back the way it was found.
+- **sauer IV Trainer** - F8 on the keyboard, L3+R3 on a controller.
+- **Play online** through GTA Connected, with a server list.
 
-The complete path has been run against a real installation: Complete Edition
-1.2.0.59 through the Rockstar Games Launcher, downgraded to 1.0.7.0, plus ASI
-loader, GFWL stub, Visual C++ 2005 runtime and the self-built trainer - 197 files
-under management, all verified unchanged by a counter-check.
+Nothing changes the game except the "Install" step in the wizard - and that only
+after showing the plan, with a snapshot taken first.
 
-The only thing that changes the game is the "Install" step in the wizard, or
-`apply` in the CLI - both only after a prompt and with a snapshot taken first.
+> **Test phase.** So far it has run on one PC, with the Rockstar Games Launcher
+> version of the game. Steam and Epic are detected by tested code, but no real
+> installation of either has been in front of it yet.
 
 ## Download
 

@@ -67,14 +67,15 @@ still carry the old author data and are not meant to leave this machine.
 Every release:
 
 1. The four commands under *Building it*, all green.
-2. `.\scripts\handout.ps1` - puts `ModlauncherIV.exe`, `SHA256.txt` and
-   `READ ME FIRST.txt` into `artifacts\handout`.
+2. `.\scripts\handout.ps1` - puts `ModlauncherIV.exe`, `SHA256.txt`,
+   `READ ME FIRST.txt` and `RELEASE-NOTES.md` into `artifacts\handout`.
 3. Commit the regenerated catalog files (`mliv-trainer.json`, `vc80-runtime.json`,
    `index.json`, `index.json.sig`) and push.
 4. On GitHub: *Releases* - *Draft a new release*, tag `v<Version>` from
    `src/Launcher.App/Launcher.App.csproj` (bump it first for anything after
-   1.0.0), attach `ModlauncherIV.exe` and `SHA256.txt`, and paste the text of
-   `READ ME FIRST.txt` as the description.
+   1.0.0), attach `ModlauncherIV.exe` and `SHA256.txt`, and paste
+   `RELEASE-NOTES.md` as the description. While friends are testing, tick
+   *Set as a pre-release*.
 
 Commits here carry the account name and its noreply address only - check
 `git config user.name` and `git config user.email` before the first commit on a
