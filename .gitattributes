@@ -1,0 +1,6 @@
+# The catalog is signed byte for byte: index.json lists the SHA-256 of every
+# recipe file, and the signature covers index.json. Git for Windows converts
+# line endings on checkout by default, which turns every LF into CRLF - and
+# then no checksum matches and the launcher, rightly, loads no recipe at all.
+# Found by cloning into an empty folder, which is what CI does.
+catalog/** -text
