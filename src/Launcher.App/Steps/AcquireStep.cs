@@ -47,8 +47,27 @@ public sealed class SourceRow(RecipeSource source, string recipeName) : Observab
     public string? Hint
     {
         get => _hint;
-        set => Set(ref _hint, value);
+        set
+        {
+            if (Set(ref _hint, value))
+            {
+                Raise(nameof(ShowDownload));
+            }
+        }
     }
+
+    /// <summary>The page this file is downloaded from by hand, when there is one.</summary>
+    public string? Page => Source.Page;
+
+    /// <summary>
+    /// A button beats an address inside a paragraph. It appears only once the
+    /// file is actually missing - offering a download for something already
+    /// there would be noise.
+    /// </summary>
+    public bool ShowDownload =>
+        Hint is not null
+        && Uri.TryCreate(Page, UriKind.Absolute, out var page)
+        && page.Scheme == Uri.UriSchemeHttps;
 }
 
 public sealed class AcquireStep(Session session) : WizardStep(session)
@@ -144,7 +163,8 @@ public sealed class AcquireStep(Session session) : WizardStep(session)
         }
 
         var acquirer = new SourceAcquirer(
-            Http, Session.CacheRoot, new ExecutionLog(Diary.Line), AppPaths.BundledDirectory);
+            Http, Session.CacheRoot, new ExecutionLog(Diary.Line), AppPaths.BundledDirectory,
+            [AppPaths.Downloads]);
 
         foreach (var row in needed)
         {
@@ -190,6 +210,10 @@ public sealed class AcquireStep(Session session) : WizardStep(session)
                 row.State = "shipped, checksum matches";
                 break;
 
+            case AcquisitionStatus.Supplied:
+                row.State = "found among your files, checksum matches";
+                break;
+
             case AcquisitionStatus.NeedsUserAction:
                 row.State = "has to be supplied by hand";
                 row.Failed = true;
@@ -197,8 +221,11 @@ public sealed class AcquireStep(Session session) : WizardStep(session)
                 // The catalog lists files we may not mirror for legal reasons.
                 // Then the only honest answer is to say exactly which file goes
                 // where — and not merely "failed".
-                row.Hint = result.Source.Note
-                           ?? $"Put {result.Source.FileName} into the working folder and try again.";
+                row.Hint = (result.Source.Note
+                            ?? $"{result.Source.FileName} has to be supplied by hand.")
+                           + " Download it and leave it wherever it lands - the launcher looks in your "
+                           + "download folder and in the working folder below, and recognises it by its "
+                           + "checksum, whatever it ended up being called. Then: Check again.";
                 break;
 
             default:

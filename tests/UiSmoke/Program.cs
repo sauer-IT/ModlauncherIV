@@ -86,6 +86,7 @@ internal static class Program
         CheckOnlineWindow();
         CheckDiary();
         CheckOutdatedMod(session);
+        CheckDownloadPages(session);
         CheckKnownInstallations();
         CheckTooltip(session);
         CheckReinspection(session);
@@ -376,6 +377,34 @@ internal static class Program
         {
             store.Save(InstallLedger.Empty(through.Install.Path));
         }
+    }
+
+    /// <summary>
+    /// Every file the user has to fetch themselves names the page to fetch it
+    /// from, so the wizard can offer a button instead of an address to copy.
+    /// </summary>
+    private static void CheckDownloadPages(Session session)
+    {
+        // Without a URL and not shipped with the launcher: then a person has to
+        // fetch it. The trainer and the Visual C++ runtime have no URL either,
+        // but they travel inside the program and are never anybody's errand.
+        var byHand = (session.Catalog?.Recipes ?? [])
+            .SelectMany(r => r.RequiredFiles.Select(s => (Recipe: r, Source: s)))
+            .Where(x => x.Source.Urls.Count == 0
+                        && !File.Exists(Path.Combine(AppPaths.BundledDirectory, x.Source.FileName)))
+            .ToArray();
+
+        Report("pages: there are files to be supplied by hand", byHand.Length > 0);
+
+        foreach (var (recipe, source) in byHand)
+        {
+            var ok = Uri.TryCreate(source.Page, UriKind.Absolute, out var page)
+                     && page.Scheme == Uri.UriSchemeHttps;
+
+            Report($"pages: {recipe.Id} says where to download {source.FileName}", ok);
+        }
+
+        Console.WriteLine();
     }
 
     /// <summary>

@@ -41,7 +41,12 @@ internal static class FetchCommand
         var log = new ExecutionLog(line => Console.WriteLine($"  {line}"));
         // The CLI knows about the shipped payload as well, so that "fetch mliv-trainer"
         // does not behave differently from the same step in the wizard.
-        var acquirer = new SourceAcquirer(http, cache, log, AppPaths.BundledDirectory);
+        //
+        // And about the download folder, for the same reason: a file the user
+        // fetched by hand is found where it landed, under whatever name it got.
+        var acquirer = new SourceAcquirer(
+            http, cache, log, AppPaths.BundledDirectory,
+            [options.LookIn ?? AppPaths.Downloads]);
         var progress = new ConsoleProgress();
 
         var results = await acquirer.AcquireAllAsync(recipe, progress, CancellationToken.None)
@@ -66,6 +71,7 @@ internal static class FetchCommand
                 AcquisitionStatus.AlreadyPresent => "already there",
                 AcquisitionStatus.Downloaded => "downloaded",
                 AcquisitionStatus.Bundled => "shipped",
+                AcquisitionStatus.Supplied => "supplied",
                 AcquisitionStatus.NeedsUserAction => "MISSING",
                 _ => "ERROR",
             };

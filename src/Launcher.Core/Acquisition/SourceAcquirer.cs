@@ -16,6 +16,14 @@ public enum AcquisitionStatus
     /// </summary>
     Bundled,
 
+    /// <summary>
+    /// Found among the files the user was asked to supply, by checksum rather
+    /// than by name. Nexus and MEGA do not allow a program to download for you,
+    /// so for those the user downloads and the launcher looks - in the working
+    /// directory and in the download folder.
+    /// </summary>
+    Supplied,
+
     /// <summary>No source reachable — the user has to supply the file.</summary>
     NeedsUserAction,
 
@@ -30,7 +38,7 @@ public sealed record AcquisitionResult(
     string? Error)
 {
     public bool Ok => Status is AcquisitionStatus.AlreadyPresent or AcquisitionStatus.Downloaded
-        or AcquisitionStatus.Bundled;
+        or AcquisitionStatus.Bundled or AcquisitionStatus.Supplied;
 }
 
 public sealed record AcquisitionProgress(string FileName, long BytesRead, long? TotalBytes)
@@ -53,10 +61,19 @@ public sealed record AcquisitionProgress(string FileName, long BytesRead, long? 
 /// Folder holding files the launcher brings along itself — its own trainer, for
 /// instance. Null when there is none.
 /// </param>
-public sealed class SourceAcquirer(HttpClient http, string cacheRoot, IExecutionLog log, string? bundledRoot = null)
+public sealed class SourceAcquirer(
+    HttpClient http,
+    string cacheRoot,
+    IExecutionLog log,
+    string? bundledRoot = null,
+    IReadOnlyList<string>? lookIn = null)
 {
     private readonly string _cache = Path.GetFullPath(cacheRoot);
     private readonly string? _bundled = bundledRoot is null ? null : Path.GetFullPath(bundledRoot);
+
+    /// <summary>Folders searched for a file the user supplied. The working directory always.</summary>
+    private readonly IReadOnlyList<string> _lookIn =
+        [Path.GetFullPath(cacheRoot), .. (lookIn ?? []).Select(Path.GetFullPath)];
 
     public async Task<IReadOnlyList<AcquisitionResult>> AcquireAllAsync(
         Recipe recipe,
@@ -112,6 +129,16 @@ public sealed class SourceAcquirer(HttpClient http, string cacheRoot, IExecution
         {
             log.Info($"{source.FileName}: taken from the shipped payload.");
             return new AcquisitionResult(source, AcquisitionStatus.Bundled, target, [], null);
+        }
+
+        // Did the user already fetch it? Before any download, because the ones
+        // that have to be supplied are not the only large files here - somebody
+        // who downloaded a two-gigabyte package by hand should not watch it come
+        // down a second time.
+        if (TryTakeSupplied(source, target))
+        {
+            log.Info($"{source.FileName}: found by its checksum among your files and taken.");
+            return new AcquisitionResult(source, AcquisitionStatus.Supplied, target, [], null);
         }
 
         if (source.Urls.Count == 0)
@@ -271,6 +298,85 @@ public sealed class SourceAcquirer(HttpClient http, string cacheRoot, IExecution
     /// "nothing shipped at all" and deserves a different answer — otherwise
     /// somebody goes looking for a file that was there the whole time.
     /// </param>
+    /// <summary>
+    /// Looks for a file the user downloaded themselves - by checksum, not by name.
+    ///
+    /// Nexus and MEGA hand out links a program cannot follow, so four recipes ask
+    /// the user to fetch the file. Asking them to also put it in a particular
+    /// folder under a particular name is one step too many: a browser that has
+    /// seen the file before saves it as "... (1).zip", and then a launcher looking
+    /// for an exact name says it is missing while it sits right there.
+    ///
+    /// The checksum was always the thing that decided; the name never protected
+    /// anything. So the name stops mattering, and the download folder is searched
+    /// as well - the file can stay where it landed.
+    ///
+    /// Only files of exactly the right size are hashed. That is one cheap look at
+    /// a directory entry per file, and nothing else in those folders is read.
+    /// </summary>
+    private bool TryTakeSupplied(RecipeSource source, string target)
+    {
+        // Without a size every file in the folder would have to be read through.
+        if (source.SizeBytes <= 0)
+        {
+            return false;
+        }
+
+        foreach (var root in _lookIn)
+        {
+            if (!Directory.Exists(root))
+            {
+                continue;
+            }
+
+            IEnumerable<string> candidates;
+
+            try
+            {
+                candidates = Directory.EnumerateFiles(root);
+            }
+            catch (Exception e) when (e is IOException or UnauthorizedAccessException)
+            {
+                continue;
+            }
+
+            foreach (var candidate in candidates)
+            {
+                try
+                {
+                    if (new FileInfo(candidate).Length != source.SizeBytes)
+                    {
+                        continue;
+                    }
+
+                    if (!Hashing.Equal(Hashing.Sha256File(candidate), source.Sha256))
+                    {
+                        continue;
+                    }
+
+                    if (string.Equals(Path.GetFullPath(candidate), target, StringComparison.OrdinalIgnoreCase))
+                    {
+                        return File.Exists(target);
+                    }
+
+                    Directory.CreateDirectory(_cache);
+                    File.Copy(candidate, target, overwrite: true);
+
+                    // Copied, not moved: it is the user's file, in the user's
+                    // folder, and a program that makes downloads disappear is a
+                    // program people stop trusting.
+                    return true;
+                }
+                catch (Exception e) when (e is IOException or UnauthorizedAccessException)
+                {
+                    // A file being written, or one we may not read. Next.
+                }
+            }
+        }
+
+        return false;
+    }
+
     private bool TryTakeBundled(RecipeSource source, string target, out string? error)
     {
         error = null;

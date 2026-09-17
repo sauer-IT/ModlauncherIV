@@ -34,8 +34,19 @@
                             <TextBlock Text="{Binding Hint}"
                                        Foreground="{StaticResource Bad}"
                                        FontSize="12"
+                                       TextWrapping="Wrap"
                                        Margin="0,8,0,0"
                                        Visibility="{Binding Hint, Converter={StaticResource HasContent}}" />
+
+                            <!-- The page this one comes from, one click away. The
+                                 address is in the signed catalog, so what this
+                                 opens is not somebody else's decision. -->
+                            <Button Content="Download"
+                                    Click="OnOpenPage"
+                                    Style="{StaticResource Primary}"
+                                    HorizontalAlignment="Left"
+                                    MinWidth="0" Padding="16,6" Margin="0,10,0,0"
+                                    Visibility="{Binding ShowDownload, Converter={StaticResource Show}}" />
                         </StackPanel>
                     </Border>
                 </DataTemplate>

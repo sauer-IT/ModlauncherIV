@@ -48,6 +48,44 @@ public static class AppPaths
     public static string BundledDirectory { get; } = Path.Combine(AppContext.BaseDirectory, "bundled");
 
     /// <summary>
+    /// Where this user's downloads land.
+    ///
+    /// Searched for the files that cannot be downloaded automatically, so that
+    /// fetching one by hand is all there is to it - no moving, no renaming. The
+    /// registry first, because the folder can be moved and often is; the usual
+    /// place when that says nothing.
+    /// </summary>
+    public static string Downloads { get; } = FindDownloads();
+
+    private static string FindDownloads()
+    {
+        var fallback = Path.Combine(
+            Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), "Downloads");
+
+        try
+        {
+            using var key = Microsoft.Win32.Registry.CurrentUser.OpenSubKey(
+                @"Software\Microsoft\Windows\CurrentVersion\Explorer\User Shell Folders");
+
+            if (key?.GetValue("{374DE290-123F-4565-9164-39C4925E467B}") is string raw && raw.Length > 0)
+            {
+                var expanded = Environment.ExpandEnvironmentVariables(raw);
+
+                if (Directory.Exists(expanded))
+                {
+                    return expanded;
+                }
+            }
+        }
+        catch (Exception e) when (e is System.Security.SecurityException or UnauthorizedAccessException or IOException)
+        {
+            // Then the usual place, which is right on almost every machine.
+        }
+
+        return fallback;
+    }
+
+    /// <summary>
     /// Short, stable identifier for a game path. The path itself is no good as a
     /// folder name, and a bare hash would be useless to look at — hence a
     /// readable name plus a hash against collisions.

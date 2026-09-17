@@ -313,7 +313,8 @@ public sealed class HomeViewModel : Observable
         {
             using var http = new HttpClient { Timeout = TimeSpan.FromMinutes(10) };
             var acquirer = new SourceAcquirer(
-                http, _session.CacheRoot, new ExecutionLog(Diary.Line), AppPaths.BundledDirectory);
+                http, _session.CacheRoot, new ExecutionLog(Diary.Line), AppPaths.BundledDirectory,
+                [AppPaths.Downloads]);
 
             var missing = new List<string>();
 

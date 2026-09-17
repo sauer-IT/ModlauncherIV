@@ -27,6 +27,7 @@ internal sealed record CliOptions(
     string? GamePath = null,
     string? CatalogPath = null,
     string? CachePath = null,
+    string? LookIn = null,
     string? OutputFile = null,
     string? SteamPath = null,
     string? EpicManifests = null,
@@ -70,6 +71,8 @@ internal static class CommandLine
           --epic-manifests <d>   Epic's manifest folder, likewise.
           --catalog <folder>     Recipe directory. Default: ./catalog
           --cache <folder>       Working directory for acquired files.
+          --look-in <folder>     Where to look for files supplied by hand,
+                                 by checksum. Default: your download folder.
           --key <file>           Private key for catalog-sign.
           --public-key <base64>  A different signing key to trust.
           --allow-unsigned       Accept an unsigned catalog. Development only.
@@ -227,6 +230,15 @@ internal static class CommandLine
                     }
 
                     options = options with { CachePath = cache };
+                    break;
+
+                case "--look-in":
+                    if (!TryValue(args, ref i, out var lookIn))
+                    {
+                        return options with { Error = "--look-in expects a folder." };
+                    }
+
+                    options = options with { LookIn = lookIn };
                     break;
 
                 case "--out":

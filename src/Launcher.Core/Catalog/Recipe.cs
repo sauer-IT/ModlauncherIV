@@ -15,13 +15,20 @@ namespace ModlauncherIV.Core.Catalog;
 /// <param name="SizeBytes">Expected size. Allows refusing before downloading.</param>
 /// <param name="Urls">Sources in order. Empty = the user supplies the file.</param>
 /// <param name="Note">Hint for the user, e.g. where the file comes from.</param>
+/// <param name="Page">
+/// The page a person downloads this from, when no program can - Nexus, MEGA.
+/// The launcher offers it as a button rather than leaving the address inside a
+/// paragraph to be copied out by hand. Only https is opened, and it comes out of
+/// the signed catalog, so nobody else decides where that button leads.
+/// </param>
 public sealed record RecipeSource(
     string Id,
     string FileName,
     string Sha256,
     long SizeBytes,
     IReadOnlyList<string> Urls,
-    string? Note = null);
+    string? Note = null,
+    string? Page = null);
 
 /// <summary>
 /// A recipe: one self-contained, reversible change to the game.

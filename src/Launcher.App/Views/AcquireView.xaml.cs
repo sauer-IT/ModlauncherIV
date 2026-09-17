@@ -27,6 +27,31 @@ public partial class AcquireView : UserControl
         });
     }
 
+    /// <summary>
+    /// Opens the page a file has to be downloaded from by hand.
+    ///
+    /// The address comes out of the signed catalog and is checked again here:
+    /// https only. A button that starts a program with whatever a text field
+    /// said would be the one place in this launcher where that is possible.
+    /// </summary>
+    private void OnOpenPage(object sender, RoutedEventArgs e)
+    {
+        if ((sender as Button)?.DataContext is not SourceRow row
+            || !Uri.TryCreate(row.Page, UriKind.Absolute, out var page)
+            || page.Scheme != Uri.UriSchemeHttps)
+        {
+            return;
+        }
+
+        Diary.Info($"Opening the download page for {row.FileName}: {page}");
+
+        Process.Start(new ProcessStartInfo
+        {
+            FileName = page.AbsoluteUri,
+            UseShellExecute = true,
+        });
+    }
+
     private async void OnRetry(object sender, RoutedEventArgs e)
     {
         if (DataContext is not AcquireStep step)

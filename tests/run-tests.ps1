@@ -1207,6 +1207,41 @@ Assert (Test-Path (Join-Path $xGame "update\update.img")) "exclude: and 'from' s
 $r = Invoke-Mliv @("verify", "--path", $xGame, "--catalog", $xCatalog, "--allow-unsigned")
 Assert (-not ($r.Output -match "missing after extraction|missing")) "exclude: verification does not miss what was left out"
 
+# ----------------------------------------------------------- Supplied by hand
+#
+# Four recipes cannot be downloaded: Nexus and MEGA hand out links a program
+# cannot follow. Asking for the file is unavoidable; asking for it under an
+# exact name in an exact folder is not. A browser that has seen the file before
+# saves it as "... (1).zip", and the launcher used to call that missing.
+
+Write-Host "`n== Supplied by hand ==" -ForegroundColor Cyan
+
+$given = Join-Path $work "given"
+$givenCache = Join-Path $work "given-cache"
+New-Item -ItemType Directory -Path $given, $givenCache -Force | Out-Null
+
+Copy-Item (Join-Path $cache "xliveless.dll") (Join-Path $given "xliveless (1).dll")
+
+$r = Invoke-Mliv @("fetch", "test-fetch-present", "--catalog", $catalog, "--cache", $givenCache,
+                   "--look-in", $given, "--allow-unsigned")
+Assert ($r.ExitCode -eq 0) "supplied: a file under another name is found by its checksum"
+Assert ($r.Output -match "supplied") "supplied: and says where it came from"
+Assert (Test-Path (Join-Path $givenCache "xliveless.dll")) "supplied: it lands under the name the recipe uses"
+Assert (Test-Path (Join-Path $given "xliveless (1).dll")) "supplied: the user's own file stays where it was"
+
+# Same size, different content. The size is only how candidates are picked;
+# the checksum is what decides.
+$wrongDir = Join-Path $work "given-wrong"
+$wrongCache = Join-Path $work "given-wrong-cache"
+New-Item -ItemType Directory -Path $wrongDir, $wrongCache -Force | Out-Null
+$sameSize = (Get-Item (Join-Path $cache "xliveless.dll")).Length
+[IO.File]::WriteAllBytes((Join-Path $wrongDir "xliveless.dll"), (New-Object byte[] $sameSize))
+
+$r = Invoke-Mliv @("fetch", "test-fetch-present", "--catalog", $catalog, "--cache", $wrongCache,
+                   "--look-in", $wrongDir, "--allow-unsigned")
+Assert ($r.ExitCode -ne 0) "supplied: a file of the same size but other content is not taken"
+Assert (-not (Test-Path (Join-Path $wrongCache "xliveless.dll"))) "supplied: and nothing is copied in"
+
 # ------------------------------------------------------- Catalog key backup
 #
 # The signing key cannot be rebuilt - its public half is in every launcher

@@ -185,7 +185,7 @@ $hash
 
 ### Good to know
 
-- **Four mods are downloaded by hand**: both texture packs and Liberty's Legacy from Nexus, ZMenu IV from MEGA. Those sites do not allow automatic downloads; the launcher says which file to get and where to put it.
+- **Four mods are downloaded by hand**: both texture packs and Liberty's Legacy from Nexus, ZMenu IV from MEGA. Those sites do not allow automatic downloads. The launcher names the page, and once the file is in your download folder it finds it there by its checksum - no moving, no renaming. Then click *Check again*.
 - **FusionFix** and the mods built on it need game version 1.0.8.0.
 - **Online through GTA Connected**: the trainer does not load in multiplayer.
 - To remove the program: *Apps & features*, "Modlauncher IV", *Uninstall*.
